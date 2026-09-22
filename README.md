@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trade OS
 
-## Getting Started
+Trade OS is a personal trading performance tracker for manual practice, prop-firm accounts, funded accounts, and personal live accounts. It records the plan, execution, result, psychology, and rule compliance of each trade without confusing profitability with trade quality.
 
-First, run the development server:
+The product is manual-first. It does not place trades, generate signals, recommend trades, or embed OpenAI. Later CSV, MT4, MT5, and broker imports will map into the same canonical trade model.
+
+## Current status
+
+Phase 00 establishes the project contract, architecture, metric definitions, database direction, decimal arithmetic foundation, and test tooling. Database migrations, authentication, and product workflows begin in later phases.
+
+## Technology
+
+- Next.js 16 App Router and React 19
+- strict TypeScript
+- Tailwind CSS 4 and shadcn/ui
+- Supabase PostgreSQL, Auth, and Storage
+- Decimal.js for authoritative financial arithmetic
+- Vitest for deterministic domain tests
+- npm as the package manager
+
+## Local setup
+
+Requirements:
+
+- Node.js 20.9 or newer
+- npm
+- a Supabase project for Phase 01 and later
 
 ```bash
+npm install
+copy .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The existing `.env` is local-only and must not be committed. Use `.env.example` as the safe configuration contract. Browser code may receive only the Supabase project URL and publishable/legacy anon key. Service-role and direct-database credentials are server-only.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quality commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+- [Project contract](docs/PROJECT_CONTRACT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Trading metrics](docs/TRADING_METRICS.md)
+- [Database direction](docs/DATABASE.md)
+- [Phase specifications](docs/phases)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Non-negotiable engineering rules
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- No more than one React component per file.
+- Use shadcn/ui instead of recreating standard UI primitives.
+- Keep business and financial logic outside React components.
+- Never use JavaScript `number` for authoritative monetary arithmetic.
+- Validate external, form, and API inputs with Zod.
+- Enable RLS for every user-accessible table and scope records to the authenticated owner.
+- Preserve original planned values after a trade becomes `OPEN`.
+- Derive analytics from persisted data; never hardcode performance numbers.
+- Complete only the active project phase.
