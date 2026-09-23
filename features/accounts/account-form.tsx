@@ -13,7 +13,7 @@ interface AccountFormProps {
 
 export function AccountForm({ account }: AccountFormProps) {
   return (
-    <form action={saveAccount} className="grid gap-4 sm:grid-cols-2">
+    <form action={saveAccount} className="grid gap-5 sm:grid-cols-2">
       {account ? <input type="hidden" name="id" value={account.id} /> : null}
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor={`name-${account?.id ?? "new"}`}>Account name</Label>
@@ -78,8 +78,8 @@ export function AccountForm({ account }: AccountFormProps) {
         <Label htmlFor={`notes-${account?.id ?? "new"}`}>Notes</Label>
         <Textarea id={`notes-${account?.id ?? "new"}`} name="notes" defaultValue={account?.notes ?? ""} placeholder="Optional account context" />
       </div>
-      <div className="sm:col-span-2">
-        <Button type="submit">{account ? "Save account" : "Create account"}</Button>
+      <div className="border-t border-border/70 pt-5 sm:col-span-2">
+        <Button type="submit" className="w-full sm:w-auto">{account ? "Save account" : "Create account"}</Button>
       </div>
     </form>
   );

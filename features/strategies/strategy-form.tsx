@@ -18,11 +18,11 @@ export function StrategyForm({ strategy }: { strategy?: StrategyRow }) {
         <Label htmlFor={`strategy-description-${strategy?.id ?? "new"}`}>Description</Label>
         <Textarea id={`strategy-description-${strategy?.id ?? "new"}`} name="description" defaultValue={strategy?.description ?? ""} placeholder="Describe the broad trading methodology." />
       </div>
-      <div className="flex items-center justify-between rounded-lg border p-3">
+      <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/35 p-4">
         <div><Label htmlFor={`strategy-active-${strategy?.id ?? "new"}`}>Active</Label><p className="text-xs text-muted-foreground">Active strategies appear in trade-entry choices.</p></div>
         <Switch id={`strategy-active-${strategy?.id ?? "new"}`} name="active" defaultChecked={strategy?.active ?? true} />
       </div>
-      <Button type="submit">{strategy ? "Save strategy" : "Create strategy"}</Button>
+      <Button type="submit" className="w-full sm:w-auto">{strategy ? "Save strategy" : "Create strategy"}</Button>
     </form>
   );
 }

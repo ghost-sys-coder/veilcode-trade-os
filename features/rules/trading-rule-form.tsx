@@ -46,11 +46,11 @@ export function TradingRuleForm({ accounts, rule }: TradingRuleFormProps) {
         <Input id={`rule-limit-${rule?.id ?? "new"}`} name="numericLimit" inputMode="decimal" defaultValue={rule?.numeric_limit ?? ""} placeholder="Optional" />
         <p className="text-xs text-muted-foreground">Use this only when the rule has a measurable threshold, such as 1% risk or three trades.</p>
       </div>
-      <div className="flex items-center justify-between rounded-lg border p-3">
+      <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/35 p-4">
         <div><Label htmlFor={`rule-active-${rule?.id ?? "new"}`}>Active</Label><p className="text-xs text-muted-foreground">Only active rules are reviewed against new trades.</p></div>
         <Switch id={`rule-active-${rule?.id ?? "new"}`} name="active" defaultChecked={rule?.active ?? true} />
       </div>
-      <Button type="submit">{rule ? "Save rule" : "Create rule"}</Button>
+      <Button type="submit" className="w-full sm:w-auto">{rule ? "Save rule" : "Create rule"}</Button>
     </form>
   );
 }

@@ -31,11 +31,11 @@ export function SetupForm({ setup, strategies }: SetupFormProps) {
         <Label htmlFor={`setup-description-${setup?.id ?? "new"}`}>Description</Label>
         <Textarea id={`setup-description-${setup?.id ?? "new"}`} name="description" defaultValue={setup?.description ?? ""} placeholder="Describe the repeatable conditions that define this setup." />
       </div>
-      <div className="flex items-center justify-between rounded-lg border p-3">
+      <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/35 p-4">
         <div><Label htmlFor={`setup-active-${setup?.id ?? "new"}`}>Active</Label><p className="text-xs text-muted-foreground">Inactive setups remain in history but are hidden from new entries.</p></div>
         <Switch id={`setup-active-${setup?.id ?? "new"}`} name="active" defaultChecked={setup?.active ?? true} />
       </div>
-      <Button type="submit" disabled={strategies.length === 0}>{setup ? "Save setup" : "Create setup"}</Button>
+      <Button type="submit" className="w-full sm:w-auto" disabled={strategies.length === 0}>{setup ? "Save setup" : "Create setup"}</Button>
     </form>
   );
 }
