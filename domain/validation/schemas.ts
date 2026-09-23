@@ -3,6 +3,7 @@ import { z } from "zod";
 import { classifyClosedTradeOutcome } from "@/domain/trades/financials";
 import { parseDecimal } from "@/domain/money/decimal";
 import {
+  ADJUSTMENT_TYPES,
   ACCOUNT_PLATFORMS,
   ACCOUNT_STATUSES,
   ACCOUNT_TYPES,
@@ -310,6 +311,24 @@ export const monthlyReviewSchema = z.object({
   lessons: optionalTextSchema,
   focusNextMonth: optionalTextSchema,
   notes: optionalTextSchema,
+});
+
+export const accountAdjustmentSchema = z.object({
+  accountId: z.string().uuid(),
+  type: z.enum(ADJUSTMENT_TYPES),
+  amount: decimalStringSchema.refine((value) => !parseDecimal(value).isZero(), "Amount cannot be zero."),
+  occurredAt: z.string().datetime(),
+  notes: optionalTextSchema,
+}).superRefine((value, context) => {
+  if (value.type === "BALANCE_CORRECTION" && (!value.notes || value.notes.length < 5)) {
+    context.addIssue({ code: "custom", path: ["notes"], message: "Balance corrections require a meaningful note." });
+  }
+});
+
+export const tagSchema = z.object({
+  id: optionalUuidSchema,
+  name: z.string().trim().min(1).max(40),
+  color: z.preprocess(emptyToUndefined, z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional()),
 });
 
 export type TradingAccountInput = z.infer<typeof tradingAccountSchema>;

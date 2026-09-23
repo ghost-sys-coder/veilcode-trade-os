@@ -14,4 +14,5 @@ export type TradeReviewRow = Database["public"]["Tables"]["trade_reviews"]["Row"
 export type TradeRuleResultRow = Database["public"]["Tables"]["trade_rule_results"]["Row"];
 export type TradeScreenshotRow = Database["public"]["Tables"]["trade_screenshots"]["Row"];
 export type TradePlanCorrectionRow = Database["public"]["Tables"]["trade_plan_corrections"]["Row"];
+export type TradeManagementEventRow = Database["public"]["Tables"]["trade_management_events"]["Row"];
 export type AccountAdjustmentRow = Database["public"]["Tables"]["account_adjustments"]["Row"];

@@ -3,6 +3,7 @@ import type {
   SetupRow,
   StrategyRow,
   TradeExecutionReviewRow,
+  TradeManagementEventRow,
   TradePlanCorrectionRow,
   TradePsychologyRow,
   TradeReviewRow,
@@ -27,6 +28,7 @@ export interface ManualTradeRecord {
   ruleResults: TradeRuleResultRow[];
   screenshots: TradeScreenshotRow[];
   corrections: TradePlanCorrectionRow[];
+  managementEvents: TradeManagementEventRow[];
 }
 
 export interface TradeFormProps {

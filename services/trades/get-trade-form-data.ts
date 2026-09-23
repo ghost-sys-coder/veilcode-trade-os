@@ -39,7 +39,7 @@ export async function getManualTradeRecord(supabase: SupabaseClient<Database>, t
   if (tradeResult.error) throw new Error(tradeResult.error.message);
   if (!tradeResult.data) return null;
 
-  const [targets, execution, psychology, review, ruleResults, screenshots, corrections] = await Promise.all([
+  const [targets, execution, psychology, review, ruleResults, screenshots, corrections, managementEvents] = await Promise.all([
     supabase.from("trade_targets").select("*").eq("trade_id", tradeId).order("created_at"),
     supabase.from("trade_execution_reviews").select("*").eq("trade_id", tradeId).maybeSingle(),
     supabase.from("trade_psychology").select("*").eq("trade_id", tradeId).maybeSingle(),
@@ -47,8 +47,9 @@ export async function getManualTradeRecord(supabase: SupabaseClient<Database>, t
     supabase.from("trade_rule_results").select("*").eq("trade_id", tradeId),
     supabase.from("trade_screenshots").select("*").eq("trade_id", tradeId).order("created_at"),
     supabase.from("trade_plan_corrections").select("*").eq("trade_id", tradeId).order("created_at"),
+    supabase.from("trade_management_events").select("*").eq("trade_id", tradeId).order("occurred_at"),
   ]);
-  const error = targets.error ?? execution.error ?? psychology.error ?? review.error ?? ruleResults.error ?? screenshots.error ?? corrections.error;
+  const error = targets.error ?? execution.error ?? psychology.error ?? review.error ?? ruleResults.error ?? screenshots.error ?? corrections.error ?? managementEvents.error;
   if (error) throw new Error(error.message);
 
   const trade = tradeResult.data;
@@ -97,5 +98,10 @@ export async function getManualTradeRecord(supabase: SupabaseClient<Database>, t
     ruleResults: ruleResults.data ?? [],
     screenshots: screenshots.data ?? [],
     corrections: corrections.data ?? [],
+    managementEvents: (managementEvents.data ?? []).map((event) => ({
+      ...event,
+      price: normalizeNullableNumeric(event.price),
+      volume: normalizeNullableNumeric(event.volume),
+    })),
   };
 }

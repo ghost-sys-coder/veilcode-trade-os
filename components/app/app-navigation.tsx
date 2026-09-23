@@ -2,9 +2,12 @@
 
 import {
   BookOpenText,
+  CalendarDays,
   ChartNoAxesCombined,
+  ClipboardPenLine,
   Landmark,
   LayoutDashboard,
+  ListChecks,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,7 +18,10 @@ import { cn } from "@/lib/utils";
 const navigationItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/accounts", label: "Accounts", icon: Landmark },
+  { href: "/trades", label: "Trade journal", icon: ListChecks },
   { href: "/trades/new", label: "Log trade", icon: BookOpenText },
+  { href: "/journal/daily", label: "Daily journal", icon: ClipboardPenLine },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/strategies", label: "Strategies", icon: ChartNoAxesCombined },
   { href: "/rules", label: "Rules", icon: ShieldCheck },
 ] as const;
@@ -37,7 +43,9 @@ export function AppNavigation({ variant = "desktop" }: AppNavigationProps) {
     >
       {navigationItems.map((item) => {
         const Icon = item.icon;
-        const active = item.href ? pathname === item.href || pathname.startsWith(`${item.href.split("/new")[0]}/`) : false;
+        const active = item.href === "/trades"
+          ? pathname === "/trades" || (/^\/trades\/[^/]+$/.test(pathname) && pathname !== "/trades/new")
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
         const classes = cn(
           "group relative flex items-center gap-3 text-sm font-medium transition-all duration-200",
           mobile

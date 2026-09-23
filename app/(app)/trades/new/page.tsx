@@ -36,7 +36,7 @@ export default async function NewTradePage({ searchParams }: NewTradePageProps) 
           <Landmark className="mx-auto size-8 text-primary" />
           <h2 className="mt-4 text-lg font-semibold">Create an account first</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Every trade belongs to an account so balance, risk, and currency precision remain reproducible.</p>
-          <Button render={<Link href="/accounts" />} className="mt-5">Go to accounts</Button>
+          <Button render={<Link href="/accounts" />} nativeButton={false} className="mt-5">Go to accounts</Button>
         </div>
       )}
     </div>

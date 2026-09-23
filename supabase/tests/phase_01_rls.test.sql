@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(43);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -347,6 +347,35 @@ select throws_ok(
   '23514',
   'A closed trade cannot return to an earlier lifecycle state.',
   'a closed trade cannot regress to OPEN'
+);
+
+select lives_ok(
+  $$insert into public.tags (user_id, name) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Phase03Tag')$$,
+  'owner can create a journal tag'
+);
+select is(
+  (select normalized_name from public.tags where name = 'Phase03Tag'),
+  'phase03tag',
+  'tag display form is preserved while normalized form is generated'
+);
+select throws_ok(
+  $$insert into public.tags (user_id, name) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'phase03tag')$$,
+  '23505',
+  'duplicate key value violates unique constraint "tags_owner_normalized_name_unique"',
+  'tag names are unique case-insensitively for one user'
+);
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+select is(
+  (select count(*)::integer from public.tags where name = 'Phase03Tag'),
+  0,
+  'another user cannot read owner tags'
+);
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+select lives_ok(
+  $$insert into public.daily_logs (user_id, account_id, trading_date, notes)
+    select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', id, '2026-09-23', 'Phase 03 daily log'
+    from public.trading_accounts where name = 'RLS Test Account'$$,
+  'owner can create one account-day journal log'
 );
 
 select * from finish();

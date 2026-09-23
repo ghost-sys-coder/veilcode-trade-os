@@ -1,4 +1,5 @@
 import { Landmark, Plus, WalletCards } from "lucide-react";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -70,11 +71,11 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
               <TableBody>
                 {accounts.map((account) => (
                   <TableRow key={account.id}>
-                    <TableCell><p className="font-semibold">{account.name}</p><p className="mt-0.5 text-xs text-muted-foreground">{account.broker_name ?? account.platform} · {account.currency_code}</p></TableCell>
+                    <TableCell><Link href={`/accounts/${account.id}`} className="font-semibold hover:text-primary hover:underline">{account.name}</Link><p className="mt-0.5 text-xs text-muted-foreground">{account.broker_name ?? account.platform} · {account.currency_code}</p></TableCell>
                     <TableCell className="capitalize">{account.account_type.replaceAll("_", " ").toLowerCase()}</TableCell>
                     <TableCell><Badge variant={account.status === "ACTIVE" ? "default" : "secondary"}>{account.status}</Badge></TableCell>
                     <TableCell className="text-right font-mono font-semibold tabular-nums">{account.currency_code} {account.derived_balance}</TableCell>
-                    <TableCell className="text-right"><a href={`#edit-${account.id}`} className="text-xs font-semibold text-primary hover:underline hover:underline-offset-4">Edit</a></TableCell>
+                    <TableCell className="text-right"><Link href={`/accounts/${account.id}`} className="text-xs font-semibold text-primary hover:underline hover:underline-offset-4">View</Link></TableCell>
                   </TableRow>
                 ))}
                 {accounts.length === 0 ? <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">No accounts yet. Use the form to create your first account.</TableCell></TableRow> : null}
