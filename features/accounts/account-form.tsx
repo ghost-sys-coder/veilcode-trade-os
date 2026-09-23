@@ -11,6 +11,14 @@ interface AccountFormProps {
   account?: TradingAccountRow;
 }
 
+const accountTypeItems = ACCOUNT_TYPES.map((value) => ({
+  label: value.replaceAll("_", " "),
+  value,
+}));
+
+const platformItems = ACCOUNT_PLATFORMS.map((value) => ({ label: value, value }));
+const statusItems = ACCOUNT_STATUSES.map((value) => ({ label: value, value }));
+
 export function AccountForm({ account }: AccountFormProps) {
   return (
     <form action={saveAccount} className="grid gap-5 sm:grid-cols-2">
@@ -22,7 +30,7 @@ export function AccountForm({ account }: AccountFormProps) {
       </div>
       <div className="space-y-2">
         <Label>Account type</Label>
-        <Select name="accountType" defaultValue={account?.account_type ?? "DEMO"}>
+        <Select name="accountType" defaultValue={account?.account_type ?? "DEMO"} items={accountTypeItems}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
             {ACCOUNT_TYPES.map((value) => <SelectItem key={value} value={value}>{value.replaceAll("_", " ")}</SelectItem>)}
@@ -31,7 +39,7 @@ export function AccountForm({ account }: AccountFormProps) {
       </div>
       <div className="space-y-2">
         <Label>Platform</Label>
-        <Select name="platform" defaultValue={account?.platform ?? "OTHER"}>
+        <Select name="platform" defaultValue={account?.platform ?? "OTHER"} items={platformItems}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
             {ACCOUNT_PLATFORMS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
@@ -44,7 +52,7 @@ export function AccountForm({ account }: AccountFormProps) {
       </div>
       <div className="space-y-2">
         <Label>Status</Label>
-        <Select name="status" defaultValue={account?.status ?? "ACTIVE"}>
+        <Select name="status" defaultValue={account?.status ?? "ACTIVE"} items={statusItems}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
             {ACCOUNT_STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}

@@ -13,12 +13,22 @@ interface SetupFormProps {
 }
 
 export function SetupForm({ setup, strategies }: SetupFormProps) {
+  const strategyItems = strategies.map((strategy) => ({
+    label: strategy.name,
+    value: strategy.id,
+  }));
+
   return (
     <form action={saveSetup} className="space-y-4">
       {setup ? <input type="hidden" name="id" value={setup.id} /> : null}
       <div className="space-y-2">
         <Label>Parent strategy</Label>
-        <Select name="strategyId" defaultValue={setup?.strategy_id ?? strategies[0]?.id} required>
+        <Select
+          name="strategyId"
+          defaultValue={setup?.strategy_id ?? strategies[0]?.id}
+          items={strategyItems}
+          required
+        >
           <SelectTrigger className="w-full"><SelectValue placeholder="Choose a strategy" /></SelectTrigger>
           <SelectContent>{strategies.map((strategy) => <SelectItem key={strategy.id} value={strategy.id}>{strategy.name}</SelectItem>)}</SelectContent>
         </Select>

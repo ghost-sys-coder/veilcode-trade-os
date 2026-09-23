@@ -13,7 +13,17 @@ interface TradingRuleFormProps {
   rule?: TradingRuleRow;
 }
 
+const ruleTypeItems = RULE_TYPES.map((value) => ({
+  label: value.replaceAll("_", " "),
+  value,
+}));
+
 export function TradingRuleForm({ accounts, rule }: TradingRuleFormProps) {
+  const accountItems = [
+    { label: "All accounts", value: "ALL" },
+    ...accounts.map((account) => ({ label: account.name, value: account.id })),
+  ];
+
   return (
     <form action={saveTradingRule} className="space-y-4">
       {rule ? <input type="hidden" name="id" value={rule.id} /> : null}
@@ -28,14 +38,14 @@ export function TradingRuleForm({ accounts, rule }: TradingRuleFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Rule type</Label>
-          <Select name="ruleType" defaultValue={rule?.rule_type ?? "DESCRIPTIVE"}>
+          <Select name="ruleType" defaultValue={rule?.rule_type ?? "DESCRIPTIVE"} items={ruleTypeItems}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>{RULE_TYPES.map((value) => <SelectItem key={value} value={value}>{value.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label>Account scope</Label>
-          <Select name="accountId" defaultValue={rule?.account_id ?? "ALL"}>
+          <Select name="accountId" defaultValue={rule?.account_id ?? "ALL"} items={accountItems}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="ALL">All accounts</SelectItem>{accounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
           </Select>
