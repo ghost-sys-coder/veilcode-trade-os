@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const navigationItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/accounts", label: "Accounts", icon: Landmark },
-  { href: null, label: "Journal", icon: BookOpenText, note: "Phase 02" },
+  { href: "/trades/new", label: "Log trade", icon: BookOpenText },
   { href: "/strategies", label: "Strategies", icon: ChartNoAxesCombined },
   { href: "/rules", label: "Rules", icon: ShieldCheck },
 ] as const;
@@ -37,7 +37,7 @@ export function AppNavigation({ variant = "desktop" }: AppNavigationProps) {
     >
       {navigationItems.map((item) => {
         const Icon = item.icon;
-        const active = item.href ? pathname === item.href : false;
+        const active = item.href ? pathname === item.href || pathname.startsWith(`${item.href.split("/new")[0]}/`) : false;
         const classes = cn(
           "group relative flex items-center gap-3 text-sm font-medium transition-all duration-200",
           mobile
@@ -48,20 +48,6 @@ export function AppNavigation({ variant = "desktop" }: AppNavigationProps) {
             : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           !item.href && "cursor-not-allowed opacity-55",
         );
-
-        if (!item.href) {
-          return (
-            <span key={item.label} className={classes} aria-disabled="true">
-              <Icon className="size-[1.125rem] shrink-0" strokeWidth={1.8} aria-hidden="true" />
-              <span>{item.label}</span>
-              {!mobile ? (
-                <span className="ml-auto text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {item.note}
-                </span>
-              ) : null}
-            </span>
-          );
-        }
 
         return (
           <Link key={item.label} href={item.href} className={classes} aria-current={active ? "page" : undefined}>

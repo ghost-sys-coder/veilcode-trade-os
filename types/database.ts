@@ -1157,7 +1157,32 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      replace_trade_targets: {
+        Args: {
+          p_targets: Json
+          p_trade_id: string
+        }
+        Returns: undefined
+      }
+      update_trade_target_execution: {
+        Args: {
+          p_targets: Json
+          p_trade_id: string
+        }
+        Returns: undefined
+      }
+      correct_trade_plan_value: {
+        Args: {
+          p_field_name: string
+          p_new_value: string
+          p_reason: string
+          p_trade_id: string
+          p_trade_target_id?: string | null
+        }
+        Returns: Database["public"]["Tables"]["trade_plan_corrections"]["Row"]
+      }
+    }
     Enums: {
       account_platform: "MT4" | "MT5" | "TRADINGVIEW" | "WEB" | "OTHER"
       account_status: "ACTIVE" | "PAUSED" | "PASSED" | "FAILED" | "CLOSED"

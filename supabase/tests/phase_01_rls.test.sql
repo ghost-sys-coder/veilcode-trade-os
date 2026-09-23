@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(38);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -91,7 +91,7 @@ select throws_ok(
 );
 
 select lives_ok(
-  $$select private.correct_trade_plan_value(id, 'planned_stop_loss', '1.096'::jsonb, 'Corrected copied stop') from public.trades where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'$$,
+  $$select public.correct_trade_plan_value(id, 'planned_stop_loss', '1.096', 'Corrected copied stop') from public.trades where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'$$,
   'approved correction succeeds'
 );
 
@@ -107,7 +107,7 @@ select is(
 );
 
 select throws_ok(
-  $$select private.correct_trade_plan_value(id, 'planned_stop_loss', '1.097'::jsonb, '') from public.trades where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'$$,
+  $$select public.correct_trade_plan_value(id, 'planned_stop_loss', '1.097', '') from public.trades where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'$$,
   '22023',
   'A meaningful correction reason is required.',
   'missing correction reason is rejected'
@@ -115,7 +115,7 @@ select throws_ok(
 
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
 select throws_ok(
-  $$select private.correct_trade_plan_value(trade_id, 'planned_stop_loss', '1.097'::jsonb, 'Unauthorized attempt') from phase_01_test_context$$,
+  $$select public.correct_trade_plan_value(trade_id, 'planned_stop_loss', '1.097', 'Unauthorized attempt') from phase_01_test_context$$,
   'P0002',
   'Trade not found.',
   'unauthorized correction is rejected'
@@ -166,9 +166,55 @@ select
   50
 from phase_01_target_context;
 
+select lives_ok(
+  $$select public.replace_trade_targets(
+      (select trade_id from phase_01_target_context),
+      '[{"label":"TP1","planned_price":"1.21000","planned_close_percentage":"50"},{"label":"TP2","planned_price":"1.22000","planned_close_percentage":"50"}]'::jsonb
+    )$$,
+  'editable planned targets can be replaced atomically'
+);
+select is(
+  (select count(*)::integer from public.trade_targets where trade_id = (select trade_id from phase_01_target_context)),
+  2,
+  'atomic target replacement persists the complete valid set'
+);
+select throws_ok(
+  $$select public.replace_trade_targets(
+      (select trade_id from phase_01_target_context),
+      '[{"label":"Invalid","planned_price":"1.23000","planned_close_percentage":"101"}]'::jsonb
+    )$$,
+  '23514',
+  'Planned target percentages cannot exceed 100%.',
+  'invalid target replacement is rejected'
+);
+select is(
+  (select string_agg(label, ',' order by label) from public.trade_targets where trade_id = (select trade_id from phase_01_target_context)),
+  'TP1,TP2',
+  'a rejected target replacement preserves the previous complete set'
+);
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+select throws_ok(
+  $$select public.replace_trade_targets(
+      (select trade_id from phase_01_target_context),
+      '[]'::jsonb
+    )$$,
+  'P0002',
+  'Trade not found.',
+  'another user cannot replace trade targets'
+);
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+
 update public.trades
 set status = 'OPEN'
 where id = (select trade_id from phase_01_target_context);
+
+select throws_ok(
+  $$update public.trades set status = 'DRAFT' where id = (select trade_id from phase_01_target_context)$$,
+  '23514',
+  'An open trade can only remain open or be closed.',
+  'an open trade cannot regress to a pre-open lifecycle state'
+);
 
 select throws_ok(
   $$insert into public.trade_targets (user_id, trade_id, label, planned_price, planned_close_percentage)
@@ -189,22 +235,45 @@ select throws_ok(
   'Protected planned target values require the correction workflow.',
   'planned target values cannot be directly updated after OPEN'
 );
-select lives_ok(
-  $$update public.trade_targets set actual_fill_price = 1.21050, actual_close_percentage = 50 where trade_id = (select trade_id from phase_01_target_context)$$,
-  'actual partial-exit facts remain editable during trade management'
+select throws_ok(
+  $$select public.update_trade_target_execution(
+      (select trade_id from phase_01_target_context),
+      jsonb_build_array(
+        jsonb_build_object('id', (select id from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and label = 'TP1'), 'actual_fill_price', '1.21050', 'actual_close_percentage', '50'),
+        jsonb_build_object('id', (select id from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and label = 'TP2'), 'actual_close_percentage', '51')
+      )
+    )$$,
+  '23514',
+  'Actual target percentages cannot exceed 100%.',
+  'invalid execution target updates are rejected atomically'
+);
+select is(
+  (select count(*)::integer from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and actual_close_percentage is not null),
+  0,
+  'rejected execution facts leave every target unchanged'
 );
 select lives_ok(
-  $$select private.correct_trade_plan_value(
+  $$select public.update_trade_target_execution(
+      (select trade_id from phase_01_target_context),
+      jsonb_build_array(
+        jsonb_build_object('id', (select id from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and label = 'TP1'), 'actual_fill_price', '1.21050', 'actual_close_percentage', '50'),
+        jsonb_build_object('id', (select id from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and label = 'TP2'))
+      )
+    )$$,
+  'actual partial-exit facts are saved atomically during trade management'
+);
+select lives_ok(
+  $$select public.correct_trade_plan_value(
       (select trade_id from phase_01_target_context),
       'target.label',
-      '"TP1 corrected"'::jsonb,
+      'TP1 corrected',
       'Corrected target label',
-      (select id from public.trade_targets where trade_id = (select trade_id from phase_01_target_context))
+      (select id from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and label = 'TP1')
     )$$,
   'approved target correction succeeds'
 );
 select is(
-  (select label from public.trade_targets where trade_id = (select trade_id from phase_01_target_context)),
+  (select label from public.trade_targets where trade_id = (select trade_id from phase_01_target_context) and planned_price = 1.21000),
   'TP1 corrected',
   'target correction updates the current planned value'
 );
@@ -272,6 +341,12 @@ select lives_ok(
   $$update public.trades set net_pnl = 0, outcome = 'BREAK_EVEN'
     where id = (select trade_id from phase_01_target_context)$$,
   'a partially managed trade with zero final PnL becomes BREAK_EVEN'
+);
+select throws_ok(
+  $$update public.trades set status = 'OPEN', outcome = null where id = (select trade_id from phase_01_target_context)$$,
+  '23514',
+  'A closed trade cannot return to an earlier lifecycle state.',
+  'a closed trade cannot regress to OPEN'
 );
 
 select * from finish();

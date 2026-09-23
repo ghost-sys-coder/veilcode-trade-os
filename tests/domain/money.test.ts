@@ -7,7 +7,11 @@ import {
   subtractDecimal,
 } from "@/domain/money/decimal";
 import {
+  calculateHoldingDurationSeconds,
   calculateNetPnl,
+  calculatePlannedRiskPercentage,
+  calculateRiskMultiple,
+  calculateStopDistance,
   classifyClosedTradeOutcome,
   outcomeMatchesNetPnl,
 } from "@/domain/trades/financials";
@@ -32,6 +36,22 @@ describe("decimal arithmetic", () => {
         currencyPrecision: 2,
       }),
     ).toBe("490.00");
+  });
+
+  it("calculates planned risk percentage and R with decimal arithmetic", () => {
+    expect(calculatePlannedRiskPercentage("250", "100000")).toBe("0.250000");
+    expect(calculateRiskMultiple("500", "250")).toBe("2.00000000");
+    expect(calculateRiskMultiple("25", "0")).toBeNull();
+  });
+
+  it("calculates holding duration and pip-aware stop distance", () => {
+    expect(
+      calculateHoldingDurationSeconds("2026-09-23T10:00:00.000Z", "2026-09-23T11:30:00.000Z"),
+    ).toBe(5400);
+    expect(calculateStopDistance("1.1050", "1.1000", "0.0001")).toEqual({
+      value: "50.00",
+      unit: "pips",
+    });
   });
 });
 

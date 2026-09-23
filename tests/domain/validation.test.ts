@@ -5,9 +5,11 @@ import {
   executionReviewSchema,
   monthlyReviewSchema,
   psychologyReviewSchema,
+  screenshotMetadataSchema,
   setupSchema,
   strategySchema,
   tradeReviewSchema,
+  tradeRuleResultSchema,
   tradeSchema,
   tradeTargetSchema,
   tradingAccountSchema,
@@ -78,6 +80,25 @@ describe("foundation validation schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts draft, planned, and open manual trades", () => {
+    for (const status of ["DRAFT", "PLANNED", "OPEN"] as const) {
+      expect(tradeSchema.safeParse({
+        accountId,
+        instrumentId,
+        status,
+        sourceType: "MANUAL",
+        direction: "SELL",
+        orderType: "SELL_LIMIT",
+        session: "NEW_YORK",
+        plannedEntry: "1.2500",
+        actualEntry: "1.2495",
+        commission: "0",
+        swap: "0",
+        otherFees: "0",
+      }).success).toBe(true);
+    }
+  });
+
   it("validates closed outcomes after currency normalization and partial exits", () => {
     const closedTrade = {
       accountId,
@@ -122,6 +143,9 @@ describe("foundation validation schemas", () => {
     expect(executionReviewSchema.safeParse({ tradeId, closedEarly: false, enteredEarly: false, enteredLate: false, chasedPrice: false, addedToPosition: false, revengeTrade: false, overRisked: false }).success).toBe(true);
     expect(psychologyReviewSchema.safeParse({ tradeId, fearInfluenced: false, greedInfluenced: false, fomoInfluenced: false }).success).toBe(true);
     expect(tradeReviewSchema.safeParse({ tradeId, whatWentWell: "", whatWentWrong: "", improvement: "", lessonLearned: "" }).success).toBe(true);
+    expect(tradeTargetSchema.safeParse({ tradeId, label: "TP1", plannedPrice: "1.10500", plannedClosePercentage: "101" }).success).toBe(false);
+    expect(screenshotMetadataSchema.safeParse({ tradeId, category: "AT_ENTRY", timeframe: "5M", capturedAt: "2026-09-23T10:00:00.000Z" }).success).toBe(true);
+    expect(tradeRuleResultSchema.safeParse({ tradeId, tradingRuleId: accountId, complied: false, notes: "Stop was widened." }).success).toBe(true);
   });
 
   it("validates daily, weekly, and monthly reflection inputs", () => {

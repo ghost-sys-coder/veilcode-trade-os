@@ -38,6 +38,8 @@ export async function getAccountsWithDerivedBalances(
 
       return {
         ...account,
+        starting_balance: normalizeSupabaseNumeric(account.starting_balance),
+        leverage: account.leverage === null ? null : normalizeSupabaseNumeric(account.leverage),
         derived_balance: deriveAccountBalance({
           startingBalance: normalizeSupabaseNumeric(account.starting_balance),
           closedTradeNetPnl: tradesResult.data.map((trade) =>

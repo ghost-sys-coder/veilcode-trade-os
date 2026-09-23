@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { classifyClosedTradeOutcome } from "@/domain/trades/financials";
+import { parseDecimal } from "@/domain/money/decimal";
 import {
   ACCOUNT_PLATFORMS,
   ACCOUNT_STATUSES,
@@ -10,6 +11,7 @@ import {
   ORDER_TYPES,
   RETAKE_DECISIONS,
   RULE_TYPES,
+  SCREENSHOT_CATEGORIES,
   STOP_ACTIONS,
   TIMEFRAMES,
   TRADE_DIRECTIONS,
@@ -215,9 +217,24 @@ export const tradeTargetSchema = z.object({
   label: z.string().trim().min(1).max(40),
   plannedPrice: decimalStringSchema,
   actualFillPrice: optionalDecimalSchema,
-  plannedClosePercentage: optionalNonNegativeDecimalSchema,
-  actualClosePercentage: optionalNonNegativeDecimalSchema,
+  plannedClosePercentage: z.preprocess(emptyToUndefined, nonNegativeDecimalSchema.refine((value) => parseDecimal(value).lte(100), "Percentage cannot exceed 100.").optional()),
+  actualClosePercentage: z.preprocess(emptyToUndefined, nonNegativeDecimalSchema.refine((value) => parseDecimal(value).lte(100), "Percentage cannot exceed 100.").optional()),
   pnlContribution: optionalDecimalSchema,
+});
+
+export const screenshotMetadataSchema = z.object({
+  tradeId: z.string().uuid(),
+  category: z.enum(SCREENSHOT_CATEGORIES),
+  timeframe: z.enum(TIMEFRAMES).optional(),
+  caption: optionalTextSchema,
+  capturedAt: z.string().datetime().optional(),
+});
+
+export const tradeRuleResultSchema = z.object({
+  tradeId: z.string().uuid(),
+  tradingRuleId: z.string().uuid(),
+  complied: z.boolean(),
+  notes: optionalTextSchema,
 });
 
 export const executionReviewSchema = z.object({
