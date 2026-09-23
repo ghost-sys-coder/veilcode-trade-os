@@ -11,6 +11,10 @@ import {
   classifyClosedTradeOutcome,
   outcomeMatchesNetPnl,
 } from "@/domain/trades/financials";
+import {
+  InvalidSupabaseNumericError,
+  normalizeSupabaseNumeric,
+} from "@/lib/supabase/numeric";
 
 describe("decimal arithmetic", () => {
   it("adds and subtracts decimal strings without binary floating-point drift", () => {
@@ -28,6 +32,22 @@ describe("decimal arithmetic", () => {
         currencyPrecision: 2,
       }),
     ).toBe("490.00");
+  });
+});
+
+describe("Supabase numeric boundary", () => {
+  it("normalizes numeric strings without using binary arithmetic", () => {
+    expect(normalizeSupabaseNumeric("100000.12500000")).toBe("100000.125");
+  });
+
+  it("normalizes runtime numbers before domain arithmetic", () => {
+    expect(normalizeSupabaseNumeric(100000.125)).toBe("100000.125");
+  });
+
+  it("rejects non-numeric API values", () => {
+    expect(() => normalizeSupabaseNumeric({ value: "10.00" })).toThrow(
+      InvalidSupabaseNumericError,
+    );
   });
 });
 

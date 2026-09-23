@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
+
+import { ThemeInitializer } from "@/components/app/theme-initializer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,26 +22,16 @@ export const metadata: Metadata = {
   description: "A manual-first operating system for disciplined trading performance.",
 };
 
-const themeInitializer = `
-  try {
-    const savedTheme = localStorage.getItem("trade-os-theme");
-    const dark = savedTheme ? savedTheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.classList.toggle("dark", dark);
-    document.documentElement.style.colorScheme = dark ? "dark" : "light";
-  } catch {}
-`;
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <Script id="trade-os-theme" strategy="beforeInteractive">
-          {themeInitializer}
-        </Script>
+        <ThemeInitializer />
         {children}
       </body>
     </html>

@@ -53,7 +53,7 @@ export default async function DashboardPage() {
         title="Performance foundation"
         description="Build the reference system your journal and analytics will rely on. Every value below comes from your saved workspace."
         actions={
-          <Button render={<Link href="/accounts" />}>
+          <Button render={<Link href="/accounts" />} nativeButton={false}>
             Manage accounts
             <ArrowRight data-icon="inline-end" />
           </Button>

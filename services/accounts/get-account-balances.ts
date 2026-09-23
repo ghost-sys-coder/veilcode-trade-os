@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { deriveAccountBalance } from "@/domain/accounts/balance";
+import { normalizeSupabaseNumeric } from "@/lib/supabase/numeric";
 import type { Database } from "@/types/database";
 import type { TradingAccountRow } from "@/types/database-helpers";
 
@@ -38,9 +39,13 @@ export async function getAccountsWithDerivedBalances(
       return {
         ...account,
         derived_balance: deriveAccountBalance({
-          startingBalance: account.starting_balance,
-          closedTradeNetPnl: tradesResult.data.map((trade) => trade.net_pnl ?? "0"),
-          accountAdjustments: adjustmentsResult.data.map((adjustment) => adjustment.amount),
+          startingBalance: normalizeSupabaseNumeric(account.starting_balance),
+          closedTradeNetPnl: tradesResult.data.map((trade) =>
+            normalizeSupabaseNumeric(trade.net_pnl ?? "0"),
+          ),
+          accountAdjustments: adjustmentsResult.data.map((adjustment) =>
+            normalizeSupabaseNumeric(adjustment.amount),
+          ),
           currencyPrecision: account.currency_precision,
         }),
       };
