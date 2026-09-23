@@ -19,8 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         Skip to content
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
-        <Link href="/dashboard" className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border/80 bg-sidebar lg:flex">
+        <Link href="/dashboard" className="flex h-16 shrink-0 items-center gap-3 border-b border-border/80 px-6">
           <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
             <BarChart3 className="size-5" strokeWidth={2.2} aria-hidden="true" />
           </span>
@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 flex h-16 items-center border-b border-border/80 bg-background/95 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center border-b border-border/80 bg-background/95 px-4 backdrop-blur-md sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-2.5 lg:hidden">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <BarChart3 className="size-4" aria-hidden="true" />
