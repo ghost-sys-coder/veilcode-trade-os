@@ -6,7 +6,9 @@ The product is manual-first. It does not place trades, generate signals, recomme
 
 ## Current status
 
-Phase 00 establishes the project contract, architecture, metric definitions, database direction, decimal arithmetic foundation, and test tooling. Database migrations, authentication, and product workflows begin in later phases.
+Phase 01 is implemented. The application now includes Supabase cookie-based authentication, the canonical database schema and RLS policies, private screenshot storage, starter reference data, strict shared domain/Zod types, deterministic account-balance derivation, and foundational CRUD for accounts, strategies, setups, and trading rules.
+
+Trade entry remains intentionally out of scope until Phase 02.
 
 ## Technology
 
@@ -32,7 +34,9 @@ copy .env.example .env.local
 npm run dev
 ```
 
-The existing `.env` is local-only and must not be committed. Use `.env.example` as the safe configuration contract. Browser code may receive only the Supabase project URL and publishable/legacy anon key. Service-role and direct-database credentials are server-only.
+The existing `.env` is local-only and must not be committed. Use `.env.example` as the safe configuration contract. Browser code may receive only the Supabase project URL and publishable/legacy anon key. Service-role and direct-database credentials are server-only. This project also accepts `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` on the server for compatibility with the supplied local environment.
+
+Apply the database migration with the Supabase CLI before using the application. On networks without direct IPv6 database access, use the project-specific Supavisor pooler URL as the CLI `--db-url`.
 
 ## Quality commands
 
@@ -40,8 +44,14 @@ The existing `.env` is local-only and must not be committed. Use `.env.example` 
 npm run typecheck
 npm run lint
 npm test
+npm run test:db
+npm run db:types
 npm run build
 ```
+
+`npm run test:db` requires `TRADE_OS_TEST_DATABASE_URL` to be set to a database connection string. The test suite is transactional and rolls its test records back.
+
+`npm run db:types` requires `TRADE_OS_DATABASE_URL` and regenerates complete schema types by introspecting the live PostgreSQL catalog. This is the Docker-free equivalent used in this project when the official Supabase database-URL generator cannot start its local metadata container.
 
 ## Documentation
 

@@ -1,0 +1,30 @@
+import type { Database } from "@/types/database";
+
+type Tables = Database["public"]["Tables"];
+type Row<TableName extends keyof Tables> = Tables[TableName]["Row"];
+
+export type AccountAdjustment = Row<"account_adjustments">;
+export type AccountGoal = Row<"account_goals">;
+export type AccountSnapshot = Row<"account_snapshots">;
+export type DailyLog = Row<"daily_logs">;
+export type ImportBatch = Row<"import_batches">;
+export type Instrument = Row<"instruments">;
+export type MonthlyReview = Row<"monthly_reviews">;
+export type Profile = Row<"profiles">;
+export type PropFirmConfig = Row<"prop_firm_configs">;
+export type Setup = Row<"setups">;
+export type Strategy = Row<"strategies">;
+export type Tag = Row<"tags">;
+export type Trade = Row<"trades">;
+export type TradeExecutionReview = Row<"trade_execution_reviews">;
+export type TradeManagementEvent = Row<"trade_management_events">;
+export type TradePlanCorrection = Row<"trade_plan_corrections">;
+export type TradePsychology = Row<"trade_psychology">;
+export type TradeReview = Row<"trade_reviews">;
+export type TradeRuleResult = Row<"trade_rule_results">;
+export type TradeScreenshot = Row<"trade_screenshots">;
+export type TradeTag = Row<"trade_tags">;
+export type TradeTarget = Row<"trade_targets">;
+export type TradingAccount = Row<"trading_accounts">;
+export type TradingRule = Row<"trading_rules">;
+export type WeeklyReview = Row<"weekly_reviews">;

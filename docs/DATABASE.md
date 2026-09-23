@@ -2,7 +2,7 @@
 
 ## Phase boundary
 
-This document defines the intended schema and security model. Phase 00 creates no database tables or migrations. Phase 01 will translate this design into reviewed Supabase migrations and database tests.
+Phase 01 translates this design into the reviewed `20260922231801_phase_01_foundation_schema.sql` migration, the additive `20260923005302_phase_01_blocker_fixes.sql` hardening migration, and transactional database/RLS tests. Later phases must extend that migration history rather than modifying an already-applied migration.
 
 ## General conventions
 
@@ -138,7 +138,7 @@ Adjustments are signed consistently: deposits increase balance, withdrawals decr
 
 ## Storage
 
-The future private `trade-screenshots` bucket will restrict MIME types and file size. A path convention such as `{user_id}/{trade_id}/{object_id}` supports simple ownership policies. The database stores object paths and metadata. Storage objects are manipulated through the Storage API, not by directly editing the storage schema.
+The private `trade-screenshots` bucket restricts MIME types and file size. The `{user_id}/{trade_id}/{object_id}` path convention supports simple ownership policies. The database stores object paths and metadata. Storage objects are manipulated through the Storage API, not by directly editing the storage schema.
 
 ## Migration and verification policy
 
@@ -146,7 +146,8 @@ The future private `trade-screenshots` bucket will restrict MIME types and file 
 - Keep grants, RLS, constraints, functions, and related indexes in reviewed migrations.
 - Seed only clearly labeled development/reference data.
 - Run database/RLS tests and Supabase advisors before accepting schema work.
-- No Phase 01 migration exists as part of Phase 00.
+- Both Phase 01 migrations are applied to the configured Supabase project and are covered by `supabase/tests/phase_01_rls.test.sql`.
+- Regenerate `types/database.ts` from the live catalog with `npm run db:types`; do not maintain a hand-written subset of the schema.
 
 ## Current documentation references
 

@@ -55,7 +55,7 @@ Important calculations must not exist only inside a component, SQL view, or char
 
 ## Supabase boundary
 
-Phase 01 will configure separate browser and server clients using `@supabase/ssr`. Browser-safe clients receive only the project URL and publishable key (or legacy anon key). Server-only secrets stay in server-only modules.
+Phase 01 configures separate browser and server clients using `@supabase/ssr`. Browser-safe clients receive only the project URL and publishable key (or legacy anon key). Server-only secrets stay in server-only modules.
 
 Session handling uses cookie-based SSR. Authorization is enforced in PostgreSQL with explicit grants and operation-specific RLS policies. Application checks improve errors and UX but do not replace RLS.
 
@@ -65,7 +65,7 @@ Privileged `security definer` functions live in a private schema, set a safe emp
 
 ## Storage architecture
 
-Trade screenshots use a private Supabase Storage bucket. Object paths begin with the authenticated owner ID and then the trade ID. Storage policies cover read, insert, update, and delete separately; replacement/upsert requires select, insert, and update permissions. Application records store the stable object path and metadata, never a permanent public URL.
+Trade screenshots use the private `trade-screenshots` Supabase Storage bucket. Object paths begin with the authenticated owner ID and then the trade ID. Storage policies cover read, insert, update, and delete separately; replacement/upsert requires select, insert, and update permissions. Application records store the stable object path and metadata, never a permanent public URL.
 
 Downloads use authenticated access or short-lived signed URLs. File type and size restrictions belong on the bucket and in input validation.
 
