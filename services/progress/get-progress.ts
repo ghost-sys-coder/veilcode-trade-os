@@ -19,6 +19,40 @@ import type { Database } from "@/types/database";
 type AccountRow = Database["public"]["Tables"]["trading_accounts"]["Row"];
 type ConfigRow = Database["public"]["Tables"]["prop_firm_configs"]["Row"];
 type GoalRow = Database["public"]["Tables"]["account_goals"]["Row"];
+type GoalProgressEventRow = Database["public"]["Tables"]["account_goal_progress_events"]["Row"];
+
+function normalizeNullableNumeric(value: unknown): string | null {
+  return value === null || value === undefined ? null : normalizeSupabaseNumeric(value);
+}
+
+export function normalizeProgressAccountRow(row: AccountRow): AccountRow {
+  return {
+    ...row,
+    starting_balance: normalizeSupabaseNumeric(row.starting_balance),
+    leverage: normalizeNullableNumeric(row.leverage),
+  };
+}
+
+function normalizeProgressConfigRow(row: ConfigRow | null): ConfigRow | null {
+  if (!row) return null;
+
+  return {
+    ...row,
+    profit_target_value: normalizeNullableNumeric(row.profit_target_value),
+    daily_loss_value: normalizeNullableNumeric(row.daily_loss_value),
+    total_loss_value: normalizeNullableNumeric(row.total_loss_value),
+    consistency_limit_percent: normalizeNullableNumeric(row.consistency_limit_percent),
+    profitable_day_min_pnl: normalizeSupabaseNumeric(row.profitable_day_min_pnl),
+  };
+}
+
+function normalizeProgressGoalRow(row: GoalRow): GoalRow {
+  return { ...row, target_value: normalizeSupabaseNumeric(row.target_value) };
+}
+
+function normalizeProgressGoalEventRow(row: GoalProgressEventRow): GoalProgressEventRow {
+  return { ...row, progress_value: normalizeSupabaseNumeric(row.progress_value) };
+}
 
 export interface ProgressGoal extends GoalRow {
   currentValue: string | null;
@@ -95,7 +129,7 @@ export async function getProgressDataset(
   ]);
   const referenceError = accountsResult.error ?? profileResult.error;
   if (referenceError) throw new Error(referenceError.message);
-  const accounts = accountsResult.data ?? [];
+  const accounts = (accountsResult.data ?? []).map(normalizeProgressAccountRow);
   const account = accounts.find((item) => item.id === requestedAccountId) ?? accounts[0] ?? null;
   const empty: PropProgressDataset = {
     accounts, account: null, config: null, currentBalance: null, currentEquity: null, latestSnapshotAt: null,
@@ -112,7 +146,8 @@ export async function getProgressDataset(
     supabase.from("trades").select("id,status,opened_at,closed_at,net_pnl,actual_r,setup_id").eq("account_id", account.id),
     supabase.from("account_goals").select("*").eq("account_id", account.id).order("created_at", { ascending: false }),
   ]);
-  const goalIds = (goalsResult.data ?? []).map((goal) => goal.id);
+  const goalRows = (goalsResult.data ?? []).map(normalizeProgressGoalRow);
+  const goalIds = goalRows.map((goal) => goal.id);
   const tradeIds = (tradesResult.data ?? []).map((trade) => trade.id);
   const [eventsResult, statusEventsResult, reviewsResult, ruleReviewsResult] = await Promise.all([
     goalIds.length
@@ -152,7 +187,7 @@ export async function getProgressDataset(
   const cumulativeR = closed.reduce((sum, trade) => sum.plus(trade.actualR ?? "0"), new Decimal(0)).toFixed(4);
   const latestSnapshot = ledger.snapshots[0] ?? null;
   const currentEquity = latestSnapshot?.equity ?? null;
-  const config = configResult.data;
+  const config = normalizeProgressConfigRow(configResult.data);
   const timezone = config?.trading_day_timezone ?? profileResult.data?.timezone ?? "UTC";
   const today = dateKey(new Date().toISOString(), timezone);
   const startOfToday = ledger.timeline.filter((event) => dateKey(event.occurredAt, timezone) < today).at(-1)?.balance ?? account.starting_balance;
@@ -169,13 +204,13 @@ export async function getProgressDataset(
   let tradingDays = null;
   if (config) {
     if (config.profit_target_mode && config.profit_target_value !== null) {
-      profitTarget = calculateProfitTarget({ startingBalance: account.starting_balance, currentBalance: ledger.derivedBalance, mode: config.profit_target_mode, value: normalizeSupabaseNumeric(config.profit_target_value), currencyPrecision: precision });
+      profitTarget = calculateProfitTarget({ startingBalance: account.starting_balance, currentBalance: ledger.derivedBalance, mode: config.profit_target_mode, value: config.profit_target_value, currencyPrecision: precision });
     }
     if (config.daily_loss_mode && config.daily_loss_value !== null && config.daily_loss_baseline && config.daily_loss_measure) {
       const baseline = config.daily_loss_baseline === "STARTING_BALANCE" ? account.starting_balance
         : config.daily_loss_baseline === "START_OF_DAY_BALANCE" ? startOfToday : startOfDayEquity;
       const measure = config.daily_loss_measure === "BALANCE" ? ledger.derivedBalance : currentDayEquity;
-      dailyLossBuffer = calculateStaticLossBuffer({ mode: config.daily_loss_mode, value: normalizeSupabaseNumeric(config.daily_loss_value), percentageBasis: baseline, measurementBasis: baseline, currentMeasure: measure, currencyPrecision: precision });
+      dailyLossBuffer = calculateStaticLossBuffer({ mode: config.daily_loss_mode, value: config.daily_loss_value, percentageBasis: baseline, measurementBasis: baseline, currentMeasure: measure, currencyPrecision: precision });
     }
     if (config.total_loss_mode && config.total_loss_value !== null && config.total_loss_baseline && config.total_loss_measure) {
       const baseline = config.total_loss_baseline === "STARTING_BALANCE" ? account.starting_balance
@@ -183,7 +218,7 @@ export async function getProgressDataset(
       const measure = config.total_loss_measure === "BALANCE" ? ledger.derivedBalance : currentEquity;
       maximumLossBuffer = calculateStaticLossBuffer({
         mode: config.total_loss_mode,
-        value: normalizeSupabaseNumeric(config.total_loss_value),
+        value: config.total_loss_value,
         percentageBasis: baseline,
         measurementBasis: baseline,
         currentMeasure: measure,
@@ -196,7 +231,7 @@ export async function getProgressDataset(
       : config.consistency_formula === "OTHER"
         ? { available: false, percentage: null, bestDayProfit: "0", totalPositiveProfit: "0", reason: "This custom consistency formula is documented but not calculated automatically." }
         : null;
-    tradingDays = summarizeTradingDays(trades, timezone, normalizeSupabaseNumeric(config.profitable_day_min_pnl));
+    tradingDays = summarizeTradingDays(trades, timezone, config.profitable_day_min_pnl);
   }
 
   const reviewTradeIds = new Set((reviewsResult.data ?? []).map((item) => item.trade_id));
@@ -216,9 +251,11 @@ export async function getProgressDataset(
   const setupNames = new Map((setupsResult.data ?? []).map((item) => [item.id, item.name]));
   const setupCounts = new Map<string, number>();
   for (const trade of tradesResult.data ?? []) if (trade.setup_id) setupCounts.set(trade.setup_id, (setupCounts.get(trade.setup_id) ?? 0) + 1);
-  const goalEvents = (eventsResult.data ?? []).filter((event) => (goalsResult.data ?? []).some((goal) => goal.id === event.goal_id));
+  const goalEvents = (eventsResult.data ?? [])
+    .filter((event) => goalRows.some((goal) => goal.id === event.goal_id))
+    .map(normalizeProgressGoalEventRow);
   const latestGoalValue = new Map<string, string>();
-  for (const event of goalEvents) if (!latestGoalValue.has(event.goal_id)) latestGoalValue.set(event.goal_id, normalizeSupabaseNumeric(event.progress_value));
+  for (const event of goalEvents) if (!latestGoalValue.has(event.goal_id)) latestGoalValue.set(event.goal_id, event.progress_value);
   const accountReturn = parseDecimal(account.starting_balance).isZero() ? null : parseDecimal(ledger.derivedBalance).minus(account.starting_balance).div(account.starting_balance).times(100).toFixed(4);
   const goalValue = (goal: GoalRow): { value: string | null; reason: string | null } => {
     switch (goal.goal_type) {
@@ -234,9 +271,9 @@ export async function getProgressDataset(
       default: return { value: null, reason: "Unsupported goal type." };
     }
   };
-  const goals: ProgressGoal[] = (goalsResult.data ?? []).map((goal) => {
+  const goals: ProgressGoal[] = goalRows.map((goal) => {
     const resolved = goalValue(goal);
-    return { ...goal, currentValue: resolved.value, percentage: resolved.value === null ? null : goalProgressPercentage(resolved.value, normalizeSupabaseNumeric(goal.target_value)), unavailableReason: resolved.reason };
+    return { ...goal, currentValue: resolved.value, percentage: resolved.value === null ? null : goalProgressPercentage(resolved.value, goal.target_value), unavailableReason: resolved.reason };
   });
 
   return {

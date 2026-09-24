@@ -60,7 +60,11 @@ export async function getAccountLedger(supabase: SupabaseClient<Database>, accou
   );
 
   return {
-    account: { ...account, starting_balance: normalizeMoney(normalizeSupabaseNumeric(account.starting_balance), account.currency_precision) },
+    account: {
+      ...account,
+      starting_balance: normalizeMoney(normalizeSupabaseNumeric(account.starting_balance), account.currency_precision),
+      leverage: account.leverage === null ? null : normalizeSupabaseNumeric(account.leverage),
+    },
     trades,
     adjustments,
     adjustmentClassifications: classificationsResult.data ?? [],
@@ -68,6 +72,9 @@ export async function getAccountLedger(supabase: SupabaseClient<Database>, accou
       ...snapshot,
       balance: normalizeMoney(normalizeSupabaseNumeric(snapshot.balance), account.currency_precision),
       equity: snapshot.equity === null ? null : normalizeMoney(normalizeSupabaseNumeric(snapshot.equity), account.currency_precision),
+      unrealized_pnl: snapshot.unrealized_pnl === null
+        ? null
+        : normalizeMoney(normalizeSupabaseNumeric(snapshot.unrealized_pnl), account.currency_precision),
     })),
     timeline,
     derivedBalance: timeline.at(-1)?.balance ?? normalizeMoney(normalizeSupabaseNumeric(account.starting_balance), account.currency_precision),

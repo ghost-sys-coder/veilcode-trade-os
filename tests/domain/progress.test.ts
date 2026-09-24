@@ -8,8 +8,26 @@ import {
   goalProgressPercentage,
   summarizeTradingDays,
 } from "@/domain/progress/metrics";
+import { normalizeProgressAccountRow } from "@/services/progress/get-progress";
 
 describe("Phase 06 progress calculations", () => {
+  it("normalizes number-shaped Supabase account numerics before decimal calculations", () => {
+    const account = normalizeProgressAccountRow({
+      starting_balance: 100000,
+      leverage: 100,
+    } as unknown as Parameters<typeof normalizeProgressAccountRow>[0]);
+
+    expect(account.starting_balance).toBe("100000");
+    expect(account.leverage).toBe("100");
+    expect(calculateProfitTarget({
+      startingBalance: account.starting_balance,
+      currentBalance: "101250.25",
+      mode: "AMOUNT",
+      value: "5000",
+      currencyPrecision: 2,
+    })).toMatchObject({ current: "1250.25", remaining: "3749.75" });
+  });
+
   it("calculates amount and percentage profit targets from starting balance", () => {
     expect(configuredAmount("PERCENT", "10", "100000", 2)).toBe("10000.00");
     expect(configuredAmount("AMOUNT", "8250.125", "100000", 2)).toBe("8250.13");
