@@ -230,3 +230,22 @@ Last updated: 2026-09-24
 | Accent usage | chart tokens `--chart-*`; drawdown uses `--loss` |
 
 **Pattern notes:** Charts use shared shadcn-style containers, accessible Recharts layers, deterministic axes, and restrained token colors. Render a precise explanatory empty state when the sample cannot support a series.
+
+### Desktop sidebar shell
+
+File: `app/(app)/layout.tsx`
+Last updated: 2026-09-24
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-sidebar` |
+| Border | `border-r border-border/80`; footer `border-t border-sidebar-border` |
+| Border radius | navigation and account details use `rounded-lg` |
+| Text — primary | `text-sidebar-foreground` |
+| Text — secondary | `text-muted-foreground` |
+| Spacing | brand `h-16 px-6`; navigation `px-3`; footer `p-4` |
+| Hover state | navigation `hover:bg-sidebar-accent` |
+| Shadow | none on the shell |
+| Accent usage | active navigation marker and brand tile use `primary` |
+
+**Pattern notes:** The desktop sidebar has three explicit vertical regions: a fixed brand header, a `min-h-0 flex-1 overflow-y-auto` navigation region, and a `shrink-0` account footer. Only the middle region may scroll, so footer controls remain visible at short viewport heights.

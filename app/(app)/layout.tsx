@@ -27,12 +27,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-lg font-semibold tracking-[-0.025em] text-sidebar-foreground">Trade OS</span>
         </Link>
 
-        <p className="px-6 pb-3 pt-7 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Workspace
-        </p>
-        <AppNavigation />
+        <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+          <p className="px-6 pb-3 pt-7 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Workspace
+          </p>
+          <AppNavigation />
+          <div className="h-4" aria-hidden="true" />
+        </div>
 
-        <div className="mt-auto border-t border-sidebar-border p-4">
+        <div className="shrink-0 border-t border-sidebar-border bg-sidebar p-4">
           <div className="mb-3 flex items-center gap-3 rounded-lg bg-sidebar-accent/60 px-3 py-3">
             <span className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary">
               <LockKeyhole className="size-4" aria-hidden="true" />
