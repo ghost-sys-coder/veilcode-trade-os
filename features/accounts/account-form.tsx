@@ -50,15 +50,14 @@ export function AccountForm({ account }: AccountFormProps) {
         <Label htmlFor={`broker-${account?.id ?? "new"}`}>Broker or firm</Label>
         <Input id={`broker-${account?.id ?? "new"}`} name="brokerName" defaultValue={account?.broker_name ?? ""} placeholder="Optional" />
       </div>
-      <div className="space-y-2">
-        <Label>Status</Label>
-        <Select name="status" defaultValue={account?.status ?? "ACTIVE"} items={statusItems}>
+      {account ? <input type="hidden" name="status" value={account.status} /> : <div className="space-y-2">
+        <Label>Initial status</Label>
+        <Select name="status" defaultValue="ACTIVE" items={statusItems}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {ACCOUNT_STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
-          </SelectContent>
+          <SelectContent>{ACCOUNT_STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
         </Select>
-      </div>
+        <p className="text-xs text-muted-foreground">Later changes use the audited lifecycle workflow on Prop progress.</p>
+      </div>}
       <div className="space-y-2">
         <Label htmlFor={`currency-${account?.id ?? "new"}`}>Account currency</Label>
         <Input id={`currency-${account?.id ?? "new"}`} name="currencyCode" defaultValue={account?.currency_code ?? "USD"} minLength={3} maxLength={3} required />

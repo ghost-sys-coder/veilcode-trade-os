@@ -96,6 +96,9 @@ export type Database = {
           user_id: string
           account_id: string
           goal_type: string
+          title: string
+          active: boolean
+          custom_unit: string | null
           target_value: string
           target_date: string | null
           achieved_at: string | null
@@ -108,6 +111,9 @@ export type Database = {
           user_id: string
           account_id: string
           goal_type: string
+          title: string
+          active?: boolean
+          custom_unit?: string | null
           target_value: string
           target_date?: string | null
           achieved_at?: string | null
@@ -120,12 +126,45 @@ export type Database = {
           user_id?: string
           account_id?: string
           goal_type?: string
+          title?: string
+          active?: boolean
+          custom_unit?: string | null
           target_value?: string
           target_date?: string | null
           achieved_at?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      account_goal_progress_events: {
+        Row: {
+          id: string
+          user_id: string
+          goal_id: string
+          progress_value: string
+          recorded_at: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          goal_id: string
+          progress_value: string
+          recorded_at?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          goal_id?: string
+          progress_value?: string
+          recorded_at?: string
+          notes?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -137,6 +176,7 @@ export type Database = {
           captured_at: string
           balance: string
           equity: string | null
+          unrealized_pnl: string | null
           notes: string | null
           created_at: string
         }
@@ -147,6 +187,7 @@ export type Database = {
           captured_at: string
           balance: string
           equity?: string | null
+          unrealized_pnl?: string | null
           notes?: string | null
           created_at?: string
         }
@@ -157,7 +198,47 @@ export type Database = {
           captured_at?: string
           balance?: string
           equity?: string | null
+          unrealized_pnl?: string | null
           notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      account_status_events: {
+        Row: {
+          id: string
+          user_id: string
+          account_id: string
+          previous_status: Database["public"]["Enums"]["account_status"] | null
+          new_status: Database["public"]["Enums"]["account_status"]
+          effective_at: string
+          failure_reason: Database["public"]["Enums"]["account_failure_reason"] | null
+          notes: string | null
+          actor_user_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_id: string
+          previous_status?: Database["public"]["Enums"]["account_status"] | null
+          new_status: Database["public"]["Enums"]["account_status"]
+          effective_at: string
+          failure_reason?: Database["public"]["Enums"]["account_failure_reason"] | null
+          notes?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          account_id?: string
+          previous_status?: Database["public"]["Enums"]["account_status"] | null
+          new_status?: Database["public"]["Enums"]["account_status"]
+          effective_at?: string
+          failure_reason?: Database["public"]["Enums"]["account_failure_reason"] | null
+          notes?: string | null
+          actor_user_id?: string | null
           created_at?: string
         }
         Relationships: []
@@ -383,11 +464,24 @@ export type Database = {
           firm_name: string
           model_name: string | null
           phase_name: string | null
-          profit_target_percent: string | null
-          max_daily_loss_percent: string | null
-          max_total_loss_percent: string | null
+          profit_target_mode: Database["public"]["Enums"]["prop_value_mode"] | null
+          profit_target_value: string | null
+          daily_loss_mode: Database["public"]["Enums"]["prop_value_mode"] | null
+          daily_loss_value: string | null
+          daily_loss_baseline: Database["public"]["Enums"]["prop_daily_baseline"] | null
+          daily_loss_measure: Database["public"]["Enums"]["prop_loss_measure"] | null
+          total_loss_mode: Database["public"]["Enums"]["prop_value_mode"] | null
+          total_loss_value: string | null
+          total_loss_baseline: Database["public"]["Enums"]["prop_total_baseline"] | null
+          total_loss_measure: Database["public"]["Enums"]["prop_loss_measure"] | null
+          drawdown_type: Database["public"]["Enums"]["prop_drawdown_type"]
           consistency_limit_percent: string | null
           minimum_trading_days: number | null
+          maximum_trading_days: number | null
+          consistency_formula: Database["public"]["Enums"]["prop_consistency_formula"] | null
+          trading_day_basis: Database["public"]["Enums"]["prop_trading_day_basis"]
+          trading_day_timezone: string
+          profitable_day_min_pnl: string
           notes: string | null
           created_at: string
           updated_at: string
@@ -399,11 +493,24 @@ export type Database = {
           firm_name: string
           model_name?: string | null
           phase_name?: string | null
-          profit_target_percent?: string | null
-          max_daily_loss_percent?: string | null
-          max_total_loss_percent?: string | null
+          profit_target_mode?: Database["public"]["Enums"]["prop_value_mode"] | null
+          profit_target_value?: string | null
+          daily_loss_mode?: Database["public"]["Enums"]["prop_value_mode"] | null
+          daily_loss_value?: string | null
+          daily_loss_baseline?: Database["public"]["Enums"]["prop_daily_baseline"] | null
+          daily_loss_measure?: Database["public"]["Enums"]["prop_loss_measure"] | null
+          total_loss_mode?: Database["public"]["Enums"]["prop_value_mode"] | null
+          total_loss_value?: string | null
+          total_loss_baseline?: Database["public"]["Enums"]["prop_total_baseline"] | null
+          total_loss_measure?: Database["public"]["Enums"]["prop_loss_measure"] | null
+          drawdown_type?: Database["public"]["Enums"]["prop_drawdown_type"]
           consistency_limit_percent?: string | null
           minimum_trading_days?: number | null
+          maximum_trading_days?: number | null
+          consistency_formula?: Database["public"]["Enums"]["prop_consistency_formula"] | null
+          trading_day_basis?: Database["public"]["Enums"]["prop_trading_day_basis"]
+          trading_day_timezone?: string
+          profitable_day_min_pnl?: string
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -415,11 +522,24 @@ export type Database = {
           firm_name?: string
           model_name?: string | null
           phase_name?: string | null
-          profit_target_percent?: string | null
-          max_daily_loss_percent?: string | null
-          max_total_loss_percent?: string | null
+          profit_target_mode?: Database["public"]["Enums"]["prop_value_mode"] | null
+          profit_target_value?: string | null
+          daily_loss_mode?: Database["public"]["Enums"]["prop_value_mode"] | null
+          daily_loss_value?: string | null
+          daily_loss_baseline?: Database["public"]["Enums"]["prop_daily_baseline"] | null
+          daily_loss_measure?: Database["public"]["Enums"]["prop_loss_measure"] | null
+          total_loss_mode?: Database["public"]["Enums"]["prop_value_mode"] | null
+          total_loss_value?: string | null
+          total_loss_baseline?: Database["public"]["Enums"]["prop_total_baseline"] | null
+          total_loss_measure?: Database["public"]["Enums"]["prop_loss_measure"] | null
+          drawdown_type?: Database["public"]["Enums"]["prop_drawdown_type"]
           consistency_limit_percent?: string | null
           minimum_trading_days?: number | null
+          maximum_trading_days?: number | null
+          consistency_formula?: Database["public"]["Enums"]["prop_consistency_formula"] | null
+          trading_day_basis?: Database["public"]["Enums"]["prop_trading_day_basis"]
+          trading_day_timezone?: string
+          profitable_day_min_pnl?: string
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -1160,6 +1280,7 @@ export type Database = {
           leverage: string | null
           started_at: string
           status: Database["public"]["Enums"]["account_status"]
+          previous_account_id: string | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -1177,6 +1298,7 @@ export type Database = {
           leverage?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["account_status"]
+          previous_account_id?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -1194,6 +1316,7 @@ export type Database = {
           leverage?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["account_status"]
+          previous_account_id?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -1329,8 +1452,19 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["trade_plan_corrections"]["Row"]
       }
+      transition_account_status: {
+        Args: {
+          p_account_id: string
+          p_new_status: Database["public"]["Enums"]["account_status"]
+          p_effective_at: string
+          p_failure_reason?: Database["public"]["Enums"]["account_failure_reason"] | null
+          p_notes?: string | null
+        }
+        Returns: Database["public"]["Tables"]["account_status_events"]["Row"]
+      }
     }
     Enums: {
+      account_failure_reason: "DAILY_LOSS_LIMIT" | "MAXIMUM_LOSS" | "TIME_LIMIT" | "MANUAL_TERMINATION" | "OTHER"
       account_platform: "MT4" | "MT5" | "TRADINGVIEW" | "WEB" | "OTHER"
       account_status: "ACTIVE" | "PAUSED" | "PASSED" | "FAILED" | "CLOSED"
       account_type: "DEMO" | "PROP_CHALLENGE" | "FUNDED" | "PERSONAL_LIVE"
@@ -1341,6 +1475,13 @@ export type Database = {
       market_bias: "BULLISH" | "BEARISH" | "NEUTRAL" | "MIXED" | "NOT_RECORDED"
       market_condition: "TRENDING" | "RANGING" | "BREAKOUT" | "REVERSAL" | "HIGH_VOLATILITY" | "LOW_VOLATILITY" | "MIXED" | "OTHER"
       order_type: "MARKET" | "BUY_LIMIT" | "SELL_LIMIT" | "BUY_STOP" | "SELL_STOP" | "OTHER"
+      prop_consistency_formula: "BEST_DAY_OVER_TOTAL_POSITIVE_PROFIT" | "OTHER"
+      prop_daily_baseline: "STARTING_BALANCE" | "START_OF_DAY_BALANCE" | "START_OF_DAY_EQUITY"
+      prop_drawdown_type: "STATIC" | "TRAILING" | "OTHER"
+      prop_loss_measure: "BALANCE" | "EQUITY"
+      prop_total_baseline: "STARTING_BALANCE" | "HIGHEST_BALANCE" | "HIGHEST_EQUITY"
+      prop_trading_day_basis: "OPENED_AT"
+      prop_value_mode: "AMOUNT" | "PERCENT"
       retake_decision: "YES" | "NO" | "ONLY_WITH_CHANGES"
       rule_type: "DESCRIPTIVE" | "MAX_RISK_PERCENT" | "MIN_RR" | "MAX_TRADES_PER_DAY" | "BEHAVIOR"
       screenshot_category: "BEFORE_ENTRY" | "AT_ENTRY" | "DURING_TRADE" | "AT_EXIT" | "POST_TRADE_REVIEW"

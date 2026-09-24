@@ -5,10 +5,12 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   ClipboardPenLine,
+  Flag,
   Landmark,
   LayoutDashboard,
   ListChecks,
   ShieldCheck,
+  Trophy,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +26,8 @@ const navigationItems = [
   { href: "/journal/daily", label: "Daily journal", icon: ClipboardPenLine },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: TrendingUp },
+  { href: "/prop", label: "Prop progress", icon: Trophy },
+  { href: "/goals", label: "Goals", icon: Flag },
   { href: "/strategies", label: "Strategies", icon: ChartNoAxesCombined },
   { href: "/rules", label: "Rules", icon: ShieldCheck },
 ] as const;

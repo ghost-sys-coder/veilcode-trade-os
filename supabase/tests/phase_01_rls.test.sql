@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(71);
+select plan(90);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -631,6 +631,159 @@ select throws_ok(
   'P0002',
   'Trade not found.',
   'another user cannot complete the owner rule review'
+);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.account_goal_progress_events'::regclass),
+  'goal progress events have RLS enabled'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.account_status_events'::regclass),
+  'account status events have RLS enabled'
+);
+
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+select lives_ok(
+  $$insert into public.trading_accounts (
+      user_id, name, account_type, platform, currency_code, currency_precision, starting_balance
+    ) values (
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Phase 06 Challenge', 'PROP_CHALLENGE', 'MT5', 'USD', 2, 100000
+    )$$,
+  'owner can create a prop challenge'
+);
+
+select throws_ok(
+  $$update public.trading_accounts set status = 'PASSED' where name = 'Phase 06 Challenge'$$,
+  '42501',
+  'Account status changes require the lifecycle workflow.',
+  'direct lifecycle changes are rejected'
+);
+
+select lives_ok(
+  $$select public.transition_account_status(
+      (select id from public.trading_accounts where name = 'Phase 06 Challenge'),
+      'PASSED', now(), null, 'Challenge criteria verified.'
+    )$$,
+  'the lifecycle RPC transitions the challenge atomically'
+);
+
+select is(
+  (select count(*)::integer from public.account_status_events event
+    join public.trading_accounts account on account.id = event.account_id
+    where account.name = 'Phase 06 Challenge' and event.previous_status = 'ACTIVE' and event.new_status = 'PASSED'),
+  1,
+  'the lifecycle transition appends one audit event'
+);
+
+select lives_ok(
+  $$insert into public.trading_accounts (
+      user_id, name, account_type, platform, currency_code, currency_precision, starting_balance, previous_account_id
+    ) select user_id, 'Phase 06 Funded', 'FUNDED', platform, currency_code, currency_precision, starting_balance, id
+      from public.trading_accounts where name = 'Phase 06 Challenge'$$,
+  'a funded account can link to a passed challenge'
+);
+
+select throws_ok(
+  $$insert into public.prop_firm_configs (user_id, account_id, firm_name)
+    select user_id, id, 'Invalid demo config' from public.trading_accounts where name = 'RLS Test Account'$$,
+  '23514',
+  'Prop configuration is only valid for prop challenge or funded accounts.',
+  'prop configuration is rejected for non-prop accounts'
+);
+
+select throws_ok(
+  $$insert into public.prop_firm_configs (user_id, account_id, firm_name, trading_day_timezone)
+    select user_id, id, 'Timezone test', 'Not/A_Timezone' from public.trading_accounts where name = 'Phase 06 Challenge'$$,
+  '23514',
+  'Trading-day timezone must be a valid IANA timezone.',
+  'prop configuration rejects an invalid trading-day timezone'
+);
+
+select lives_ok(
+  $$insert into public.prop_firm_configs (
+      user_id, account_id, firm_name, profit_target_mode, profit_target_value,
+      drawdown_type, trading_day_timezone
+    ) select user_id, id, 'Configured firm', 'PERCENT', 10, 'STATIC', 'Africa/Kampala'
+      from public.trading_accounts where name = 'Phase 06 Challenge'$$,
+  'owner can save an explicit prop configuration'
+);
+
+select throws_ok(
+  $$insert into public.account_snapshots (user_id, account_id, captured_at, balance, equity, unrealized_pnl)
+    select user_id, id, now(), 100000, 100100, 50 from public.trading_accounts where name = 'Phase 06 Challenge'$$,
+  '23514',
+  'new row for relation "account_snapshots" violates check constraint "account_snapshots_equity_equation"',
+  'equity snapshots must satisfy balance plus unrealized PnL'
+);
+
+insert into public.account_goals (user_id, account_id, title, goal_type, target_value)
+select user_id, id, 'Automatic trade sample', 'TOTAL_TRADES', 100
+from public.trading_accounts where name = 'Phase 06 Challenge';
+
+select throws_ok(
+  $$insert into public.account_goal_progress_events (user_id, goal_id, progress_value)
+    select user_id, id, 10 from public.account_goals where title = 'Automatic trade sample'$$,
+  '23514',
+  'Manual progress events are only valid for custom goals.',
+  'automatic goals reject manual progress events'
+);
+
+insert into public.account_goals (user_id, account_id, title, goal_type, target_value, custom_unit)
+select user_id, id, 'Study hours', 'CUSTOM', 50, 'hours'
+from public.trading_accounts where name = 'Phase 06 Challenge';
+
+select lives_ok(
+  $$insert into public.account_goal_progress_events (user_id, goal_id, progress_value, notes)
+    select user_id, id, 4.5, 'First study block' from public.account_goals where title = 'Study hours'$$,
+  'custom goals accept append-only manual progress'
+);
+
+select throws_ok(
+  $$delete from public.account_goals where title = 'Study hours'$$,
+  '23503',
+  'update or delete on table "account_goals" violates foreign key constraint "account_goal_progress_events_goal_owner_fk" on table "account_goal_progress_events"',
+  'deleting a goal cannot cascade-delete its progress history'
+);
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+select is(
+  (select count(*)::integer from public.account_goal_progress_events),
+  0,
+  'another user cannot read owner goal progress'
+);
+select is(
+  (select count(*)::integer from public.account_status_events event
+    join public.trading_accounts account on account.id = event.account_id
+    where account.name = 'Phase 06 Challenge'),
+  0,
+  'another user cannot read owner lifecycle events'
+);
+
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+select throws_ok(
+  $$select public.transition_account_status(
+      (select id from public.trading_accounts where name = 'Phase 06 Funded'),
+      'FAILED', now(), null, null
+    )$$,
+  '22023',
+  'A failure reason is required.',
+  'failed transitions require a reason'
+);
+
+select lives_ok(
+  $$select public.transition_account_status(
+      (select id from public.trading_accounts where name = 'Phase 06 Funded'),
+      'FAILED', now(), 'MAXIMUM_LOSS', 'Maximum loss confirmed.'
+    )$$,
+  'failed transitions preserve reason and notes'
+);
+
+select is(
+  (select failure_reason::text from public.account_status_events event
+    join public.trading_accounts account on account.id = event.account_id
+    where account.name = 'Phase 06 Funded' and event.new_status = 'FAILED'),
+  'MAXIMUM_LOSS',
+  'failure history retains the structured reason'
 );
 
 select * from finish();

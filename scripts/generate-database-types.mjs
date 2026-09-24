@@ -145,6 +145,16 @@ try {
         Args: { p_targets: Json; p_trade_id: string }
         Returns: undefined
       }
+      transition_account_status: {
+        Args: {
+          p_account_id: string
+          p_new_status: Database["public"]["Enums"]["account_status"]
+          p_effective_at: string
+          p_failure_reason?: Database["public"]["Enums"]["account_failure_reason"] | null
+          p_notes?: string | null
+        }
+        Returns: Database["public"]["Tables"]["account_status_events"]["Row"]
+      }
       update_trade_target_execution: {
         Args: { p_targets: Json; p_trade_id: string }
         Returns: undefined

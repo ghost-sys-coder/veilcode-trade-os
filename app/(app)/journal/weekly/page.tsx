@@ -23,6 +23,19 @@ function mostCommon(values: readonly string[]): string | null {
   return [...counts.entries()].toSorted((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0] ?? null;
 }
 
+function setupByAverageR(trades: Array<{ setupName: string | null; actualR: string | null }>) {
+  const groups = new Map<string, { total: ReturnType<typeof parseDecimal>; count: number }>();
+  for (const trade of trades) {
+    if (!trade.setupName || trade.actualR === null) continue;
+    const current = groups.get(trade.setupName) ?? { total: parseDecimal("0"), count: 0 };
+    groups.set(trade.setupName, { total: current.total.plus(trade.actualR), count: current.count + 1 });
+  }
+  const ranked = [...groups.entries()]
+    .map(([name, value]) => ({ name, average: value.total.div(value.count) }))
+    .toSorted((left, right) => left.average.comparedTo(right.average));
+  return { best: ranked.at(-1) ?? null, worst: ranked[0] ?? null };
+}
+
 export default async function WeeklyJournalPage({ searchParams }: WeeklyPageProps) {
   const [query, supabase] = await Promise.all([searchParams, createClient()]);
   const { data: profile } = await supabase.from("profiles").select("timezone").maybeSingle();
@@ -44,13 +57,17 @@ export default async function WeeklyJournalPage({ searchParams }: WeeklyPageProp
   const averageExecutionRating = executionRatings.length ? (executionRatings.reduce((sum, value) => sum + value, 0) / executionRatings.length).toFixed(2) : null;
   const mostCommonMistake = mostCommon(realized.flatMap((trade) => trade.mistakes));
   const mostBrokenRule = mostCommon(realized.flatMap((trade) => trade.ruleViolationNames));
+  const mostTradedInstrument = mostCommon(realized.map((trade) => trade.instrumentSymbol));
+  const setupPerformance = setupByAverageR(realized);
+  const riskValues = realized.map((trade) => trade.plannedRiskPercentage).filter((value): value is string => value !== null);
+  const averageRisk = riskValues.length ? riskValues.reduce((sum, value) => sum.plus(value), parseDecimal("0")).div(riskValues.length).toFixed(2) : null;
   const { data: review } = accountId ? await supabase.from("weekly_reviews").select("*").eq("account_id", accountId).eq("week_start", start).maybeSingle() : { data: null };
   const returnPath = `/journal/weekly?account=${encodeURIComponent(accountId)}&week=${start}`;
 
   return <div className="space-y-6"><PageHeader eyebrow="Process review" title="Weekly review" description={`${start} through ${end}. Realized performance follows final closure dates.`} actions={<ReviewNavigation active="weekly" />} />
     {query.error ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">{query.error}</p> : null}{query.message ? <p className="rounded-lg border border-profit/25 bg-profit/10 p-4 text-sm text-profit">{query.message}</p> : null}
     <Card><CardContent className="p-4"><form method="get" className="grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end"><SelectField label="Account" name="account" defaultValue={accountId} items={dataset.accounts.map((item) => ({ value: item.id, label: item.name }))} /><div className="grid gap-2"><Label htmlFor="week">Week containing</Label><Input id="week" type="date" name="week" defaultValue={start} /></div><Button type="submit" variant="outline">Load week</Button></form></CardContent></Card>
-    {ledger ? <><PeriodSummary items={[{label:"Starting balance",value:`${ledger.account.currency_code} ${normalizeMoney(before, ledger.account.currency_precision)}`},{label:"Ending balance",value:`${ledger.account.currency_code} ${normalizeMoney(after, ledger.account.currency_precision)}`},{label:"Net PnL",value:`${ledger.account.currency_code} ${summary.netPnl}`,tone:summary.netPnl.startsWith("-")?"loss":"profit"},{label:"Return",value:returnPercent === null?"—":`${returnPercent}%`},{label:"Trades",value:summary.trades},{label:"Win rate",value:summary.winRate?`${summary.winRate}%`:"—"},{label:"Average R",value:summary.averageR?`${summary.averageR}R`:"—"},{label:"Violations",value:violations},{label:"Avg execution rating",value:averageExecutionRating ?? "Not reviewed"},{label:"Most common mistake",value:mostCommonMistake ?? "None reviewed"},{label:"Most broken rule",value:mostBrokenRule ?? "None reviewed"}]} />
+    {ledger ? <><PeriodSummary items={[{label:"Starting balance",value:`${ledger.account.currency_code} ${normalizeMoney(before, ledger.account.currency_precision)}`},{label:"Ending balance",value:`${ledger.account.currency_code} ${normalizeMoney(after, ledger.account.currency_precision)}`},{label:"Net PnL",value:`${ledger.account.currency_code} ${summary.netPnl}`,tone:summary.netPnl.startsWith("-")?"loss":"profit"},{label:"Return",value:returnPercent === null?"—":`${returnPercent}%`},{label:"Trades",value:summary.trades},{label:"Win rate",value:summary.winRate?`${summary.winRate}%`:"—"},{label:"Average R",value:summary.averageR?`${summary.averageR}R`:"—"},{label:"Average risk",value:averageRisk?`${averageRisk}%`:"Not recorded"},{label:"Most traded instrument",value:mostTradedInstrument ?? "No trades"},{label:"Best setup",value:setupPerformance.best ? `${setupPerformance.best.name} · ${setupPerformance.best.average.toFixed(2)}R` : "No R sample"},{label:"Worst setup",value:setupPerformance.worst ? `${setupPerformance.worst.name} · ${setupPerformance.worst.average.toFixed(2)}R` : "No R sample"},{label:"Violations",value:violations},{label:"Avg execution rating",value:averageExecutionRating ?? "Not reviewed"},{label:"Most common mistake",value:mostCommonMistake ?? "None reviewed"},{label:"Most broken rule",value:mostBrokenRule ?? "None reviewed"}]} />
       <Card><CardContent className="grid gap-4 p-5 md:grid-cols-2"><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Best trade</p><p className="mt-1 font-semibold">{best ? `${best.instrumentSymbol} · ${best.netPnl} ${best.currencyCode}` : "No realized trade"}</p></div><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Worst trade</p><p className="mt-1 font-semibold">{worst ? `${worst.instrumentSymbol} · ${worst.netPnl} ${worst.currencyCode}` : "No realized trade"}</p></div><p className="text-sm text-muted-foreground md:col-span-2">Wins {summary.wins} · Losses {summary.losses} · Break evens {summary.breakEvens} · Total R {parseDecimal(summary.totalR).toString()}R</p></CardContent></Card>
       <Card><CardHeader><CardTitle>{review ? "Update weekly review" : "Write weekly review"}</CardTitle><CardDescription>One review per account and Monday-based week.</CardDescription></CardHeader><CardContent><form action={saveWeeklyReview} className="grid gap-4 lg:grid-cols-2"><input type="hidden" name="accountId" value={accountId} /><input type="hidden" name="weekStart" value={start} /><input type="hidden" name="returnPath" value={returnPath} />
         {[["whatWorked","What worked",review?.what_worked],["whatDidNot","What did not",review?.what_did_not],["changeNextWeek","Change next week",review?.change_next_week],["behaviorToStop","Behavior to stop",review?.behavior_to_stop],["behaviorToContinue","Behavior to continue",review?.behavior_to_continue],["notes","Notes",review?.notes]].map(([name,label,value]) => <div key={String(name)} className="grid gap-2"><Label htmlFor={String(name)}>{label}</Label><Textarea id={String(name)} name={String(name)} defaultValue={String(value ?? "")} /></div>)}<div className="lg:col-span-2"><Button type="submit">Save weekly review</Button></div>

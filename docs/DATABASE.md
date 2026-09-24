@@ -2,7 +2,7 @@
 
 ## Phase boundary
 
-Phase 01 translates this design into the reviewed `20260922231801_phase_01_foundation_schema.sql` migration, the additive `20260923005302_phase_01_blocker_fixes.sql` hardening migration, and transactional database/RLS tests. Later phases must extend that migration history rather than modifying an already-applied migration.
+Phase 01 translates this design into the reviewed `20260922231801_phase_01_foundation_schema.sql` migration, the additive `20260923005302_phase_01_blocker_fixes.sql` hardening migration, and transactional database/RLS tests. Later phases extend that history with additive migrations. Phase 06 adds configurable prop rules, snapshots, goals, append-only progress and lifecycle history in the `20260924193000` through `20260924201000` migration series.
 
 ## General conventions
 

@@ -40,7 +40,6 @@ export async function saveAccount(formData: FormData): Promise<void> {
     starting_balance: values.startingBalance,
     leverage: values.leverage ?? null,
     started_at: values.startedAt,
-    status: values.status,
     notes: values.notes ?? null,
   };
 
@@ -63,7 +62,7 @@ export async function saveAccount(formData: FormData): Promise<void> {
   } else {
     const { error } = await supabase
       .from("trading_accounts")
-      .insert({ ...payload, user_id: userId });
+      .insert({ ...payload, status: values.status, user_id: userId });
 
     if (error) {
       redirectWithStatus("/accounts", "error", error.message);
