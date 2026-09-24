@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { dateKey, journalDate } from "@/domain/journal/analytics";
 import { parseDecimal } from "@/domain/money/decimal";
+import { runWithConcurrency } from "@/lib/async/run-with-concurrency";
 import { normalizeSupabaseNumeric } from "@/lib/supabase/numeric";
 import type { Database } from "@/types/database";
 import type { TradeDirection, TradeOutcome, TradeStatus, TradingSession } from "@/types/domain";
@@ -114,24 +115,39 @@ export async function getTradeJournalDataset(
   filters: JournalFilters = {},
   timezone = "Africa/Kampala",
 ): Promise<JournalDataset> {
-  const [tradesResult, accountsResult, instrumentsResult, strategiesResult, setupsResult, reviewsResult, executionResult, psychologyResult, ruleReviewsResult, ruleReviewItemsResult, tradeTagsResult, tagsResult] = await Promise.all([
-    supabase.from("trades").select("*").order("created_at", { ascending: false }),
-    supabase.from("trading_accounts").select("id,name,currency_code,currency_precision").order("name"),
-    supabase.from("instruments").select("id,symbol,display_name").order("symbol"),
-    supabase.from("strategies").select("id,name").order("name"),
-    supabase.from("setups").select("id,name,strategy_id").order("name"),
-    supabase.from("trade_reviews").select("trade_id,trade_quality_grade,what_went_well,what_went_wrong,improvement,lesson_learned"),
-    supabase.from("trade_execution_reviews").select("trade_id,notes,reviewed_at,execution_rating,revenge_trade,entered_early,entered_late,chased_price,closed_early,over_risked,stop_action"),
-    supabase.from("trade_psychology").select("trade_id,notes,reviewed_at,fomo_influenced"),
-    supabase.from("trade_rule_reviews").select("id,trade_id,reviewed_at,applicable_rule_count"),
-    supabase.from("trade_rule_review_items").select("review_id,rule_name,complied,notes"),
-    supabase.from("trade_tags").select("trade_id,tag_id"),
-    supabase.from("tags").select("id,name,color").order("name"),
-  ]);
-  const error = tradesResult.error ?? accountsResult.error ?? instrumentsResult.error ?? strategiesResult.error
-    ?? setupsResult.error ?? reviewsResult.error ?? executionResult.error ?? psychologyResult.error
-    ?? ruleReviewsResult.error ?? ruleReviewItemsResult.error ?? tradeTagsResult.error ?? tagsResult.error;
-  if (error) throw new Error(error.message);
+  const [tradesResult, accountsResult, instrumentsResult, strategiesResult, setupsResult, reviewsResult, executionResult, psychologyResult, ruleReviewsResult, ruleReviewItemsResult, tradeTagsResult, tagsResult] = await runWithConcurrency([
+    () => supabase.from("trades").select("*").order("created_at", { ascending: false }),
+    () => supabase.from("trading_accounts").select("id,name,currency_code,currency_precision").order("name"),
+    () => supabase.from("instruments").select("id,symbol,display_name").order("symbol"),
+    () => supabase.from("strategies").select("id,name").order("name"),
+    () => supabase.from("setups").select("id,name,strategy_id").order("name"),
+    () => supabase.from("trade_reviews").select("trade_id,trade_quality_grade,what_went_well,what_went_wrong,improvement,lesson_learned"),
+    () => supabase.from("trade_execution_reviews").select("trade_id,notes,reviewed_at,execution_rating,revenge_trade,entered_early,entered_late,chased_price,closed_early,over_risked,stop_action"),
+    () => supabase.from("trade_psychology").select("trade_id,notes,reviewed_at,fomo_influenced"),
+    () => supabase.from("trade_rule_reviews").select("id,trade_id,reviewed_at,applicable_rule_count"),
+    () => supabase.from("trade_rule_review_items").select("review_id,rule_name,complied,notes"),
+    () => supabase.from("trade_tags").select("trade_id,tag_id"),
+    () => supabase.from("tags").select("id,name,color").order("name"),
+  ] as const, 4);
+  const failedRead = [
+    ["trades", tradesResult.error],
+    ["accounts", accountsResult.error],
+    ["instruments", instrumentsResult.error],
+    ["strategies", strategiesResult.error],
+    ["setups", setupsResult.error],
+    ["trade reviews", reviewsResult.error],
+    ["execution reviews", executionResult.error],
+    ["psychology reviews", psychologyResult.error],
+    ["rule reviews", ruleReviewsResult.error],
+    ["rule review items", ruleReviewItemsResult.error],
+    ["trade tags", tradeTagsResult.error],
+    ["tags", tagsResult.error],
+  ] as const satisfies readonly (readonly [string, { message: string } | null])[];
+  const failure = failedRead.find(([, error]) => error !== null);
+  if (failure) {
+    const [resource, error] = failure;
+    throw new Error(`Unable to load journal ${resource}: ${error?.message ?? "Unknown Supabase error"}`, { cause: error });
+  }
 
   const accounts = accountsResult.data ?? [];
   const instruments = instrumentsResult.data ?? [];
