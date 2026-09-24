@@ -57,6 +57,11 @@ export interface JournalTrade {
   thesis: string | null;
   ruleCompliance: RuleComplianceState;
   ruleViolations: number;
+  ruleViolationNames: string[];
+  executionRating: number | null;
+  revengeTrade: boolean | null;
+  fomoInfluenced: boolean | null;
+  mistakes: string[];
   tags: Array<{ id: string; name: string; color: string | null }>;
   raw: Database["public"]["Tables"]["trades"]["Row"];
 }
@@ -109,23 +114,23 @@ export async function getTradeJournalDataset(
   filters: JournalFilters = {},
   timezone = "Africa/Kampala",
 ): Promise<JournalDataset> {
-  const [tradesResult, accountsResult, instrumentsResult, strategiesResult, setupsResult, reviewsResult, executionResult, psychologyResult, ruleResultsResult, rulesResult, tradeTagsResult, tagsResult] = await Promise.all([
+  const [tradesResult, accountsResult, instrumentsResult, strategiesResult, setupsResult, reviewsResult, executionResult, psychologyResult, ruleReviewsResult, ruleReviewItemsResult, tradeTagsResult, tagsResult] = await Promise.all([
     supabase.from("trades").select("*").order("created_at", { ascending: false }),
     supabase.from("trading_accounts").select("id,name,currency_code,currency_precision").order("name"),
     supabase.from("instruments").select("id,symbol,display_name").order("symbol"),
     supabase.from("strategies").select("id,name").order("name"),
     supabase.from("setups").select("id,name,strategy_id").order("name"),
     supabase.from("trade_reviews").select("trade_id,trade_quality_grade,what_went_well,what_went_wrong,improvement,lesson_learned"),
-    supabase.from("trade_execution_reviews").select("trade_id,notes"),
-    supabase.from("trade_psychology").select("trade_id,notes"),
-    supabase.from("trade_rule_results").select("trade_id,trading_rule_id,complied,notes"),
-    supabase.from("trading_rules").select("id,account_id,active").eq("active", true),
+    supabase.from("trade_execution_reviews").select("trade_id,notes,reviewed_at,execution_rating,revenge_trade,entered_early,entered_late,chased_price,closed_early,over_risked,stop_action"),
+    supabase.from("trade_psychology").select("trade_id,notes,reviewed_at,fomo_influenced"),
+    supabase.from("trade_rule_reviews").select("id,trade_id,reviewed_at,applicable_rule_count"),
+    supabase.from("trade_rule_review_items").select("review_id,rule_name,complied,notes"),
     supabase.from("trade_tags").select("trade_id,tag_id"),
     supabase.from("tags").select("id,name,color").order("name"),
   ]);
   const error = tradesResult.error ?? accountsResult.error ?? instrumentsResult.error ?? strategiesResult.error
     ?? setupsResult.error ?? reviewsResult.error ?? executionResult.error ?? psychologyResult.error
-    ?? ruleResultsResult.error ?? rulesResult.error ?? tradeTagsResult.error ?? tagsResult.error;
+    ?? ruleReviewsResult.error ?? ruleReviewItemsResult.error ?? tradeTagsResult.error ?? tagsResult.error;
   if (error) throw new Error(error.message);
 
   const accounts = accountsResult.data ?? [];
@@ -143,9 +148,9 @@ export async function getTradeJournalDataset(
   const tagById = new Map(tags.map((item) => [item.id, item]));
   const tagIdsByTrade = new Map<string, string[]>();
   for (const relation of tradeTagsResult.data ?? []) tagIdsByTrade.set(relation.trade_id, [...(tagIdsByTrade.get(relation.trade_id) ?? []), relation.tag_id]);
-  const rules = rulesResult.data ?? [];
-  const resultsByTrade = new Map<string, typeof ruleResultsResult.data>();
-  for (const result of ruleResultsResult.data ?? []) resultsByTrade.set(result.trade_id, [...(resultsByTrade.get(result.trade_id) ?? []), result]);
+  const ruleReviewByTrade = new Map((ruleReviewsResult.data ?? []).map((item) => [item.trade_id, item]));
+  const ruleItemsByReview = new Map<string, typeof ruleReviewItemsResult.data>();
+  for (const item of ruleReviewItemsResult.data ?? []) ruleItemsByReview.set(item.review_id, [...(ruleItemsByReview.get(item.review_id) ?? []), item]);
 
   const mapped = (tradesResult.data ?? []).map((trade): JournalTrade | null => {
     const account = accountById.get(trade.account_id);
@@ -155,13 +160,24 @@ export async function getTradeJournalDataset(
     const strategy = trade.strategy_id ? strategyById.get(trade.strategy_id) : null;
     const setup = trade.setup_id ? setupById.get(trade.setup_id) : null;
     const tradeTags = (tagIdsByTrade.get(trade.id) ?? []).map((id) => tagById.get(id)).filter((tag): tag is NonNullable<typeof tag> => Boolean(tag));
-    const applicableRules = rules.filter((rule) => rule.account_id === null || rule.account_id === trade.account_id);
-    const results = resultsByTrade.get(trade.id) ?? [];
-    const evaluated = applicableRules.filter((rule) => results.some((result) => result.trading_rule_id === rule.id));
-    const violations = results.filter((result) => applicableRules.some((rule) => rule.id === result.trading_rule_id) && !result.complied).length;
-    const ruleCompliance: RuleComplianceState = applicableRules.length === 0 || evaluated.length < applicableRules.length
-      ? "NOT_REVIEWED"
-      : violations > 0 ? "VIOLATIONS_PRESENT" : "FULLY_COMPLIANT";
+    const execution = executionByTrade.get(trade.id);
+    const psychology = psychologyByTrade.get(trade.id);
+    const ruleReview = ruleReviewByTrade.get(trade.id);
+    const ruleItems = ruleReview ? ruleItemsByReview.get(ruleReview.id) ?? [] : [];
+    const violationItems = ruleItems.filter((result) => !result.complied);
+    const violations = violationItems.length;
+    const ruleCompliance: RuleComplianceState = !ruleReview ? "NOT_REVIEWED" : violations > 0 ? "VIOLATIONS_PRESENT" : "FULLY_COMPLIANT";
+    const mistakes = execution?.reviewed_at ? [
+      execution.entered_early ? "Early entry" : null,
+      execution.entered_late ? "Late entry" : null,
+      execution.chased_price ? "Chased price" : null,
+      execution.closed_early ? "Early exit" : null,
+      execution.over_risked ? "Over-risked" : null,
+      execution.revenge_trade ? "Revenge trade" : null,
+      execution.stop_action === "WIDENED" ? "Stop widened" : null,
+    ].filter((item): item is string => item !== null) : [];
+    if (psychology?.reviewed_at && psychology.fomo_influenced) mistakes.push("FOMO");
+    if (violations) mistakes.push("Rule violation");
     const selectedDate = journalDate({ openedAt: trade.opened_at, plannedAt: trade.planned_at, createdAt: trade.created_at });
 
     return {
@@ -195,6 +211,11 @@ export async function getTradeJournalDataset(
       thesis: trade.thesis,
       ruleCompliance,
       ruleViolations: violations,
+      ruleViolationNames: violationItems.map((item) => item.rule_name),
+      executionRating: execution?.reviewed_at ? execution.execution_rating : null,
+      revengeTrade: execution?.reviewed_at ? execution.revenge_trade : null,
+      fomoInfluenced: psychology?.reviewed_at ? psychology.fomo_influenced : null,
+      mistakes,
       tags: tradeTags,
       raw: {
         ...trade,
@@ -216,7 +237,10 @@ export async function getTradeJournalDataset(
       psychologyByTrade.get(trade.id)?.notes, reviewByTrade.get(trade.id)?.what_went_well,
       reviewByTrade.get(trade.id)?.what_went_wrong, reviewByTrade.get(trade.id)?.improvement,
       reviewByTrade.get(trade.id)?.lesson_learned, ...trade.tags.map((tag) => tag.name),
-      ...(resultsByTrade.get(trade.id) ?? []).map((result) => result.notes),
+      ...(() => {
+        const snapshot = ruleReviewByTrade.get(trade.id);
+        return snapshot ? (ruleItemsByReview.get(snapshot.id) ?? []).map((result) => result.notes) : [];
+      })(),
     ]));
 
   filtered.sort((left, right) => {

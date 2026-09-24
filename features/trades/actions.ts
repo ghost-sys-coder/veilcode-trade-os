@@ -48,6 +48,11 @@ function checked(formData: FormData, name: string): boolean {
   return formData.get(name) === "on";
 }
 
+function optionalBoolean(formData: FormData, name: string): boolean | undefined {
+  const value = optionalText(formData, name);
+  return value === "YES" ? true : value === "NO" ? false : undefined;
+}
+
 function isoDateTime(formData: FormData, name: string): string | undefined {
   const value = optionalText(formData, name);
   if (!value) return undefined;
@@ -329,23 +334,45 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
     if (error) redirectToForm(`/trades/${savedTradeId}/edit`, "error", error.message);
   }
 
+  if ((!current || deferFinalStatus) && requestedStatus !== "DRAFT") {
+    const { error } = await supabase.from("trades").update({ status: requestedStatus, outcome: outcome ?? null }).eq("id", savedTradeId).eq("user_id", userId);
+    if (error) redirectToForm(`/trades/${savedTradeId}/edit`, "error", error.message);
+  }
+
   const execution = executionReviewSchema.safeParse({
     tradeId: savedTradeId,
-    entryAccordingToPlan: optionalText(formData, "entryAccordingToPlan") === "YES" ? true : optionalText(formData, "entryAccordingToPlan") === "NO" ? false : undefined,
-    stopAccordingToPlan: optionalText(formData, "stopAccordingToPlan") === "YES" ? true : optionalText(formData, "stopAccordingToPlan") === "NO" ? false : undefined,
-    targetAccordingToPlan: optionalText(formData, "targetAccordingToPlan") === "YES" ? true : optionalText(formData, "targetAccordingToPlan") === "NO" ? false : undefined,
+    entryAccordingToPlan: optionalBoolean(formData, "entryAccordingToPlan"),
+    stopAccordingToPlan: optionalBoolean(formData, "stopAccordingToPlan"),
+    targetAccordingToPlan: optionalBoolean(formData, "targetAccordingToPlan"),
     stopAction: optionalText(formData, "stopAction"),
-    closedEarly: checked(formData, "closedEarly"),
-    enteredEarly: checked(formData, "enteredEarly"),
-    enteredLate: checked(formData, "enteredLate"),
-    chasedPrice: checked(formData, "chasedPrice"),
-    addedToPosition: checked(formData, "addedToPosition"),
-    revengeTrade: checked(formData, "revengeTrade"),
-    overRisked: checked(formData, "overRisked"),
+    closedEarly: optionalBoolean(formData, "closedEarly"),
+    enteredEarly: optionalBoolean(formData, "enteredEarly"),
+    enteredLate: optionalBoolean(formData, "enteredLate"),
+    chasedPrice: optionalBoolean(formData, "chasedPrice"),
+    addedToPosition: optionalBoolean(formData, "addedToPosition"),
+    revengeTrade: optionalBoolean(formData, "revengeTrade"),
+    overRisked: optionalBoolean(formData, "overRisked"),
     executionRating: optionalInteger(formData, "executionRating"),
     notes: optionalText(formData, "executionNotes"),
   });
   if (!execution.success) redirectToForm(`/trades/${savedTradeId}/edit`, "error", firstValidationError(execution.error));
+  const executionReviewComplete = textValue(formData, "executionReviewAlreadyComplete") === "true" || checked(formData, "completeExecutionReview");
+  const requiredExecutionAnswers = [
+    execution.data.entryAccordingToPlan,
+    execution.data.stopAccordingToPlan,
+    execution.data.targetAccordingToPlan,
+    execution.data.stopAction,
+    execution.data.closedEarly,
+    execution.data.enteredEarly,
+    execution.data.enteredLate,
+    execution.data.chasedPrice,
+    execution.data.addedToPosition,
+    execution.data.revengeTrade,
+    execution.data.overRisked,
+  ];
+  if (executionReviewComplete && requiredExecutionAnswers.some((answer) => answer === undefined)) {
+    redirectToForm(`/trades/${savedTradeId}/edit`, "error", "Complete every execution review question before marking it reviewed.");
+  }
   const { error: executionError } = await supabase.from("trade_execution_reviews").upsert({
     user_id: userId,
     trade_id: savedTradeId,
@@ -353,15 +380,16 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
     stop_according_to_plan: execution.data.stopAccordingToPlan ?? null,
     target_according_to_plan: execution.data.targetAccordingToPlan ?? null,
     stop_action: execution.data.stopAction ?? null,
-    closed_early: execution.data.closedEarly,
-    entered_early: execution.data.enteredEarly,
-    entered_late: execution.data.enteredLate,
-    chased_price: execution.data.chasedPrice,
-    added_to_position: execution.data.addedToPosition,
-    revenge_trade: execution.data.revengeTrade,
-    over_risked: execution.data.overRisked,
+    closed_early: execution.data.closedEarly ?? null,
+    entered_early: execution.data.enteredEarly ?? null,
+    entered_late: execution.data.enteredLate ?? null,
+    chased_price: execution.data.chasedPrice ?? null,
+    added_to_position: execution.data.addedToPosition ?? null,
+    revenge_trade: execution.data.revengeTrade ?? null,
+    over_risked: execution.data.overRisked ?? null,
     execution_rating: execution.data.executionRating ?? null,
     notes: execution.data.notes ?? null,
+    reviewed_at: executionReviewComplete ? new Date().toISOString() : null,
   }, { onConflict: "trade_id" });
   if (executionError) redirectToForm(`/trades/${savedTradeId}/edit`, "error", executionError.message);
 
@@ -371,12 +399,16 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
     emotionBefore: optionalText(formData, "emotionBefore"),
     emotionDuring: optionalText(formData, "emotionDuring"),
     emotionAfter: optionalText(formData, "emotionAfter"),
-    fearInfluenced: checked(formData, "fearInfluenced"),
-    greedInfluenced: checked(formData, "greedInfluenced"),
-    fomoInfluenced: checked(formData, "fomoInfluenced"),
+    fearInfluenced: optionalBoolean(formData, "fearInfluenced"),
+    greedInfluenced: optionalBoolean(formData, "greedInfluenced"),
+    fomoInfluenced: optionalBoolean(formData, "fomoInfluenced"),
     notes: optionalText(formData, "psychologyNotes"),
   });
   if (!psychology.success) redirectToForm(`/trades/${savedTradeId}/edit`, "error", firstValidationError(psychology.error));
+  const psychologyReviewComplete = textValue(formData, "psychologyReviewAlreadyComplete") === "true" || checked(formData, "completePsychologyReview");
+  if (psychologyReviewComplete && [psychology.data.fearInfluenced, psychology.data.greedInfluenced, psychology.data.fomoInfluenced].some((answer) => answer === undefined)) {
+    redirectToForm(`/trades/${savedTradeId}/edit`, "error", "Answer fear, greed, and FOMO before marking the psychology review complete.");
+  }
   const { error: psychologyError } = await supabase.from("trade_psychology").upsert({
     user_id: userId,
     trade_id: savedTradeId,
@@ -384,13 +416,15 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
     emotion_before: psychology.data.emotionBefore ?? null,
     emotion_during: psychology.data.emotionDuring ?? null,
     emotion_after: psychology.data.emotionAfter ?? null,
-    fear_influenced: psychology.data.fearInfluenced,
-    greed_influenced: psychology.data.greedInfluenced,
-    fomo_influenced: psychology.data.fomoInfluenced,
+    fear_influenced: psychology.data.fearInfluenced ?? null,
+    greed_influenced: psychology.data.greedInfluenced ?? null,
+    fomo_influenced: psychology.data.fomoInfluenced ?? null,
     notes: psychology.data.notes ?? null,
+    reviewed_at: psychologyReviewComplete ? new Date().toISOString() : null,
   }, { onConflict: "trade_id" });
   if (psychologyError) redirectToForm(`/trades/${savedTradeId}/edit`, "error", psychologyError.message);
 
+  const completedRuleResults: Array<{ trading_rule_id: string; complied: boolean; notes: string | null }> = [];
   for (const [name, rawValue] of formData.entries()) {
     if (!name.startsWith("ruleResult:") || (rawValue !== "YES" && rawValue !== "NO")) continue;
     const ruleId = name.slice("ruleResult:".length);
@@ -403,6 +437,16 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
       complied: ruleResult.data.complied,
       notes: ruleResult.data.notes ?? null,
     }, { onConflict: "trade_id,trading_rule_id" });
+    if (error) redirectToForm(`/trades/${savedTradeId}/edit`, "error", error.message);
+    completedRuleResults.push({ trading_rule_id: ruleResult.data.tradingRuleId, complied: ruleResult.data.complied, notes: ruleResult.data.notes ?? null });
+  }
+
+  const ruleReviewAlreadyComplete = textValue(formData, "ruleReviewAlreadyComplete") === "true";
+  if (!ruleReviewAlreadyComplete && checked(formData, "completeRuleReview")) {
+    const { error } = await supabase.rpc("complete_trade_rule_review", {
+      p_trade_id: savedTradeId,
+      p_results: completedRuleResults,
+    });
     if (error) redirectToForm(`/trades/${savedTradeId}/edit`, "error", error.message);
   }
 
@@ -428,11 +472,6 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
       trade_quality_grade: review.data.tradeQualityGrade ?? null,
       reviewed_at: new Date().toISOString(),
     }, { onConflict: "trade_id" });
-    if (error) redirectToForm(`/trades/${savedTradeId}/edit`, "error", error.message);
-  }
-
-  if ((!current || deferFinalStatus) && requestedStatus !== "DRAFT") {
-    const { error } = await supabase.from("trades").update({ status: requestedStatus, outcome: outcome ?? null }).eq("id", savedTradeId).eq("user_id", userId);
     if (error) redirectToForm(`/trades/${savedTradeId}/edit`, "error", error.message);
   }
 

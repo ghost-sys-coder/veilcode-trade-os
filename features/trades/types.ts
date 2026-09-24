@@ -9,6 +9,8 @@ import type {
   TradeReviewRow,
   TradeRow,
   TradeRuleResultRow,
+  TradeRuleReviewItemRow,
+  TradeRuleReviewRow,
   TradeScreenshotRow,
   TradeTargetRow,
   TradingAccountRow,
@@ -26,6 +28,8 @@ export interface ManualTradeRecord {
   psychology: TradePsychologyRow | null;
   review: TradeReviewRow | null;
   ruleResults: TradeRuleResultRow[];
+  ruleReview: TradeRuleReviewRow | null;
+  ruleReviewItems: TradeRuleReviewItemRow[];
   screenshots: TradeScreenshotRow[];
   corrections: TradePlanCorrectionRow[];
   managementEvents: TradeManagementEventRow[];

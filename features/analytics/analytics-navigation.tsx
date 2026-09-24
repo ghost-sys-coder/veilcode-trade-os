@@ -10,6 +10,10 @@ export const ANALYTICS_VIEWS = [
   { id: "sessions", label: "Sessions" },
   { id: "risk", label: "Risk" },
   { id: "time", label: "Time" },
+  { id: "execution", label: "Execution" },
+  { id: "rules", label: "Rules" },
+  { id: "psychology", label: "Psychology" },
+  { id: "mistakes", label: "Mistakes" },
 ] as const;
 
 export type AnalyticsView = (typeof ANALYTICS_VIEWS)[number]["id"];

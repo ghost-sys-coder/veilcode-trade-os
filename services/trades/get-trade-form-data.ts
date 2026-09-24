@@ -39,18 +39,24 @@ export async function getManualTradeRecord(supabase: SupabaseClient<Database>, t
   if (tradeResult.error) throw new Error(tradeResult.error.message);
   if (!tradeResult.data) return null;
 
-  const [targets, execution, psychology, review, ruleResults, screenshots, corrections, managementEvents] = await Promise.all([
+  const [targets, execution, psychology, review, ruleResults, ruleReview, screenshots, corrections, managementEvents] = await Promise.all([
     supabase.from("trade_targets").select("*").eq("trade_id", tradeId).order("created_at"),
     supabase.from("trade_execution_reviews").select("*").eq("trade_id", tradeId).maybeSingle(),
     supabase.from("trade_psychology").select("*").eq("trade_id", tradeId).maybeSingle(),
     supabase.from("trade_reviews").select("*").eq("trade_id", tradeId).maybeSingle(),
     supabase.from("trade_rule_results").select("*").eq("trade_id", tradeId),
+    supabase.from("trade_rule_reviews").select("*").eq("trade_id", tradeId).maybeSingle(),
     supabase.from("trade_screenshots").select("*").eq("trade_id", tradeId).order("created_at"),
     supabase.from("trade_plan_corrections").select("*").eq("trade_id", tradeId).order("created_at"),
     supabase.from("trade_management_events").select("*").eq("trade_id", tradeId).order("occurred_at"),
   ]);
-  const error = targets.error ?? execution.error ?? psychology.error ?? review.error ?? ruleResults.error ?? screenshots.error ?? corrections.error ?? managementEvents.error;
+  const error = targets.error ?? execution.error ?? psychology.error ?? review.error ?? ruleResults.error ?? ruleReview.error ?? screenshots.error ?? corrections.error ?? managementEvents.error;
   if (error) throw new Error(error.message);
+
+  const ruleReviewItems = ruleReview.data
+    ? await supabase.from("trade_rule_review_items").select("*").eq("review_id", ruleReview.data.id).order("display_order")
+    : { data: [], error: null };
+  if (ruleReviewItems.error) throw new Error(ruleReviewItems.error.message);
 
   const trade = tradeResult.data;
 
@@ -96,6 +102,8 @@ export async function getManualTradeRecord(supabase: SupabaseClient<Database>, t
     psychology: psychology.data,
     review: review.data,
     ruleResults: ruleResults.data ?? [],
+    ruleReview: ruleReview.data,
+    ruleReviewItems: ruleReviewItems.data ?? [],
     screenshots: screenshots.data ?? [],
     corrections: corrections.data ?? [],
     managementEvents: (managementEvents.data ?? []).map((event) => ({

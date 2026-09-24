@@ -52,6 +52,7 @@ export interface AnalyticsFilters {
   session?: TradingSession;
   direction?: TradeDirection;
   accountType?: AccountType;
+  reviewSearch?: string;
 }
 
 export interface CurrencyAnalytics {
@@ -220,16 +221,15 @@ export async function getPerformanceAnalytics(
   supabase: SupabaseClient<Database>,
   filters: AnalyticsFilters = {},
 ): Promise<AnalyticsDataset> {
-  const [profileResult, accountsResult, instrumentsResult, strategiesResult, setupsResult, rulesResult] = await Promise.all([
+  const [profileResult, accountsResult, instrumentsResult, strategiesResult, setupsResult] = await Promise.all([
     supabase.from("profiles").select("timezone").maybeSingle(),
     supabase.from("trading_accounts").select("id,name,account_type,currency_code,currency_precision,starting_balance,started_at,status").order("name"),
     supabase.from("instruments").select("id,symbol").order("symbol"),
     supabase.from("strategies").select("id,name").order("name"),
     supabase.from("setups").select("id,name,strategy_id").order("name"),
-    supabase.from("trading_rules").select("id,account_id").eq("active", true),
   ]);
   const referenceError = profileResult.error ?? accountsResult.error ?? instrumentsResult.error
-    ?? strategiesResult.error ?? setupsResult.error ?? rulesResult.error;
+    ?? strategiesResult.error ?? setupsResult.error;
   if (referenceError) throw new Error(referenceError.message);
 
   const timezone = profileResult.data?.timezone ?? "Africa/Kampala";
@@ -268,7 +268,7 @@ export async function getPerformanceAnalytics(
     };
   }
 
-  const [tradeRows, adjustmentRows, ruleResultRows] = await Promise.all([
+  const [tradeRows, adjustmentRows, ruleReviewRows, ruleReviewItemRows] = await Promise.all([
     collectRows(async (from, to) => {
       let query = supabase
         .from("trades")
@@ -292,10 +292,15 @@ export async function getPerformanceAnalytics(
       .order("id")
       .range(from, to)),
     collectRows(async (from, to) => supabase
-      .from("trade_rule_results")
-      .select("trade_id,trading_rule_id,complied")
+      .from("trade_rule_reviews")
+      .select("id,trade_id,applicable_rule_count,reviewed_at")
       .order("trade_id")
-      .order("trading_rule_id")
+      .range(from, to)),
+    collectRows(async (from, to) => supabase
+      .from("trade_rule_review_items")
+      .select("review_id,complied")
+      .order("review_id")
+      .order("display_order")
       .range(from, to)),
   ]);
 
@@ -303,20 +308,19 @@ export async function getPerformanceAnalytics(
   const instrumentById = new Map(instruments.map((item) => [item.id, item.symbol]));
   const strategyById = new Map(strategies.map((item) => [item.id, item.name]));
   const setupById = new Map(setups.map((item) => [item.id, item.name]));
-  const resultsByTrade = new Map<string, Array<{ trading_rule_id: string; complied: boolean }>>();
-  for (const result of ruleResultRows) {
-    resultsByTrade.set(result.trade_id, [...(resultsByTrade.get(result.trade_id) ?? []), result]);
+  const itemsByReview = new Map<string, Array<{ complied: boolean }>>();
+  for (const item of ruleReviewItemRows) {
+    itemsByReview.set(item.review_id, [...(itemsByReview.get(item.review_id) ?? []), item]);
   }
-  const rules = rulesResult.data ?? [];
+  const ruleReviewByTrade = new Map(ruleReviewRows.map((review) => [review.trade_id, review]));
 
   const allTrades = tradeRows.map((item): AnalyticsTrade | null => {
     const ownerAccount = accountById.get(item.account_id);
     if (!ownerAccount) return null;
-    const applicableRules = rules.filter((rule) => rule.account_id === null || rule.account_id === item.account_id);
-    const ruleResults = resultsByTrade.get(item.id) ?? [];
-    const evaluatedRules = applicableRules.filter((rule) => ruleResults.some((result) => result.trading_rule_id === rule.id));
-    const ruleViolations = ruleResults.filter((result) => !result.complied && applicableRules.some((rule) => rule.id === result.trading_rule_id)).length;
-    const ruleCompliance = applicableRules.length === 0 || evaluatedRules.length < applicableRules.length
+    const ruleReview = ruleReviewByTrade.get(item.id);
+    const ruleItems = ruleReview ? itemsByReview.get(ruleReview.id) ?? [] : [];
+    const ruleViolations = ruleItems.filter((result) => !result.complied).length;
+    const ruleCompliance = !ruleReview
       ? "NOT_REVIEWED" as const
       : ruleViolations > 0 ? "VIOLATIONS_PRESENT" as const : "FULLY_COMPLIANT" as const;
 

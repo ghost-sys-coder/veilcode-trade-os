@@ -125,9 +125,15 @@ export function TradeForm({ accounts, instruments, strategies, setups, rules, re
         <RiskSection account={account} trade={trade} locked={Boolean(lockedPlan)} preview={preview} />
         <ExecutionSection trade={trade} />
         <ResultSection trade={trade} preview={preview} visible={status === "CLOSED" || Boolean(trade?.gross_pnl)} />
-        <ExecutionQualitySection review={record?.executionReview} />
-        <PsychologySection psychology={record?.psychology} />
-        <RuleComplianceSection rules={applicableRules} results={record?.ruleResults ?? []} />
+        <ExecutionQualitySection review={record?.executionReview} canComplete={status === "CLOSED"} />
+        <PsychologySection psychology={record?.psychology} canComplete={status === "CLOSED"} />
+        <RuleComplianceSection
+          rules={applicableRules}
+          results={record?.ruleResults ?? []}
+          review={record?.ruleReview}
+          reviewItems={record?.ruleReviewItems}
+          canComplete={status === "CLOSED"}
+        />
         <ReviewSection review={record?.review} visible={status === "CLOSED"} />
         <SubmitBar editing={Boolean(trade)} canSaveDraft={!lockedPlan} />
       </form>

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(57);
+select plan(71);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -498,6 +498,139 @@ select throws_ok(
   '22023',
   'Fixed adjustment types are always performance-neutral.',
   'fixed adjustment types cannot be reclassified'
+);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.trade_rule_reviews'::regclass),
+  'completed rule reviews have RLS enabled'
+);
+
+insert into public.trades (
+  user_id, account_id, instrument_id, status, direction, opened_at, closed_at,
+  gross_pnl, net_pnl, outcome
+)
+select
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', a.id, i.id, 'CLOSED', 'BUY',
+  now() - interval '2 hours', now(), 25, 25, 'WIN'
+from public.trading_accounts a
+cross join public.instruments i
+where a.name = 'RLS Test Account' and i.symbol = 'EURUSD';
+
+create temporary table phase_05_context as
+select id as trade_id
+from public.trades
+where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and gross_pnl = 25
+order by created_at desc
+limit 1;
+
+select lives_ok(
+  $$insert into public.trade_execution_reviews (user_id, trade_id)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', (select trade_id from phase_05_context))$$,
+  'an unanswered execution placeholder can be saved as a draft'
+);
+
+select is(
+  (select reviewed_at is null from public.trade_execution_reviews where trade_id = (select trade_id from phase_05_context)),
+  true,
+  'an execution placeholder is not completed evidence'
+);
+
+select throws_ok(
+  $$update public.trade_execution_reviews set reviewed_at = now()
+    where trade_id = (select trade_id from phase_05_context)$$,
+  '23514',
+  'new row for relation "trade_execution_reviews" violates check constraint "trade_execution_reviews_completion_requires_answers"',
+  'execution completion requires every explicit answer'
+);
+
+select lives_ok(
+  $$update public.trade_execution_reviews set
+      entry_according_to_plan = true, stop_according_to_plan = true,
+      target_according_to_plan = false, stop_action = 'UNCHANGED',
+      closed_early = false, entered_early = false, entered_late = false,
+      chased_price = false, added_to_position = false, revenge_trade = false,
+      over_risked = false, reviewed_at = now()
+    where trade_id = (select trade_id from phase_05_context)$$,
+  'explicit false execution answers can complete a closed-trade review'
+);
+
+select lives_ok(
+  $$insert into public.trade_psychology (
+      user_id, trade_id, fear_influenced, greed_influenced, fomo_influenced, reviewed_at
+    ) values (
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', (select trade_id from phase_05_context), false, false, false, now()
+    )$$,
+  'explicit false psychology answers complete a closed-trade review'
+);
+
+insert into public.trading_rules (user_id, account_id, name, description, active)
+select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', id, 'Phase 05 immutable rule', 'Wait for the required confirmation close.', true
+from public.trading_accounts where name = 'RLS Test Account';
+
+create temporary table phase_05_rule_context as
+select id as rule_id from public.trading_rules where name = 'Phase 05 immutable rule';
+
+select throws_ok(
+  $$select public.complete_trade_rule_review((select trade_id from phase_05_context), '[]'::jsonb)$$,
+  '22023',
+  'Completed review must cover the exact applicable rule set.',
+  'rule review completion rejects a missing applicable result'
+);
+
+select lives_ok(
+  $$select public.complete_trade_rule_review(
+      (select trade_id from phase_05_context),
+      jsonb_build_array(jsonb_build_object(
+        'trading_rule_id', (select rule_id from phase_05_rule_context),
+        'complied', false,
+        'notes', 'Entered before confirmation'
+      ))
+    )$$,
+  'the exact applicable rule set completes atomically'
+);
+
+select is(
+  (select applicable_rule_count from public.trade_rule_reviews where trade_id = (select trade_id from phase_05_context)),
+  1,
+  'completed review stores its applicable-rule count'
+);
+
+select is(
+  (select count(*)::integer from public.trade_rule_review_items where rule_id_snapshot = (select rule_id from phase_05_rule_context)),
+  1,
+  'completed review stores the actual applicable rule ID and result'
+);
+
+update public.trading_rules set name = 'Phase 05 renamed rule' where id = (select rule_id from phase_05_rule_context);
+select is(
+  (select rule_name from public.trade_rule_review_items where rule_id_snapshot = (select rule_id from phase_05_rule_context)),
+  'Phase 05 immutable rule',
+  'later rule edits do not rewrite the immutable review snapshot'
+);
+
+delete from public.trading_rules where id = (select rule_id from phase_05_rule_context);
+select is(
+  (select count(*)::integer from public.trade_rule_review_items where rule_id_snapshot = (select rule_id from phase_05_rule_context)),
+  1,
+  'later rule deletion does not erase historical review evidence'
+);
+
+select throws_ok(
+  $$delete from public.trade_rule_review_items where review_id in (
+      select id from public.trade_rule_reviews where trade_id = (select trade_id from phase_05_context)
+    )$$,
+  '42501',
+  'permission denied for table trade_rule_review_items',
+  'normal workflows cannot delete immutable rule snapshots'
+);
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+select throws_ok(
+  $$select public.complete_trade_rule_review((select trade_id from phase_05_context), '[]'::jsonb)$$,
+  'P0002',
+  'Trade not found.',
+  'another user cannot complete the owner rule review'
 );
 
 select * from finish();

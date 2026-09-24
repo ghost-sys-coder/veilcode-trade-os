@@ -127,6 +127,10 @@ try {
         }
         Returns: Database["public"]["Tables"]["account_adjustments"]["Row"]
       }
+      complete_trade_rule_review: {
+        Args: { p_results: Json; p_trade_id: string }
+        Returns: Database["public"]["Tables"]["trade_rule_reviews"]["Row"]
+      }
       correct_trade_plan_value: {
         Args: {
           p_field_name: string

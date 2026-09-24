@@ -531,15 +531,16 @@ export type Database = {
           stop_according_to_plan: boolean | null
           target_according_to_plan: boolean | null
           stop_action: Database["public"]["Enums"]["stop_action"] | null
-          closed_early: boolean
-          entered_early: boolean
-          entered_late: boolean
-          chased_price: boolean
-          added_to_position: boolean
-          revenge_trade: boolean
-          over_risked: boolean
+          closed_early: boolean | null
+          entered_early: boolean | null
+          entered_late: boolean | null
+          chased_price: boolean | null
+          added_to_position: boolean | null
+          revenge_trade: boolean | null
+          over_risked: boolean | null
           execution_rating: number | null
           notes: string | null
+          reviewed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -551,15 +552,16 @@ export type Database = {
           stop_according_to_plan?: boolean | null
           target_according_to_plan?: boolean | null
           stop_action?: Database["public"]["Enums"]["stop_action"] | null
-          closed_early?: boolean
-          entered_early?: boolean
-          entered_late?: boolean
-          chased_price?: boolean
-          added_to_position?: boolean
-          revenge_trade?: boolean
-          over_risked?: boolean
+          closed_early?: boolean | null
+          entered_early?: boolean | null
+          entered_late?: boolean | null
+          chased_price?: boolean | null
+          added_to_position?: boolean | null
+          revenge_trade?: boolean | null
+          over_risked?: boolean | null
           execution_rating?: number | null
           notes?: string | null
+          reviewed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -571,15 +573,16 @@ export type Database = {
           stop_according_to_plan?: boolean | null
           target_according_to_plan?: boolean | null
           stop_action?: Database["public"]["Enums"]["stop_action"] | null
-          closed_early?: boolean
-          entered_early?: boolean
-          entered_late?: boolean
-          chased_price?: boolean
-          added_to_position?: boolean
-          revenge_trade?: boolean
-          over_risked?: boolean
+          closed_early?: boolean | null
+          entered_early?: boolean | null
+          entered_late?: boolean | null
+          chased_price?: boolean | null
+          added_to_position?: boolean | null
+          revenge_trade?: boolean | null
+          over_risked?: boolean | null
           execution_rating?: number | null
           notes?: string | null
+          reviewed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -672,10 +675,11 @@ export type Database = {
           emotion_before: Database["public"]["Enums"]["trade_emotion"] | null
           emotion_during: Database["public"]["Enums"]["trade_emotion"] | null
           emotion_after: Database["public"]["Enums"]["trade_emotion"] | null
-          fear_influenced: boolean
-          greed_influenced: boolean
-          fomo_influenced: boolean
+          fear_influenced: boolean | null
+          greed_influenced: boolean | null
+          fomo_influenced: boolean | null
           notes: string | null
+          reviewed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -687,10 +691,11 @@ export type Database = {
           emotion_before?: Database["public"]["Enums"]["trade_emotion"] | null
           emotion_during?: Database["public"]["Enums"]["trade_emotion"] | null
           emotion_after?: Database["public"]["Enums"]["trade_emotion"] | null
-          fear_influenced?: boolean
-          greed_influenced?: boolean
-          fomo_influenced?: boolean
+          fear_influenced?: boolean | null
+          greed_influenced?: boolean | null
+          fomo_influenced?: boolean | null
           notes?: string | null
+          reviewed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -702,10 +707,11 @@ export type Database = {
           emotion_before?: Database["public"]["Enums"]["trade_emotion"] | null
           emotion_during?: Database["public"]["Enums"]["trade_emotion"] | null
           emotion_after?: Database["public"]["Enums"]["trade_emotion"] | null
-          fear_influenced?: boolean
-          greed_influenced?: boolean
-          fomo_influenced?: boolean
+          fear_influenced?: boolean | null
+          greed_influenced?: boolean | null
+          fomo_influenced?: boolean | null
           notes?: string | null
+          reviewed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -753,6 +759,81 @@ export type Database = {
           reviewed_at?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      trade_rule_review_items: {
+        Row: {
+          id: string
+          user_id: string
+          review_id: string
+          rule_id_snapshot: string
+          rule_name: string
+          rule_description: string
+          rule_type: Database["public"]["Enums"]["rule_type"]
+          numeric_limit: string | null
+          account_id_snapshot: string | null
+          complied: boolean
+          notes: string | null
+          display_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          review_id: string
+          rule_id_snapshot: string
+          rule_name: string
+          rule_description: string
+          rule_type: Database["public"]["Enums"]["rule_type"]
+          numeric_limit?: string | null
+          account_id_snapshot?: string | null
+          complied: boolean
+          notes?: string | null
+          display_order: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          review_id?: string
+          rule_id_snapshot?: string
+          rule_name?: string
+          rule_description?: string
+          rule_type?: Database["public"]["Enums"]["rule_type"]
+          numeric_limit?: string | null
+          account_id_snapshot?: string | null
+          complied?: boolean
+          notes?: string | null
+          display_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      trade_rule_reviews: {
+        Row: {
+          id: string
+          user_id: string
+          trade_id: string
+          reviewed_at: string
+          applicable_rule_count: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          trade_id: string
+          reviewed_at?: string
+          applicable_rule_count: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          trade_id?: string
+          reviewed_at?: string
+          applicable_rule_count?: number
+          created_at?: string
         }
         Relationships: []
       }
@@ -1216,6 +1297,13 @@ export type Database = {
           p_reason: string
         }
         Returns: Database["public"]["Tables"]["account_adjustments"]["Row"]
+      }
+      complete_trade_rule_review: {
+        Args: {
+          p_results: Json
+          p_trade_id: string
+        }
+        Returns: Database["public"]["Tables"]["trade_rule_reviews"]["Row"]
       }
       replace_trade_targets: {
         Args: {

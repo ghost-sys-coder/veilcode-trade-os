@@ -25,6 +25,7 @@ export function parseAnalyticsFilters(params: RawSearchParams): AnalyticsFilters
     session: TRADING_SESSIONS.includes(session as (typeof TRADING_SESSIONS)[number]) ? session as AnalyticsFilters["session"] : undefined,
     direction: TRADE_DIRECTIONS.includes(direction as (typeof TRADE_DIRECTIONS)[number]) ? direction as AnalyticsFilters["direction"] : undefined,
     accountType: ACCOUNT_TYPES.includes(accountType as (typeof ACCOUNT_TYPES)[number]) ? accountType as AnalyticsFilters["accountType"] : undefined,
+    reviewSearch: single(params.reviewSearch)?.trim() || undefined,
   };
 }
 

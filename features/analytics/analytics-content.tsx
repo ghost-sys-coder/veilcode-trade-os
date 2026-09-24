@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CumulativeRChart, BalancePerformanceChart, DrawdownChart } from "@/features/analytics/performance-charts";
 import { PerformanceBreakdownTable } from "@/features/analytics/performance-breakdown-table";
 import { MetricTile } from "@/features/analytics/metric-tile";
+import { BehaviorAnalyticsContent } from "@/features/analytics/behavior-analytics-content";
+import type { BehavioralAnalytics } from "@/domain/analytics/behavior";
 import { formatCurrentStreak, formatDecimal, formatHoldingDuration, formatMoney, formatPercent, formatProfitFactor, formatR } from "@/features/analytics/format";
 import type { AnalyticsView } from "@/features/analytics/analytics-navigation";
 import type { AnalyticsBreakdowns, AnalyticsDataset, CurrencyAnalytics } from "@/services/analytics/get-performance-analytics";
@@ -86,7 +88,7 @@ function BreakdownCurrencySection({
   currencyCode: string;
   currencyPrecision: number;
   breakdowns: AnalyticsBreakdowns;
-  view: Exclude<AnalyticsView, "overview">;
+  view: "instruments" | "strategies" | "setups" | "sessions" | "risk" | "time";
 }) {
   const shared = { currencyCode, currencyPrecision };
   return (
@@ -102,7 +104,7 @@ function BreakdownCurrencySection({
   );
 }
 
-export function AnalyticsContent({ dataset, view }: { dataset: AnalyticsDataset; view: AnalyticsView }) {
+export function AnalyticsContent({ dataset, view, behavior }: { dataset: AnalyticsDataset; view: AnalyticsView; behavior?: BehavioralAnalytics }) {
   if (dataset.selectedAccountCount === 0) {
     return <Card><CardContent className="flex min-h-56 flex-col items-center justify-center text-center"><ChartNoAxesCombined className="size-8 text-muted-foreground" aria-hidden="true" /><p className="mt-3 font-medium">No accounts match this selection</p><p className="mt-1 text-sm text-muted-foreground">Reset the filters or create a trading account first.</p></CardContent></Card>;
   }
@@ -115,6 +117,10 @@ export function AnalyticsContent({ dataset, view }: { dataset: AnalyticsDataset;
         {dataset.currencies.map((currency) => <CurrencyOverview key={currency.currencyCode} currency={currency} />)}
       </div>
     );
+  }
+
+  if (view === "execution" || view === "rules" || view === "psychology" || view === "mistakes") {
+    return behavior ? <BehaviorAnalyticsContent analytics={behavior} view={view} /> : null;
   }
 
   return <div className="space-y-8">{dataset.breakdownsByCurrency.map((item) => <BreakdownCurrencySection key={item.currencyCode} {...item} view={view} />)}</div>;
