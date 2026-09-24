@@ -319,10 +319,24 @@ export const accountAdjustmentSchema = z.object({
   amount: decimalStringSchema.refine((value) => !parseDecimal(value).isZero(), "Amount cannot be zero."),
   occurredAt: z.string().datetime(),
   notes: optionalTextSchema,
+  isPerformanceNeutral: z.boolean().optional(),
+  classificationReason: optionalTextSchema,
 }).superRefine((value, context) => {
   if (value.type === "BALANCE_CORRECTION" && (!value.notes || value.notes.length < 5)) {
     context.addIssue({ code: "custom", path: ["notes"], message: "Balance corrections require a meaningful note." });
   }
+  if (value.type === "OTHER" && value.isPerformanceNeutral === undefined) {
+    context.addIssue({ code: "custom", path: ["isPerformanceNeutral"], message: "OTHER adjustments require a performance classification." });
+  }
+  if (value.type === "OTHER" && (!value.classificationReason || value.classificationReason.length < 5)) {
+    context.addIssue({ code: "custom", path: ["classificationReason"], message: "OTHER adjustments require a meaningful classification reason." });
+  }
+});
+
+export const adjustmentClassificationSchema = z.object({
+  adjustmentId: z.string().uuid(),
+  isPerformanceNeutral: z.boolean(),
+  reason: z.string().trim().min(5).max(500),
 });
 
 export const tagSchema = z.object({

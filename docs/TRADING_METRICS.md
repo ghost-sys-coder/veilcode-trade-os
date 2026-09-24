@@ -167,3 +167,47 @@ A trade is reviewed only when all applicable active rules have an explicit resul
 - Maximum Adverse Excursion (MAE): greatest adverse movement experienced while a trade was open.
 
 Both are optional/manual initially and may be represented in currency, pips/points, or R. Each representation retains its own precision and units; missing values must not be treated as zero.
+
+## Analytics date and population
+
+Realized performance uses `closed_at`. A canonical trade contributes its final PnL, outcome, actual R, fees, streak result, and realized balance movement only when its status is `CLOSED` and the complete trade has a final close timestamp. A trade opened on one day and finally closed on another is attributed to the close date.
+
+This does not change the journal-date convention, which remains `opened_at → planned_at → created_at`.
+
+## Trading profit and account cash flow
+
+Trading `net_profit` is the sum of normalized `net_pnl` for qualifying closed trades. Account adjustments are never included in trading net profit:
+
+- deposits are not profit;
+- withdrawals are not losses;
+- balance corrections are not trading performance;
+- `OTHER` adjustments remain account cash events even when their classification makes them performance-affecting for account analytics.
+
+## Adjustment classification and cash-flow-neutral drawdown
+
+`DEPOSIT`, `WITHDRAWAL`, and `BALANCE_CORRECTION` are always performance-neutral. A new `OTHER` adjustment requires an explicit classification:
+
+- `is_performance_neutral = true`: change account cash and shift both the current balance basis and high-water-mark basis by the same amount;
+- `is_performance_neutral = false`: change account value without shifting the prior high-water mark, so the movement can create a new high or drawdown;
+- `is_performance_neutral = null`: allowed only for legacy `OTHER` records awaiting review.
+
+When a relevant `OTHER` adjustment is unclassified, authoritative cash-flow-neutral drawdown, maximum drawdown, and recovery factor are unavailable. The UI must report the number of adjustments requiring classification rather than assuming either interpretation.
+
+Classification changes use an ownership-checked database workflow and append an audit event. Direct classification-field updates are rejected.
+
+## R-expectancy distribution cross-check
+
+Primary R expectancy is the arithmetic mean of valid `actual_r` values. Its sample size is shown as qualifying R trades out of all closed trades. Missing R is excluded, never replaced with zero.
+
+For the same valid-R population, verify the result with:
+
+```text
+(winning-R trade share × average winning R)
++ (losing-R trade share × average losing R)
+```
+
+Break-even trades remain in the valid-R population and contribute zero to the weighted result.
+
+## Multi-account currency safety
+
+Monetary analytics may be combined only for accounts with the same ISO currency code. Mixed-currency selections render separate monetary sections. Count-based and unitless metrics may combine currencies, but they are recalculated from the underlying trades; account-level percentages are never averaged.

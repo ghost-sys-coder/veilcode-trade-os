@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(57);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -376,6 +376,128 @@ select lives_ok(
     select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', id, '2026-09-23', 'Phase 03 daily log'
     from public.trading_accounts where name = 'RLS Test Account'$$,
   'owner can create one account-day journal log'
+);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.account_adjustment_classifications'::regclass),
+  'adjustment classification history has RLS enabled'
+);
+
+select lives_ok(
+  $$insert into public.account_adjustments (
+      user_id, account_id, type, amount, occurred_at, is_performance_neutral
+    )
+    select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', id, 'DEPOSIT', 100, now(), false
+    from public.trading_accounts where name = 'RLS Test Account'$$,
+  'fixed adjustment types are normalized on insert'
+);
+
+select is(
+  (select is_performance_neutral from public.account_adjustments where type = 'DEPOSIT' and amount = 100),
+  true,
+  'a deposit cannot persist as performance-affecting'
+);
+
+select throws_ok(
+  $$insert into public.account_adjustments (user_id, account_id, type, amount, occurred_at)
+    select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', id, 'OTHER', 25, now()
+    from public.trading_accounts where name = 'RLS Test Account'$$,
+  '23514',
+  'OTHER adjustments require an explicit performance classification.',
+  'a new OTHER adjustment cannot remain unclassified'
+);
+
+select lives_ok(
+  $$insert into public.account_adjustments (
+      user_id, account_id, type, amount, occurred_at,
+      is_performance_neutral, classification_reason
+    )
+    select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', id, 'OTHER', 25, now(), true, 'Broker cash rebate'
+    from public.trading_accounts where name = 'RLS Test Account'$$,
+  'an explicitly classified OTHER adjustment is accepted'
+);
+
+create temporary table phase_04_adjustment_context as
+select id as adjustment_id
+from public.account_adjustments
+where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and type = 'OTHER' and amount = 25;
+
+select throws_ok(
+  $$update public.account_adjustments
+    set is_performance_neutral = false
+    where id = (select adjustment_id from phase_04_adjustment_context)$$,
+  '42501',
+  'Adjustment classification changes require the approved workflow.',
+  'direct adjustment classification updates are rejected'
+);
+
+select lives_ok(
+  $$select public.classify_account_adjustment(
+      (select adjustment_id from phase_04_adjustment_context),
+      false,
+      'Treat rebate as account performance'
+    )$$,
+  'the approved adjustment classification workflow succeeds'
+);
+
+select is(
+  (select is_performance_neutral from public.account_adjustments where id = (select adjustment_id from phase_04_adjustment_context)),
+  false,
+  'the current OTHER classification is updated atomically'
+);
+
+select is(
+  (select count(*)::integer from public.account_adjustment_classifications where adjustment_id = (select adjustment_id from phase_04_adjustment_context)),
+  1,
+  'a classification change appends one audit event'
+);
+
+select throws_ok(
+  $$select public.classify_account_adjustment(
+      (select adjustment_id from phase_04_adjustment_context),
+      true,
+      ''
+    )$$,
+  '22023',
+  'A meaningful classification reason is required.',
+  'a classification change requires a meaningful reason'
+);
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+select throws_ok(
+  $$select public.classify_account_adjustment(
+      (select adjustment_id from phase_04_adjustment_context),
+      true,
+      'Unauthorized reclassification'
+    )$$,
+  'P0002',
+  'Account adjustment not found.',
+  'another user cannot classify the owner adjustment'
+);
+
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+select throws_ok(
+  $$delete from public.account_adjustment_classifications
+    where adjustment_id = (select adjustment_id from phase_04_adjustment_context)$$,
+  '42501',
+  'permission denied for table account_adjustment_classifications',
+  'normal deletion attempts are rejected for append-only audit history'
+);
+select is(
+  (select count(*)::integer from public.account_adjustment_classifications where adjustment_id = (select adjustment_id from phase_04_adjustment_context)),
+  1,
+  'classification audit history remains append-only through RLS'
+);
+
+select throws_ok(
+  $$select public.classify_account_adjustment(
+      (select id from public.account_adjustments where type = 'DEPOSIT' and amount = 100),
+      false,
+      'Invalid fixed-type classification'
+    )$$,
+  '22023',
+  'Fixed adjustment types are always performance-neutral.',
+  'fixed adjustment types cannot be reclassified'
 );
 
 select * from finish();

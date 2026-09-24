@@ -24,7 +24,7 @@ Last updated: 2026-09-23
 
 ### Card
 
-File: `components/ui/card/card.tsx`
+File: `components/ui/card.tsx`
 Last updated: 2026-09-23
 
 | Property | Class |
@@ -135,3 +135,98 @@ Last updated: 2026-09-23
 | Accent usage | closed-state `text-primary` edit label |
 
 **Pattern notes:** Editors live below scrollable registers so forms cannot be clipped by table overflow. Register links move focus to the corresponding in-flow disclosure.
+
+### Analytics metric tile
+
+File: `features/analytics/metric-tile.tsx`
+Last updated: 2026-09-24
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-card` inherited from Card |
+| Border | `border-border/80` inherited; `via-primary/55` top accent |
+| Border radius | `rounded-xl` inherited |
+| Text — primary | `font-mono text-2xl font-semibold tabular-nums` |
+| Text — secondary | `text-xs leading-5 text-muted-foreground` |
+| Spacing | `min-h-32 p-5`, value `mt-3`, detail `mt-2` |
+| Hover state | none |
+| Shadow | `surface-shadow` inherited |
+| Accent usage | `text-profit` and `text-loss` only for signed performance values |
+
+**Pattern notes:** Metric values use tabular monospace figures and explicit sample/context copy. Zero and unavailable states stay neutral; semantic profit/loss colors are reserved for signed outcomes.
+
+### Analytics filter panel
+
+File: `features/analytics/analytics-filters.tsx`
+Last updated: 2026-09-24
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-card` |
+| Border | `border border-border/70`; footer `border-border/60` |
+| Border radius | `rounded-xl` |
+| Text — primary | compact semibold Label primitive |
+| Text — secondary | `text-xs text-muted-foreground` |
+| Spacing | `p-4`, `gap-4`, footer `mt-4 pt-4` |
+| Hover state | control primitives own states |
+| Shadow | `shadow-sm` |
+| Accent usage | primary submit action only |
+
+**Pattern notes:** Dense analytical filters live in one substantial panel, wrap responsively, and always include date-attribution context plus adjacent reset/apply actions.
+
+### Analytics section navigation
+
+File: `features/analytics/analytics-navigation.tsx`
+Last updated: 2026-09-24
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-card`; active `bg-primary` |
+| Border | `border border-border/70` |
+| Border radius | outer `rounded-xl`, items `rounded-lg` |
+| Text — primary | active `text-primary-foreground` |
+| Text — secondary | `text-muted-foreground` |
+| Spacing | outer `p-1.5`; items `px-4 py-2` |
+| Hover state | `hover:bg-muted hover:text-foreground` |
+| Shadow | outer and active item `shadow-sm` |
+| Accent usage | amber primary fill marks the current analytical view |
+
+**Pattern notes:** Use a horizontally scrollable segmented bar when a data workspace has several peer views. Preserve the active filter query across every destination.
+
+### Performance breakdown table
+
+File: `features/analytics/performance-breakdown-table.tsx`
+Last updated: 2026-09-24
+
+| Property | Class |
+| --- | --- |
+| Background | Card and Table token surfaces |
+| Border | header `border-b border-border/70` |
+| Border radius | `rounded-xl` inherited from Card |
+| Text — primary | `font-medium`; numeric cells `font-mono tabular-nums` |
+| Text — secondary | `text-[0.68rem] text-muted-foreground` |
+| Spacing | Card header baseline; table content `px-0 pb-0` |
+| Hover state | TableRow primitive owns states |
+| Shadow | `surface-shadow` inherited |
+| Accent usage | none; signed values retain semantic formatting at the metric layer |
+
+**Pattern notes:** Analytical tables always expose counts and qualifying samples alongside rates. Missing or empty populations use an in-table empty state instead of fabricated zero values.
+
+### Performance chart card
+
+Files: `features/analytics/performance-charts.tsx`, `components/ui/chart.tsx`
+Last updated: 2026-09-24
+
+| Property | Class |
+| --- | --- |
+| Background | transparent chart inside `bg-card` parent |
+| Border | parent header `border-b border-border/70` |
+| Border radius | parent `rounded-xl` |
+| Text — primary | CardTitle primitive |
+| Text — secondary | `text-sm text-muted-foreground` empty states |
+| Spacing | chart `min-h-64`; standard Card regions |
+| Hover state | Recharts tooltip uses token surface |
+| Shadow | parent `surface-shadow` |
+| Accent usage | chart tokens `--chart-*`; drawdown uses `--loss` |
+
+**Pattern notes:** Charts use shared shadcn-style containers, accessible Recharts layers, deterministic axes, and restrained token colors. Render a precise explanatory empty state when the sample cannot support a series.

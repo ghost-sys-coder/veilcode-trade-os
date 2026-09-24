@@ -12,6 +12,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_adjustment_classifications: {
+        Row: {
+          id: string
+          user_id: string
+          adjustment_id: string
+          previous_is_performance_neutral: boolean | null
+          new_is_performance_neutral: boolean
+          reason: string
+          actor_user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          adjustment_id: string
+          previous_is_performance_neutral?: boolean | null
+          new_is_performance_neutral: boolean
+          reason: string
+          actor_user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          adjustment_id?: string
+          previous_is_performance_neutral?: boolean | null
+          new_is_performance_neutral?: boolean
+          reason?: string
+          actor_user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       account_adjustments: {
         Row: {
           id: string
@@ -19,6 +52,10 @@ export type Database = {
           account_id: string
           type: Database["public"]["Enums"]["adjustment_type"]
           amount: string
+          is_performance_neutral: boolean | null
+          classification_reason: string | null
+          classified_at: string | null
+          classified_by_user_id: string | null
           occurred_at: string
           notes: string | null
           created_at: string
@@ -29,6 +66,10 @@ export type Database = {
           account_id: string
           type: Database["public"]["Enums"]["adjustment_type"]
           amount: string
+          is_performance_neutral?: boolean | null
+          classification_reason?: string | null
+          classified_at?: string | null
+          classified_by_user_id?: string | null
           occurred_at: string
           notes?: string | null
           created_at?: string
@@ -39,6 +80,10 @@ export type Database = {
           account_id?: string
           type?: Database["public"]["Enums"]["adjustment_type"]
           amount?: string
+          is_performance_neutral?: boolean | null
+          classification_reason?: string | null
+          classified_at?: string | null
+          classified_by_user_id?: string | null
           occurred_at?: string
           notes?: string | null
           created_at?: string
@@ -1164,6 +1209,14 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
+      classify_account_adjustment: {
+        Args: {
+          p_adjustment_id: string
+          p_is_performance_neutral: boolean
+          p_reason: string
+        }
+        Returns: Database["public"]["Tables"]["account_adjustments"]["Row"]
+      }
       replace_trade_targets: {
         Args: {
           p_targets: Json

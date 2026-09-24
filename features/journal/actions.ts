@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { normalizeAdjustmentAmount } from "@/domain/journal/analytics";
 import { normalizeMoney } from "@/domain/money/decimal";
 import {
+  adjustmentClassificationSchema,
   accountAdjustmentSchema,
   dailyLogSchema,
   monthlyReviewSchema,
@@ -157,12 +158,18 @@ export async function createAccountAdjustment(formData: FormData): Promise<void>
     amount: text(formData, "amount"),
     occurredAt,
     notes: optional(formData, "notes"),
+    isPerformanceNeutral: booleanValue(formData, "isPerformanceNeutral"),
+    classificationReason: optional(formData, "classificationReason"),
   });
   if (!result.success) finish(path, "error", firstValidationError(result.error));
   const value = result.data;
   const { data: account, error: accountError } = await supabase.from("trading_accounts").select("currency_precision").eq("id", value.accountId).eq("user_id", userId).maybeSingle();
   if (accountError || !account) finish(path, "error", accountError?.message ?? "Account not found.");
   const amount = normalizeMoney(normalizeAdjustmentAmount(value.type, value.amount), account.currency_precision);
+  const classification = value.type === "OTHER" ? {
+    is_performance_neutral: value.isPerformanceNeutral,
+    classification_reason: value.classificationReason,
+  } : {};
   const { error } = await supabase.from("account_adjustments").insert({
     user_id: userId,
     account_id: value.accountId,
@@ -170,11 +177,38 @@ export async function createAccountAdjustment(formData: FormData): Promise<void>
     amount,
     occurred_at: value.occurredAt,
     notes: value.notes ?? null,
+    ...classification,
   });
   if (error) finish(path, "error", error.message);
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);
+  revalidatePath("/analytics", "layout");
+  revalidatePath("/dashboard");
   finish(path, "message", "Account adjustment recorded.");
+}
+
+export async function classifyAccountAdjustment(formData: FormData): Promise<void> {
+  await requireUserId();
+  const supabase = await createClient();
+  const accountId = text(formData, "accountId");
+  const path = returnPath(formData, `/accounts/${accountId}`);
+  const result = adjustmentClassificationSchema.safeParse({
+    adjustmentId: text(formData, "adjustmentId"),
+    isPerformanceNeutral: booleanValue(formData, "isPerformanceNeutral"),
+    reason: text(formData, "reason"),
+  });
+  if (!result.success) finish(path, "error", firstValidationError(result.error));
+  const { error } = await supabase.rpc("classify_account_adjustment", {
+    p_adjustment_id: result.data.adjustmentId,
+    p_is_performance_neutral: result.data.isPerformanceNeutral,
+    p_reason: result.data.reason,
+  });
+  if (error) finish(path, "error", error.message);
+  revalidatePath("/accounts");
+  revalidatePath(`/accounts/${accountId}`);
+  revalidatePath("/analytics", "layout");
+  revalidatePath("/dashboard");
+  finish(path, "message", "Adjustment performance classification updated.");
 }
 
 export async function saveTag(formData: FormData): Promise<void> {

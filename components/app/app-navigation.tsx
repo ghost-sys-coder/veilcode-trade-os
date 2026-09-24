@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ListChecks,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -22,6 +23,7 @@ const navigationItems = [
   { href: "/trades/new", label: "Log trade", icon: BookOpenText },
   { href: "/journal/daily", label: "Daily journal", icon: ClipboardPenLine },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/strategies", label: "Strategies", icon: ChartNoAxesCombined },
   { href: "/rules", label: "Rules", icon: ShieldCheck },
 ] as const;

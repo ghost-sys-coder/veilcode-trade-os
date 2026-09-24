@@ -18,6 +18,16 @@ export async function getAccountLedger(supabase: SupabaseClient<Database>, accou
   if (error) throw new Error(error.message);
   if (!accountResult.data) return null;
 
+  const adjustmentIds = (adjustmentsResult.data ?? []).map((adjustment) => adjustment.id);
+  const classificationsResult = adjustmentIds.length > 0
+    ? await supabase
+        .from("account_adjustment_classifications")
+        .select("*")
+        .in("adjustment_id", adjustmentIds)
+        .order("created_at", { ascending: false })
+    : { data: [], error: null };
+  if (classificationsResult.error) throw new Error(classificationsResult.error.message);
+
   const account = accountResult.data;
   const instruments = new Map((instrumentsResult.data ?? []).map((item) => [item.id, item.symbol]));
   const trades = (tradesResult.data ?? [])
@@ -53,6 +63,7 @@ export async function getAccountLedger(supabase: SupabaseClient<Database>, accou
     account: { ...account, starting_balance: normalizeMoney(normalizeSupabaseNumeric(account.starting_balance), account.currency_precision) },
     trades,
     adjustments,
+    adjustmentClassifications: classificationsResult.data ?? [],
     snapshots: (snapshotsResult.data ?? []).map((snapshot) => ({
       ...snapshot,
       balance: normalizeMoney(normalizeSupabaseNumeric(snapshot.balance), account.currency_precision),
