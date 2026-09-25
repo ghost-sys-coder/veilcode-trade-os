@@ -4,13 +4,14 @@ import { LockKeyhole } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { TradeForm } from "@/features/trades/trade-form";
+import { CalculatorTransferCleanup } from "@/features/trades/calculator-transfer-cleanup";
 import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getManualTradeRecord, getTradeFormReferences } from "@/services/trades/get-trade-form-data";
 
 interface EditTradePageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; calculatorSaved?: string }>;
 }
 
 export default async function EditTradePage({ params, searchParams }: EditTradePageProps) {
@@ -30,6 +31,7 @@ export default async function EditTradePage({ params, searchParams }: EditTradeP
 
   return (
     <div className="space-y-6">
+      {status.calculatorSaved === "1" ? <CalculatorTransferCleanup /> : null}
       <PageHeader
         eyebrow="Manual trade logging"
         title={`${instrument?.symbol ?? "Trade"} record`}

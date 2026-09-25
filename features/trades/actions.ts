@@ -90,7 +90,7 @@ function targetInputs(formData: FormData) {
 }
 
 function redirectToForm(path: string, kind: "error" | "message", message: string): never {
-  redirect(`${path}?${kind}=${encodeURIComponent(message)}`);
+  redirect(`${path}${path.includes("?") ? "&" : "?"}${kind}=${encodeURIComponent(message)}`);
 }
 
 function allowedStatus(previousStatus: TradeStatus | undefined, requested: TradeStatus): boolean {
@@ -103,7 +103,8 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
   const userId = await requireUserId();
   const supabase = await createClient();
   const tradeId = optionalText(formData, "id");
-  const destination = tradeId ? `/trades/${tradeId}/edit` : "/trades/new";
+  const calculatorTransfer = textValue(formData, "calculatorTransfer") === "true";
+  const destination = tradeId ? `/trades/${tradeId}/edit` : calculatorTransfer ? "/trades/new?from=position-calculator" : "/trades/new";
 
   const currentResult = tradeId
     ? await supabase.from("trades").select("*").eq("id", tradeId).eq("user_id", userId).maybeSingle()
@@ -492,7 +493,8 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
   revalidatePath("/dashboard");
   revalidatePath("/accounts");
   revalidatePath(`/trades/${savedTradeId}/edit`);
-  redirectToForm(`/trades/${savedTradeId}/edit`, "message", requestedStatus === "DRAFT" ? "Draft saved." : "Trade saved.");
+  const message = encodeURIComponent(requestedStatus === "DRAFT" ? "Draft saved." : "Trade saved.");
+  redirect(`/trades/${savedTradeId}/edit?message=${message}${calculatorTransfer ? "&calculatorSaved=1" : ""}`);
 }
 
 export async function correctTradePlanValue(tradeId: string, formData: FormData): Promise<void> {

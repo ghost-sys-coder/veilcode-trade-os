@@ -17,6 +17,9 @@ interface IdentificationSectionProps {
   status: TradeStatus;
   onAccountChange: (value: string) => void;
   onStatusChange: (value: TradeStatus) => void;
+  initialInstrumentId?: string;
+  initialDirection?: "BUY" | "SELL";
+  lockAccount?: boolean;
 }
 
 function localDateTime(value?: string | null): string {
@@ -26,7 +29,7 @@ function localDateTime(value?: string | null): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-export function IdentificationSection({ accounts, instruments, trade, accountId, status, onAccountChange, onStatusChange }: IdentificationSectionProps) {
+export function IdentificationSection({ accounts, instruments, trade, accountId, status, onAccountChange, onStatusChange, initialInstrumentId, initialDirection, lockAccount }: IdentificationSectionProps) {
   const lockedLifecycle = trade?.status === "OPEN" || trade?.status === "CLOSED";
   const statuses = TRADE_STATUSES
     .filter((value) => !lockedLifecycle || (trade?.status === "OPEN" ? value === "OPEN" || value === "CLOSED" : value === "CLOSED"))
@@ -43,11 +46,11 @@ export function IdentificationSection({ accounts, instruments, trade, accountId,
           onValueChange={(value) => value && onAccountChange(value)}
           help="Account statistics and drawdown calculations use this selection."
           required
-          disabled={lockedLifecycle}
+          disabled={lockedLifecycle || lockAccount}
         />
-        {lockedLifecycle ? <input type="hidden" name="accountId" value={accountId} /> : null}
-        <SearchableInstrumentSelect instruments={instruments} defaultValue={trade?.instrument_id} />
-        <SelectField name="direction" label="Direction" items={TRADE_DIRECTIONS.map((value) => ({ label: value, value }))} defaultValue={trade?.direction ?? "BUY"} help="BUY expects price to rise; SELL expects price to fall." required />
+        {lockedLifecycle || lockAccount ? <input type="hidden" name="accountId" value={accountId} /> : null}
+        <SearchableInstrumentSelect instruments={instruments} defaultValue={trade?.instrument_id ?? initialInstrumentId} />
+        <SelectField name="direction" label="Direction" items={TRADE_DIRECTIONS.map((value) => ({ label: value, value }))} defaultValue={trade?.direction ?? initialDirection ?? "BUY"} help="BUY expects price to rise; SELL expects price to fall." required />
         <SelectField name="status" label="Trade status" items={statuses} value={status} onValueChange={(value) => value && onStatusChange(value as TradeStatus)} help="Draft is incomplete, planned is not filled, open is live, closed is final, and canceled was never taken." required />
         <SelectField name="orderType" label="Order type" items={ORDER_TYPES.map((value) => ({ label: value.replaceAll("_", " "), value }))} defaultValue={trade?.order_type ?? "MARKET"} help="Record how the entry was intended to be triggered." required />
         <SelectField name="session" label="Trading session" items={TRADING_SESSIONS.map((value) => ({ label: value.replaceAll("_", " "), value }))} defaultValue={trade?.session ?? "OTHER"} help="Used to compare performance across market sessions." required />

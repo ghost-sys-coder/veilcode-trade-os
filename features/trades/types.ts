@@ -44,6 +44,20 @@ export interface TradeFormProps {
   record?: ManualTradeRecord;
   userId: string;
   timezone: string;
+  initialValues?: TradeFormInitialValues;
+  calculatorTransfer?: boolean;
+}
+
+export interface TradeFormInitialValues {
+  accountId: string;
+  instrumentId: string;
+  direction: "BUY" | "SELL";
+  plannedEntry: string;
+  plannedStopLoss: string;
+  plannedTakeProfit?: string;
+  plannedLotSize: string;
+  plannedRiskAmount: string;
+  plannedRewardAmount?: string;
 }
 
 export interface CalculationPreview {

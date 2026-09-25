@@ -44,10 +44,10 @@ function value(formData: FormData, name: string): string {
   return typeof result === "string" ? result.trim() : "";
 }
 
-export function TradeForm({ accounts, instruments, strategies, setups, rules, record, userId, timezone }: TradeFormProps) {
+export function TradeForm({ accounts, instruments, strategies, setups, rules, record, userId, timezone, initialValues, calculatorTransfer }: TradeFormProps) {
   const trade = record?.trade;
   const lockedPlan = trade?.status === "OPEN" || trade?.status === "CLOSED";
-  const [accountId, setAccountId] = useState(trade?.account_id ?? accounts[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(trade?.account_id ?? initialValues?.accountId ?? accounts[0]?.id ?? "");
   const [status, setStatus] = useState<TradeStatus>(trade?.status ?? "DRAFT");
   const [preview, setPreview] = useState<CalculationPreview>(emptyPreview);
   const [dirty, setDirty] = useState(false);
@@ -118,11 +118,12 @@ export function TradeForm({ accounts, instruments, strategies, setups, rules, re
         className="space-y-6"
       >
         {trade ? <input type="hidden" name="id" value={trade.id} /> : null}
+        {calculatorTransfer ? <input type="hidden" name="calculatorTransfer" value="true" /> : null}
         <input type="hidden" name="timezone" value={timezone} />
-        <IdentificationSection accounts={accounts} instruments={instruments} trade={trade} accountId={accountId} status={status} onAccountChange={setAccountId} onStatusChange={setStatus} />
+        <IdentificationSection accounts={accounts} instruments={instruments} trade={trade} accountId={accountId} status={status} onAccountChange={setAccountId} onStatusChange={setStatus} initialInstrumentId={initialValues?.instrumentId} initialDirection={initialValues?.direction} lockAccount={calculatorTransfer} />
         <SetupSection strategies={strategies} setups={setups} trade={trade} locked={Boolean(lockedPlan)} />
-        <PlanSection trade={trade} initialTargets={record?.targets ?? []} locked={Boolean(lockedPlan)} />
-        <RiskSection account={account} trade={trade} locked={Boolean(lockedPlan)} preview={preview} />
+        <PlanSection trade={trade} initialTargets={record?.targets ?? []} locked={Boolean(lockedPlan)} initialValues={initialValues} />
+        <RiskSection account={account} trade={trade} locked={Boolean(lockedPlan)} preview={preview} initialValues={initialValues} />
         <ExecutionSection trade={trade} />
         <ResultSection trade={trade} preview={preview} visible={status === "CLOSED" || Boolean(trade?.gross_pnl)} />
         <ExecutionQualitySection review={record?.executionReview} canComplete={status === "CLOSED"} />

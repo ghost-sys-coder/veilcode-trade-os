@@ -4,11 +4,12 @@ import { BookOpenText, Landmark } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { TradeForm } from "@/features/trades/trade-form";
+import { CalculatorPrefillBridge } from "@/features/trades/calculator-prefill-bridge";
 import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTradeFormReferences } from "@/services/trades/get-trade-form-data";
 
-interface NewTradePageProps { searchParams: Promise<{ error?: string; message?: string }> }
+interface NewTradePageProps { searchParams: Promise<{ error?: string; message?: string; from?: string }> }
 
 export default async function NewTradePage({ searchParams }: NewTradePageProps) {
   const [status, userId, supabase] = await Promise.all([searchParams, requireUserId(), createClient()]);
@@ -30,7 +31,9 @@ export default async function NewTradePage({ searchParams }: NewTradePageProps) 
       {status.error ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">{status.error}</p> : null}
       {status.message ? <p className="rounded-lg border border-profit/25 bg-profit/10 p-4 text-sm text-profit">{status.message}</p> : null}
       {activeReferences.accounts.length ? (
-        <TradeForm {...activeReferences} userId={userId} />
+        status.from === "position-calculator"
+          ? <CalculatorPrefillBridge {...activeReferences} userId={userId} />
+          : <TradeForm {...activeReferences} userId={userId} />
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
           <Landmark className="mx-auto size-8 text-primary" />

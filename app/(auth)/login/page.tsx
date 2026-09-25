@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { safeInternalRedirect } from "@/lib/safe-redirect";
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error, message } = await searchParams;
+  const { error, message, next: requestedNext } = await searchParams;
+  const next = safeInternalRedirect(requestedNext);
 
   return (
     <main className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1.05fr)_minmax(30rem,0.95fr)]">
@@ -53,6 +55,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </CardHeader>
             <CardContent className="pt-6">
               <form className="space-y-5">
+                <input type="hidden" name="next" value={next} />
                 <div className="space-y-2"><Label htmlFor="email">Email address</Label><Input id="email" name="email" type="email" autoComplete="email" placeholder="trader@example.com" required /></div>
                 <div className="space-y-2"><div className="flex items-center justify-between gap-3"><Label htmlFor="password">Password</Label><span className="text-[0.68rem] text-muted-foreground">8 characters minimum</span></div><Input id="password" name="password" type="password" minLength={8} autoComplete="current-password" required /></div>
                 {error ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
