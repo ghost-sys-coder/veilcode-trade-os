@@ -22,6 +22,7 @@ import {
 import { firstValidationError } from "@/lib/action-errors";
 import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeSupabaseNumeric } from "@/lib/supabase/numeric";
 import { getAccountsWithDerivedBalances } from "@/services/accounts/get-account-balances";
 import type { Database } from "@/types/database";
 import type { TradeStatus } from "@/types/domain";
@@ -51,6 +52,12 @@ function checked(formData: FormData, name: string): boolean {
 function optionalBoolean(formData: FormData, name: string): boolean | undefined {
   const value = optionalText(formData, name);
   return value === "YES" ? true : value === "NO" ? false : undefined;
+}
+
+function optionalDatabaseDecimal(value: unknown): string | undefined {
+  return value === null || value === undefined
+    ? undefined
+    : normalizeSupabaseNumeric(value);
 }
 
 function isoDateTime(formData: FormData, name: string): string | undefined {
@@ -128,9 +135,10 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
 
   const derivedBalance = (await getAccountsWithDerivedBalances(supabase, [account]))[0].derived_balance;
   const submittedBalance = optionalText(formData, "accountBalanceBefore");
+  const currentBalance = optionalDatabaseDecimal(current?.account_balance_before);
   const balance = current?.status === "OPEN" || current?.status === "CLOSED"
-    ? current.account_balance_before ?? derivedBalance
-    : submittedBalance ?? (current?.account_id === account.id ? current.account_balance_before : null) ?? derivedBalance;
+    ? currentBalance ?? derivedBalance
+    : submittedBalance ?? (current?.account_id === account.id ? currentBalance : undefined) ?? derivedBalance;
   const targets = targetInputs(formData);
   const usedPartialExits = targets.some((target) => {
     if (!target.actualClosePercentage) return false;
@@ -148,7 +156,13 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
   const rewardAmount = optionalText(formData, "plannedRewardAmount");
   const riskPercentage = riskAmount ? calculatePlannedRiskPercentage(riskAmount, balance) ?? undefined : undefined;
   const plannedRiskReward = riskAmount && rewardAmount ? calculateRiskMultiple(rewardAmount, riskAmount) ?? undefined : undefined;
-  const actualR = netPnl && riskAmount ? calculateRiskMultiple(netPnl, riskAmount) ?? undefined : undefined;
+  const persistedRiskAmount = optionalDatabaseDecimal(current?.planned_risk_amount);
+  const effectiveRiskAmount = current?.status === "OPEN" || current?.status === "CLOSED"
+    ? persistedRiskAmount
+    : riskAmount;
+  const actualR = netPnl && effectiveRiskAmount
+    ? calculateRiskMultiple(netPnl, effectiveRiskAmount) ?? undefined
+    : undefined;
   const openedAt = isoDateTime(formData, "openedAt");
   const closedAt = isoDateTime(formData, "closedAt");
   const holdingDuration = calculateHoldingDurationSeconds(openedAt, closedAt);
@@ -185,14 +199,14 @@ export async function saveManualTrade(formData: FormData): Promise<void> {
     openedAt,
     closedAt,
     accountBalanceBefore: balance,
-    plannedEntry: lockedPlan ? current.planned_entry ?? undefined : optionalText(formData, "plannedEntry"),
-    plannedStopLoss: lockedPlan ? current.planned_stop_loss ?? undefined : optionalText(formData, "plannedStopLoss"),
-    plannedTakeProfit: lockedPlan ? current.planned_take_profit ?? undefined : optionalText(formData, "plannedTakeProfit"),
-    plannedRiskAmount: lockedPlan ? current.planned_risk_amount ?? undefined : riskAmount,
-    plannedRiskPercentage: lockedPlan ? current.planned_risk_percentage ?? undefined : riskPercentage,
-    plannedRewardAmount: lockedPlan ? current.planned_reward_amount ?? undefined : rewardAmount,
-    plannedRiskReward: lockedPlan ? current.planned_risk_reward ?? undefined : plannedRiskReward,
-    plannedLotSize: lockedPlan ? current.planned_lot_size ?? undefined : optionalText(formData, "plannedLotSize"),
+    plannedEntry: lockedPlan ? optionalDatabaseDecimal(current.planned_entry) : optionalText(formData, "plannedEntry"),
+    plannedStopLoss: lockedPlan ? optionalDatabaseDecimal(current.planned_stop_loss) : optionalText(formData, "plannedStopLoss"),
+    plannedTakeProfit: lockedPlan ? optionalDatabaseDecimal(current.planned_take_profit) : optionalText(formData, "plannedTakeProfit"),
+    plannedRiskAmount: lockedPlan ? optionalDatabaseDecimal(current.planned_risk_amount) : riskAmount,
+    plannedRiskPercentage: lockedPlan ? optionalDatabaseDecimal(current.planned_risk_percentage) : riskPercentage,
+    plannedRewardAmount: lockedPlan ? optionalDatabaseDecimal(current.planned_reward_amount) : rewardAmount,
+    plannedRiskReward: lockedPlan ? optionalDatabaseDecimal(current.planned_risk_reward) : plannedRiskReward,
+    plannedLotSize: lockedPlan ? optionalDatabaseDecimal(current.planned_lot_size) : optionalText(formData, "plannedLotSize"),
     actualEntry: optionalText(formData, "actualEntry"),
     actualStopLoss: optionalText(formData, "actualStopLoss"),
     actualExit: optionalText(formData, "actualExit"),

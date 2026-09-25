@@ -211,3 +211,18 @@ Break-even trades remain in the valid-R population and contribute zero to the we
 ## Multi-account currency safety
 
 Monetary analytics may be combined only for accounts with the same ISO currency code. Mixed-currency selections render separate monetary sections. Count-based and unitless metrics may combine currencies, but they are recalculated from the underlying trades; account-level percentages are never averaged.
+
+## Deterministic validation fixture
+
+The seven-trade test fixture uses wins of `1500`, `845.92`, `557.47`, `1200`, and `650`, plus losses of `400` and `359.59`. It verifies:
+
+- gross profit `4753.39`;
+- gross loss magnitude `759.59`;
+- net profit `3993.80`;
+- five wins, two losses, seven trades, and win rate `5/7`;
+- profit factor `6.2578` when rounded to four decimal places;
+- average winner `950.678`;
+- average loser magnitude `379.795`;
+- average PnL per trade approximately `570.542857`.
+
+The earlier Phase 07 brief's `6.2576` profit-factor approximation was an arithmetic typo; `4753.39 / 759.59` rounds to `6.2578`.

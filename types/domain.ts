@@ -113,6 +113,8 @@ export const TRADE_EMOTIONS = [
 ] as const;
 export const ADJUSTMENT_TYPES = ["DEPOSIT", "WITHDRAWAL", "BALANCE_CORRECTION", "OTHER"] as const;
 export const IMPORT_STATUSES = ["PENDING", "PROCESSING", "COMPLETED", "FAILED"] as const;
+export const IMPORT_ROW_STATUSES = ["PENDING", "VALID", "INVALID", "DUPLICATE", "CONFLICT", "IMPORTED", "SKIPPED"] as const;
+export const IMPORT_CONFLICT_RESOLUTIONS = ["SKIP", "REVIEW", "LINK", "REPLACE"] as const;
 export const MANAGEMENT_EVENT_TYPES = ["STOP_MOVED", "TARGET_CHANGED", "SCALE_IN", "SCALE_OUT", "NOTE"] as const;
 export const PROP_VALUE_MODES = ["AMOUNT", "PERCENT"] as const;
 export const PROP_DRAWDOWN_TYPES = ["STATIC", "TRAILING", "OTHER"] as const;
@@ -144,6 +146,8 @@ export type StopAction = (typeof STOP_ACTIONS)[number];
 export type TradeEmotion = (typeof TRADE_EMOTIONS)[number];
 export type AdjustmentType = (typeof ADJUSTMENT_TYPES)[number];
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
+export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
+export type ImportConflictResolution = (typeof IMPORT_CONFLICT_RESOLUTIONS)[number];
 export type ManagementEventType = (typeof MANAGEMENT_EVENT_TYPES)[number];
 export type PropValueMode = (typeof PROP_VALUE_MODES)[number];
 export type PropDrawdownType = (typeof PROP_DRAWDOWN_TYPES)[number];

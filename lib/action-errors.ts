@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import type { ZodError } from "zod";
 
 export function firstValidationError(error: ZodError): string {
-  return error.issues[0]?.message ?? "The submitted values are invalid.";
+  const issue = error.issues[0];
+  if (!issue) return "The submitted values are invalid.";
+
+  const path = issue.path.map(String).join(".");
+  return path ? `${path}: ${issue.message}` : issue.message;
 }
 
 export function redirectWithStatus(

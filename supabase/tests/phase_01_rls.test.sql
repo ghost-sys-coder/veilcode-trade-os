@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(90);
+select plan(100);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -784,6 +784,92 @@ select is(
     where account.name = 'Phase 06 Funded' and event.new_status = 'FAILED'),
   'MAXIMUM_LOSS',
   'failure history retains the structured reason'
+);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.import_batch_rows'::regclass),
+  'import batch staging rows have RLS enabled'
+);
+
+select throws_ok(
+  $$insert into public.import_batches (user_id, account_id, source_type)
+    select user_id, id, 'MANUAL' from public.trading_accounts where name = 'RLS Test Account'$$,
+  '23514',
+  'new row for relation "import_batches" violates check constraint "import_batches_import_source_only"',
+  'manual trades cannot create an import batch'
+);
+
+select lives_ok(
+  $$insert into public.import_batches (
+      user_id, account_id, source_type, source_filename, row_count, mapping_config
+    ) select user_id, id, 'CSV', 'phase-07.csv', 1, '{"symbol":"Symbol"}'::jsonb
+      from public.trading_accounts where name = 'RLS Test Account'$$,
+  'owner can create a CSV import batch'
+);
+
+select throws_ok(
+  $$insert into public.trades (
+      user_id, account_id, instrument_id, status, source_type, external_trade_id, direction
+    ) select a.user_id, a.id, i.id, 'DRAFT', 'CSV', 'missing-batch', 'BUY'
+      from public.trading_accounts a cross join public.instruments i
+      where a.name = 'RLS Test Account' and i.symbol = 'EURUSD'$$,
+  '23514',
+  'new row for relation "trades" violates check constraint "trades_import_source_requires_batch"',
+  'an imported canonical trade requires a batch'
+);
+
+select throws_ok(
+  $$insert into public.trades (
+      user_id, account_id, instrument_id, status, source_type, external_trade_id, import_batch_id, direction
+    ) select a.user_id, a.id, i.id, 'DRAFT', 'MT5', 'wrong-source', b.id, 'BUY'
+      from public.trading_accounts a
+      join public.import_batches b on b.account_id = a.id
+      cross join public.instruments i
+      where a.name = 'RLS Test Account' and i.symbol = 'EURUSD'$$,
+  '23503',
+  'insert or update on table "trades" violates foreign key constraint "trades_import_batch_identity_fk"',
+  'an imported trade must match its batch account and source'
+);
+
+select lives_ok(
+  $$insert into public.import_batch_rows (
+      user_id, batch_id, row_number, status, deduplication_key, raw_data, canonical_data
+    ) select user_id, id, 2, 'VALID', 'account:CSV:trade:42',
+      '{"Ticket":"42"}'::jsonb, '{"symbol":"EURUSD"}'::jsonb
+      from public.import_batches where source_filename = 'phase-07.csv'$$,
+  'owner can stage a validated import row'
+);
+
+select throws_ok(
+  $$insert into public.import_batch_rows (user_id, batch_id, row_number, status, raw_data)
+    select user_id, id, 3, 'INVALID', '{}'::jsonb
+      from public.import_batches where source_filename = 'phase-07.csv'$$,
+  '23514',
+  'new row for relation "import_batch_rows" violates check constraint "import_batch_rows_invalid_has_errors"',
+  'invalid staged rows require explicit validation errors'
+);
+
+select throws_ok(
+  $$insert into public.import_batch_rows (
+      user_id, batch_id, row_number, status, raw_data, conflict_trade_id, conflict_resolution
+    ) select b.user_id, b.id, 4, 'CONFLICT', '{}'::jsonb, c.trade_id, 'REPLACE'
+      from public.import_batches b cross join phase_01_test_context c
+      where b.source_filename = 'phase-07.csv'$$,
+  '23514',
+  'new row for relation "import_batch_rows" violates check constraint "import_batch_rows_replace_requires_confirmation"',
+  'replace conflict resolution requires explicit confirmation and reason'
+);
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+select is(
+  (select count(*)::integer from public.import_batches where source_filename = 'phase-07.csv'),
+  0,
+  'another user cannot read owner import batches'
+);
+select is(
+  (select count(*)::integer from public.import_batch_rows),
+  0,
+  'another user cannot read owner staged import rows'
 );
 
 select * from finish();

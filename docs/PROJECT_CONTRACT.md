@@ -4,7 +4,7 @@
 
 Trade OS is a personal trading performance management application. The initial source of truth is manual entry. It will support demo, prop-challenge, funded, and personal-live accounts and analyze profitability, risk, R multiples, drawdown, progress, strategy and setup performance, sessions, instruments, execution, psychology, mistakes, rule compliance, screenshots, and periodic reviews.
 
-Trade OS is separate from automated trading systems. It must not place trades, provide signals, make AI trade recommendations, or include OpenAI in the finished application. Broker, CSV, MT4, and MT5 integrations are later concerns and must populate the same canonical model as manual trades.
+Trade OS is separate from automated trading systems. It must not place trades, provide signals, make AI trade recommendations, or include OpenAI in the finished application. Broker, CSV, MT4, and MT5 adapters are later concerns and must populate the same canonical model as manual trades. A generic account-scoped staging, validation, provenance, deduplication, and conflict-review foundation exists so those adapters can be added without weakening the manual record.
 
 Development proceeds one phase at a time. A later-phase feature may not be implemented early unless a small foundation is required to make the active phase correct.
 
@@ -69,7 +69,9 @@ For example, fixing an incorrectly typed original stop is a correction. Moving a
 
 Canonical trade statuses are `DRAFT`, `PLANNED`, `OPEN`, `CLOSED`, and `CANCELED`. Status describes lifecycle, not financial outcome.
 
-Source types are `MANUAL`, `CSV`, `MT4`, `MT5`, and `BROKER_API`. Only `MANUAL` is implemented initially.
+Source types are `MANUAL`, `CSV`, `MT4`, `MT5`, and `BROKER_API`. Manual entry is the active production workflow. Phase 07 implements the guarded import architecture and CSV mapping/validation domain layer, but does not expose a commit UI or connect a broker/terminal.
+
+Imported data must pass through an owner- and account-scoped batch. Strong external identifiers provide idempotency; timestamp/symbol fingerprints may raise a review conflict but may not silently merge records. Manual thesis, psychology, screenshots, rules, grades, reviews, and lessons have priority over execution-only broker facts.
 
 ## Account types
 

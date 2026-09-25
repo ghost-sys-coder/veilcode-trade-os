@@ -48,12 +48,16 @@ export default async function TradeDetailPage({ params, searchParams }: TradeDet
     const { data } = await supabase.storage.from("trade-screenshots").createSignedUrl(screenshot.storage_path, 3600);
     if (data?.signedUrl) signedByPath.set(screenshot.storage_path, data.signedUrl);
   }));
-  const ruleResultById = new Map(record.ruleResults.map((result) => [result.trading_rule_id, result]));
-  const complianceRules = references.rules.filter((rule) => (rule.active && (rule.account_id === null || rule.account_id === trade.account_id)) || ruleResultById.has(rule.id));
-  const activeApplicableRules = complianceRules.filter((rule) => rule.active && (rule.account_id === null || rule.account_id === trade.account_id));
-  const reviewedActiveRules = activeApplicableRules.filter((rule) => ruleResultById.has(rule.id));
-  const violations = activeApplicableRules.filter((rule) => ruleResultById.get(rule.id)?.complied === false).length;
-  const complianceState = activeApplicableRules.length === 0 || reviewedActiveRules.length < activeApplicableRules.length ? "NOT_REVIEWED" : violations ? "VIOLATIONS_PRESENT" : "FULLY_COMPLIANT";
+  const activeApplicableRules = references.rules.filter((rule) => rule.active && (rule.account_id === null || rule.account_id === trade.account_id));
+  const ruleReviewComplete = Boolean(
+    record.ruleReview?.reviewed_at
+      && record.ruleReviewItems.length === record.ruleReview.applicable_rule_count,
+  );
+  const complianceState = !ruleReviewComplete
+    ? "NOT_REVIEWED"
+    : record.ruleReviewItems.some((item) => !item.complied)
+      ? "VIOLATIONS_PRESENT"
+      : "FULLY_COMPLIANT";
   const comparisons = plannedActualComparison({ plannedEntry: trade.planned_entry, actualEntry: trade.actual_entry, plannedStop: trade.planned_stop_loss, actualStop: trade.actual_stop_loss, plannedTarget: trade.planned_take_profit, actualExit: trade.actual_exit, plannedVolume: trade.planned_lot_size, actualVolume: trade.actual_lot_size, plannedRisk: trade.planned_risk_amount, netPnl: trade.net_pnl, plannedRr: trade.planned_risk_reward, actualR: trade.actual_r }, account?.currency_code ?? "currency");
 
   return (
@@ -79,7 +83,7 @@ export default async function TradeDetailPage({ params, searchParams }: TradeDet
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <Card><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>Rule compliance</CardTitle><Badge variant={complianceState === "VIOLATIONS_PRESENT" ? "destructive" : "secondary"}>{complianceState}</Badge></div><CardDescription>Not reviewed is never treated as compliant.</CardDescription></CardHeader><CardContent className="space-y-3">{complianceRules.map((rule) => { const result = ruleResultById.get(rule.id); return <div key={rule.id} className="flex items-start justify-between gap-4 rounded-lg border border-border/70 p-3"><div><p className="font-medium">{rule.name}</p><p className="mt-1 text-xs text-muted-foreground">{result?.notes ?? "No review recorded"}</p></div><Badge variant={result?.complied === false ? "destructive" : "secondary"}>{result ? result.complied ? "FOLLOWED" : "VIOLATED" : "NOT REVIEWED"}</Badge></div>; })}{complianceRules.length === 0 ? <p className="text-sm text-muted-foreground">NOT REVIEWED — no enabled rule review is applicable.</p> : null}</CardContent></Card>
+        <Card><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>Rule compliance</CardTitle><Badge variant={complianceState === "VIOLATIONS_PRESENT" ? "destructive" : "secondary"}>{complianceState}</Badge></div><CardDescription>Completeness is based on the immutable rule snapshot captured at review time.</CardDescription></CardHeader><CardContent className="space-y-3">{ruleReviewComplete ? record.ruleReviewItems.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 rounded-lg border border-border/70 p-3"><div><p className="font-medium">{item.rule_name}</p><p className="mt-1 text-xs text-muted-foreground">{item.notes ?? "No note recorded."}</p></div><Badge variant={item.complied ? "secondary" : "destructive"}>{item.complied ? "FOLLOWED" : "VIOLATED"}</Badge></div>) : activeApplicableRules.map((rule) => <div key={rule.id} className="flex items-start justify-between gap-4 rounded-lg border border-border/70 p-3"><div><p className="font-medium">{rule.name}</p><p className="mt-1 text-xs text-muted-foreground">No completed review snapshot.</p></div><Badge variant="outline">NOT REVIEWED</Badge></div>)}{!ruleReviewComplete && activeApplicableRules.length === 0 ? <p className="text-sm text-muted-foreground">NOT REVIEWED — no rule review snapshot has been completed.</p> : null}</CardContent></Card>
         <Card><CardHeader><CardTitle>Post-trade review</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">{[["Grade", record.review?.trade_quality_grade], ["Would take again", record.review?.would_take_again], ["What worked", record.review?.what_went_well], ["What failed", record.review?.what_went_wrong], ["Improvement", record.review?.improvement], ["Lesson", record.review?.lesson_learned]].map(([label, value]) => <div key={label}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 whitespace-pre-wrap font-medium">{show(value)}</p></div>)}</CardContent></Card>
       </section>
 

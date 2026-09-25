@@ -40,7 +40,7 @@ tests/                TypeScript unit and integration tests
 docs/                 contracts, architecture, metrics, and phase plans
 ```
 
-Additional feature directories—accounts, trades, journal, analytics, psychology, rules, strategies, and prop—are introduced only when their phase needs them.
+Feature directories are introduced only when their phase needs them. The implemented system includes accounts, trades, journal, analytics, behavioral review, rules, strategies, prop/goals, settings, and import-domain modules.
 
 ## Dependency direction
 
@@ -107,11 +107,23 @@ Outcome is derived or validated against normalized final net PnL. A conflicting 
 
 Account balance is reproducible from starting balance, closed-trade net PnL, and account adjustments. Chronological calculations use deterministic ordering. Optional snapshots provide historical balance/equity observations but do not replace the ledger-derived balance curve.
 
-## Import compatibility
+## Import pipeline
 
-Manual and imported trades map to the same canonical record. Source metadata (`source_type`, `external_trade_id`, and `import_batch_id`) identifies provenance without creating source-specific trade tables. Raw payloads, when justified, are retained outside core domain fields for troubleshooting and reprocessing.
+Manual and imported trades map to the same canonical record. Source metadata (`source_type`, external trade/order/position IDs, `import_batch_id`, and controlled raw JSON) identifies provenance without creating source-specific permanent trade tables.
 
-Imports validate and normalize into canonical commands before persistence. Idempotency uses a source/account/external-ID boundary. Import adapters may not weaken canonical constraints or planned-versus-actual separation.
+```text
+provider file/API
+  -> adapter-specific column mapping
+  -> typed parsing and canonical normalization
+  -> import_batch_rows staging
+  -> validation + strong-ID deduplication
+  -> explicit skip/review/link/replace decision
+  -> canonical trades
+```
+
+Strong identity uses account + source + external trade/position/order ID. A fallback fingerprint can identify a possible conflict for review, but never authorizes an automatic overwrite. Row state, validation errors, original payload, mapped payload, conflicts, and any resulting trade remain auditable. Batch and row writes are ownership protected with RLS.
+
+The CSV parser/mapping domain is implemented and tested. Broker-specific commit UI, MT4/MT5 bridges, and API adapters remain disabled until sample data, timezone semantics, identifiers, fee signs, and partial-fill behavior are reviewed.
 
 ## Validation and error handling
 
@@ -125,7 +137,7 @@ Imports validate and normalize into canonical commands before persistence. Idemp
 - Unit tests: decimal arithmetic, risk, PnL, R multiples, balances, drawdowns, streaks, and outcome rules.
 - Integration tests: services against Supabase and storage behavior.
 - Database tests: constraints, lifecycle enforcement, correction atomicity, and RLS allow/deny cases.
-- End-to-end tests: critical user workflows when those workflows are implemented.
+- End-to-end/manual browser tests: authentication and critical user workflows across desktop and smaller viewports.
 
 Async Server Components are tested through integration or end-to-end coverage because Vitest does not support them as isolated units reliably.
 
@@ -138,4 +150,4 @@ Async Server Components are tested through integration or end-to-end coverage be
 - Keep trade-management history separate from data corrections.
 - Prefer derived balances over a mutable balance field.
 - Use private screenshot storage.
-- Delay database, auth, and feature implementation until their designated phases.
+- Stage all external imports before canonical persistence and retain provenance.

@@ -345,6 +345,18 @@ export const tagSchema = z.object({
   color: z.preprocess(emptyToUndefined, z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional()),
 });
 
+export const profileSettingsSchema = z.object({
+  displayName: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(80).optional()),
+  timezone: z.string().trim().min(1).max(100).refine((value) => {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Enter a valid IANA timezone, such as Africa/Kampala or Europe/London."),
+});
+
 export type TradingAccountInput = z.infer<typeof tradingAccountSchema>;
 export type StrategyInput = z.infer<typeof strategySchema>;
 export type SetupInput = z.infer<typeof setupSchema>;

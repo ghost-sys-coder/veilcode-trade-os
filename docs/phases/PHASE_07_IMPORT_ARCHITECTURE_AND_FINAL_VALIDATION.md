@@ -351,7 +351,7 @@ trade count = 7
 
 win rate = 5 / 7 when no break-even trades exist
 
-profit factor approximately 6.2576
+profit factor approximately 6.2578
 
 average winner = 950.678
 

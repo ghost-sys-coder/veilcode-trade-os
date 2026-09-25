@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ListChecks,
   ShieldCheck,
+  Settings,
   Trophy,
   TrendingUp,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const navigationItems = [
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/strategies", label: "Strategies", icon: ChartNoAxesCombined },
   { href: "/rules", label: "Rules", icon: ShieldCheck },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 interface AppNavigationProps {

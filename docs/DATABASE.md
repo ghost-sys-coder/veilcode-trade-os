@@ -2,7 +2,7 @@
 
 ## Phase boundary
 
-Phase 01 translates this design into the reviewed `20260922231801_phase_01_foundation_schema.sql` migration, the additive `20260923005302_phase_01_blocker_fixes.sql` hardening migration, and transactional database/RLS tests. Later phases extend that history with additive migrations. Phase 06 adds configurable prop rules, snapshots, goals, append-only progress and lifecycle history in the `20260924193000` through `20260924201000` migration series.
+The database is built through ordered, additive migrations. Phase 01 establishes ownership, canonical trading records, private screenshots, and RLS. Phases 02-05 add trade workflows, journal support, classified adjustments, analytics, and immutable behavioral review evidence. Phase 06 adds configurable prop rules, snapshots, goals, and append-only progress/lifecycle history. Phase 07 adds import staging, canonical provenance, import integrity constraints, and advisor-driven foreign-key indexes.
 
 ## General conventions
 
@@ -60,12 +60,14 @@ Never authorize from `raw_user_meta_data`. Privileged functions belong in an une
 - `account_goals`: account-specific targets.
 - `prop_firm_configs`: user-entered rules for challenge/funded accounts; no vendor rules are hardcoded.
 
-### Future imports
+### Import staging and provenance
 
-- `import_batches`: source, owner/account, file or integration metadata, status, counts, and error summary.
-- Canonical `trades` retain `source_type`, nullable `external_trade_id`, and nullable `import_batch_id`.
-- Raw source payload may be retained only when it materially supports auditing or reprocessing.
-- A source/account/external-ID uniqueness strategy prevents duplicate imports while allowing different providers to reuse identifiers.
+- `import_batches`: non-manual source, owner/account, source reference, mapping configuration, lifecycle status, row counts, timestamps, and notes.
+- `import_batch_rows`: appendable staging facts for original JSON, mapped canonical JSON, validation errors, row status, detected conflict, explicit conflict resolution, and resulting trade.
+- Canonical `trades` retain source, batch, external trade/order/position IDs, and controlled raw payload where it materially supports audit or reprocessing.
+- Composite foreign keys prevent a trade or staged row from crossing user, account, source, or batch boundaries.
+- Unique partial indexes enforce strong external identities within account and source while allowing different providers to reuse identifiers.
+- Import tables use operation-specific owner RLS; conflict replacement requires explicit confirmation and a reason.
 
 ## Monetary columns
 
@@ -146,7 +148,7 @@ The private `trade-screenshots` bucket restricts MIME types and file size. The `
 - Keep grants, RLS, constraints, functions, and related indexes in reviewed migrations.
 - Seed only clearly labeled development/reference data.
 - Run database/RLS tests and Supabase advisors before accepting schema work.
-- Both Phase 01 migrations are applied to the configured Supabase project and are covered by `supabase/tests/phase_01_rls.test.sql`.
+- All migrations through Phase 07 are applied to the configured Supabase project and covered by `supabase/tests/phase_01_rls.test.sql` plus deterministic TypeScript tests.
 - Regenerate `types/database.ts` from the live catalog with `npm run db:types`; do not maintain a hand-written subset of the schema.
 
 ## Current documentation references
