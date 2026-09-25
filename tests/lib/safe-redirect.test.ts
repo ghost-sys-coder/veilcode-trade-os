@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { safeInternalRedirect } from "@/lib/safe-redirect";
+import { safeInternalRedirect, safePostAuthRedirect } from "@/lib/safe-redirect";
 
 describe("safeInternalRedirect", () => {
   it("preserves internal paths with queries", () => {
@@ -11,5 +11,12 @@ describe("safeInternalRedirect", () => {
     expect(safeInternalRedirect("https://example.com/steal")).toBe("/dashboard");
     expect(safeInternalRedirect("//example.com/steal")).toBe("/dashboard");
     expect(safeInternalRedirect("/\\example.com")).toBe("/dashboard");
+  });
+
+  it("prevents authenticated redirects back into authentication routes", () => {
+    expect(safePostAuthRedirect("/login")).toBe("/dashboard");
+    expect(safePostAuthRedirect("/login?next=/login")).toBe("/dashboard");
+    expect(safePostAuthRedirect("/auth/callback?code=example")).toBe("/dashboard");
+    expect(safePostAuthRedirect("/trades/new?from=position-calculator")).toBe("/trades/new?from=position-calculator");
   });
 });

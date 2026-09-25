@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { safeInternalRedirect } from "@/lib/safe-redirect";
+import { getCurrentUserId } from "@/lib/auth";
+import { safePostAuthRedirect } from "@/lib/safe-redirect";
+import { redirect } from "next/navigation";
 
 interface LoginPageProps {
   searchParams: Promise<{ error?: string; message?: string; next?: string }>;
@@ -14,7 +16,12 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error, message, next: requestedNext } = await searchParams;
-  const next = safeInternalRedirect(requestedNext);
+  const next = safePostAuthRedirect(requestedNext);
+  const userId = await getCurrentUserId();
+
+  if (userId) {
+    redirect(next);
+  }
 
   return (
     <main className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1.05fr)_minmax(30rem,0.95fr)]">

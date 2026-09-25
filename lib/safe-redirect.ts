@@ -7,3 +7,9 @@ export function safeInternalRedirect(value: FormDataEntryValue | string | null |
     return fallback;
   }
 }
+
+export function safePostAuthRedirect(value: FormDataEntryValue | string | null | undefined, fallback = "/dashboard"): string {
+  const destination = safeInternalRedirect(value, fallback);
+  const pathname = new URL(destination, "http://trade-os.local").pathname;
+  return pathname === "/login" || pathname.startsWith("/auth/") ? fallback : destination;
+}

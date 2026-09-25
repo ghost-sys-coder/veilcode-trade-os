@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
-import { safeInternalRedirect } from "@/lib/safe-redirect";
+import { safePostAuthRedirect } from "@/lib/safe-redirect";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email(),
@@ -18,7 +18,7 @@ function loginRedirect(kind: "error" | "message", message: string, next?: string
 }
 
 export async function signIn(formData: FormData): Promise<void> {
-  const next = safeInternalRedirect(formData.get("next"));
+  const next = safePostAuthRedirect(formData.get("next"));
   const result = credentialsSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -39,7 +39,7 @@ export async function signIn(formData: FormData): Promise<void> {
 }
 
 export async function signUp(formData: FormData): Promise<void> {
-  const next = safeInternalRedirect(formData.get("next"));
+  const next = safePostAuthRedirect(formData.get("next"));
   const result = credentialsSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
