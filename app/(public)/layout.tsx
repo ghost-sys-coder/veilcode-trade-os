@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { Button } from "@/components/ui/button";
+import { PublicAuthAction } from "@/components/app/public-auth-action";
 
 export default function PublicLayout({ children }: LayoutProps<"/">) {
   return (
@@ -15,7 +15,7 @@ export default function PublicLayout({ children }: LayoutProps<"/">) {
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button render={<Link href="/login" />} nativeButton={false} variant="outline" size="sm">Sign in</Button>
+            <PublicAuthAction />
           </div>
         </div>
       </header>

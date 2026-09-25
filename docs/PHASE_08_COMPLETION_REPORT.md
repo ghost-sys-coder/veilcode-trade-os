@@ -85,7 +85,7 @@ Added deterministic unit coverage for FX and XAUUSD, quote/base/cross conversion
 
 ## 18. Test results
 
-12 test files passed; 100 tests passed. The integration suite covers account-balance recalculation, percentage and fixed-risk preservation, and changed-currency conversion blocking.
+12 test files passed; 101 tests passed. The integration suite covers account-balance recalculation, percentage and fixed-risk preservation, changed-currency conversion blocking, and safe post-authentication routing.
 
 ## 19. Typecheck result
 

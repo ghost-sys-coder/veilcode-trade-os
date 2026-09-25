@@ -39,6 +39,8 @@ The public calculator writes no database rows. On explicit user action it stores
 
 The continuation route checks Supabase claims server-side. Authenticated users continue to `/trades/new?from=position-calculator`; other users are sent to `/login` with a validated internal `next` path. Login and email-confirmation callbacks preserve only safe internal destinations.
 
+The calculator page itself bypasses authentication middleware and remains statically rendered. Its header starts with a crawler-safe `Sign in` link and progressively enhances to `Open dashboard` only after an optional same-origin `/auth/status` request confirms a browser session. Authentication failure never blocks or hides the public calculator.
+
 Inside the private workspace, the user must explicitly select an owned account. The same calculation engine reruns with that account's derived balance, currency, precision, and leverage while preserving the selected percentage or fixed-risk method. Currency differences require a new manual conversion rate where necessary. Only then are the existing manual-trade fields prefilled.
 
 The calculator never saves automatically. Existing server validation, ownership checks, lifecycle rules, and the trade form remain authoritative. A saved calculator-originated record retains canonical source type `MANUAL`; calculator provenance is intentionally session/UI context only. The transfer draft is cleared after successful save or explicit discard.
