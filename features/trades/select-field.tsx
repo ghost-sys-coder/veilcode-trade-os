@@ -31,7 +31,7 @@ export function SelectField({
   const id = `field-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2">
       <Label htmlFor={id}>{label}{required ? <span className="text-destructive">*</span> : null}</Label>
       <Select
         name={name}
