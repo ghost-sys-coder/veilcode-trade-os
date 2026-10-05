@@ -1,11 +1,73 @@
-# MT5 collector foundations (not an operational collector yet)
+# MT5 collector (demo pilot and canonical publication still pending)
 
 Python 3.13.2; no terminal attachment or broker execution. This directory currently
 contains strict source boundaries, the account-bound durable SQLite outbox,
 authenticated HTTP transport/uploader, a read-only dedicated-terminal adapter,
 PKCE/Windows-protected renewable credentials, bounded process supervision and a
-local polling coordinator. Operational consent/startup commands and Task Scheduler
-installation remain pending. This is not a released unattended worker.
+local polling coordinator. Local operator commands, a loopback consent receiver and
+explicit current-user Task Scheduler registration are implemented. Actual installation,
+demo pilot, canonical publication and onboarding UI are not yet verified/released.
+
+## Operator setup and commands
+
+The server must first approve the owner/account/connection mapping and public OAuth
+client. A local manifest cannot authorize itself. Register its exact
+`http://127.0.0.1:PORT/callback` redirect URI; do not reuse another client's credentials.
+Copy [the example manifest](connection.example.json) to a local connection directory
+outside Git/cloud storage, named with the approved connection UUID, as `connection.json`.
+Replace every fixture value with approved metadata. Store no tokens or broker passwords
+there. The executable/data directory must belong to a dedicated demo terminal; do not
+use the existing manually operated or Claude-connected installation. The manifest
+records expected precision/mode rather than guessing them.
+
+From `integrations/mt5` (so the Python package is discoverable):
+
+```powershell
+$collectorConfig = 'D:\TradeOS-Collectors\APPROVED-CONNECTION-UUID\connection.json'
+python -m trade_os_mt5.cli init --config $collectorConfig
+python -m trade_os_mt5.cli consent --config $collectorConfig
+python -m trade_os_mt5.cli status --config $collectorConfig
+python -m trade_os_mt5.cli resume --config $collectorConfig --reason 'Approved demo collection after onboarding review'
+python -m trade_os_mt5.cli run --config $collectorConfig
+```
+
+`init` protects only the connection directory/config and creates a PAUSED spool;
+repeating it does not reset pending data or attention. `consent` opens the system
+browser after exclusively binding the registered loopback port, validates state/PKCE,
+verifies the live grant and persists DPAPI-protected credentials. It serves no files,
+logs no request URL, limits headers/connections and expires after ten minutes. An
+occupied port is an explicit error; it never kills another process or picks an
+unregistered substitute port. Reconnection requires explicit `--reconnect`.
+
+`resume` requires a meaningful reason and live owner/account/client authorization.
+The coordinator still obtains the mapped connection's fenced lease before any broker
+read. `pause --reason 'Planned maintenance before terminal update'` persists intent
+and is observed between bounded actions. Pause does not terminate a broker terminal.
+Ctrl+C ends the foreground coordinator without rewriting its durable intent; use
+`pause` if subsequent sign-in/task starts must remain paused. Status is local and
+contains pending page count, confirmed/captured cursors, last contact and stale state,
+never credentials. Do not delete a spool to resolve an error.
+
+Inspect and explicitly install sign-in startup only after approved configuration:
+
+```powershell
+python -m trade_os_mt5.cli startup-spec --config $collectorConfig
+python -m trade_os_mt5.cli install-startup --config $collectorConfig
+```
+
+The repository's `powershell -NoProfile -File scripts/test-mt5-startup.ps1`
+checks the generated XML against native Task Scheduler in validation-only mode;
+it never registers or runs a task. It requires access to the Windows service.
+
+Startup uses `pythonw.exe` for a hidden coordinator and the sibling `python.exe`
+for supervised stdin/stdout workers. The task is `TradeOS-MT5-CONNECTION-UUID`, tied
+to the current user's interactive token with least privilege, sign-in delay 15s,
+IgnoreNew, no execution time limit, and restart-on-failure at 1-minute intervals
+(up to 10 attempts). No Windows password, SYSTEM/boot trigger, shell, force overwrite
+or immediate run is used. An existing task is rejected rather than replaced. Uncertain
+registration requires inspecting the exact task before another attempt. Registration
+does not resume collection. This sign-in mode does not run before Windows login;
+reboot, locked session, actual task invocation and future RDP behavior remain pending.
 
 ## Development verification
 

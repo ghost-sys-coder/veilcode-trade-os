@@ -19,8 +19,9 @@ MT5-3 increment: protected renewable credentials, bounded native-worker supervis
 and the local polling/heartbeat/reconciliation coordinator are implemented. New
 spools start PAUSED; explicit attention survives restart. A new worker ID per
 coordinator lifetime preserves laptop/VPS fencing without changing old operation
-envelopes. Operational consent/startup commands, Task Scheduler installation and
-the real-terminal/soak matrix remain pending. Exact verification and limitations:
+envelopes. Operational commands, loopback consent and explicit Task Scheduler
+registration are implemented; actual startup installation/invocation and real-terminal
+checks remain pending. Extended soak is deferred. Exact verification and limitations:
 [credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
 
 Do not begin authenticated broker persistence until MT5-0 passes. A failed

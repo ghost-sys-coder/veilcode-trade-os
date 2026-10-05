@@ -25,6 +25,17 @@ class SupervisorError(Exception):
         super().__init__(code)
 
 
+def _worker_command() -> list[str]:
+    # Startup uses pythonw to keep the coordinator hidden. Workers need the
+    # sibling console interpreter for their bounded stdin/stdout protocol.
+    interpreter = Path(sys.executable).resolve()
+    if os.name == "nt" and interpreter.name.lower() == "pythonw.exe":
+        interpreter = interpreter.with_name("python.exe")
+        if not interpreter.is_file():
+            raise SupervisorError("WORKER_START_FAILED", retryable=True)
+    return [str(interpreter), "-m", "trade_os_mt5.worker"]
+
+
 RETRYABLE_CODES = {
     "BROKER_READ_UNAVAILABLE",
     "BROKER_CONNECT_UNAVAILABLE",
@@ -233,7 +244,7 @@ def supervised_capture(
         "checkpoint": checkpoint,
         "fullHistory": full_history,
     }
-    result = _run_process([sys.executable, "-m", "trade_os_mt5.worker"], payload, timeout=timeout)
+    result = _run_process(_worker_command(), payload, timeout=timeout)
     if (
         set(result) != {"kind", "connectionId", "collectionId", "checkpoint", "pendingPages"}
         or result["kind"] != "CAPTURED"
@@ -264,7 +275,7 @@ def supervised_upload(
         "oauth": asdict(configuration),
         "workerId": _uuid(worker_id),
     }
-    result = _run_process([sys.executable, "-m", "trade_os_mt5.worker"], payload, timeout=timeout)
+    result = _run_process(_worker_command(), payload, timeout=timeout)
     if (
         set(result)
         != {"kind", "connectionId", "pendingPages", "captureCheckpoint", "serverCheckpoint", "leaseExpiresAt"}

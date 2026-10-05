@@ -67,7 +67,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally: real provider, signed tokens and browser; hosted configuration/deployment unverified |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures pass; canonical commit/identity migrations pending |
-| MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operational consent/startup entry point, Task Scheduler and actual terminals pending |
+| MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | Not started |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
 | MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
@@ -112,6 +112,14 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-05: credentials/supervision checkpoint `cba5579` committed and pushed on
+  `feature/mt5-sync`; no merge. Added strict local operator commands, bounded
+  loopback consent receiver and explicit sign-in Task Scheduler registration.
+  Python tests now 167; local browser/provider/API suite still passes 33 after
+  the hidden coordinator/console worker fix. Found the existing terminal/data path
+  through read-only inspection and left it unchanged. Actual startup/demo pilot,
+  runtime package, canonical publication and onboarding remain pending; MCP queued.
+  See [operator verification](MT5_OPERATOR_VERIFICATION.md).
 - 2026-10-05: user superseded the mandatory 48-hour soak waiting gate and requested
   expedited MT5 and MCP delivery today. Extended soak remains recommended follow-up,
   not a blocker or a passed test. Focused interruption and correctness/security
