@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(63);
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
   'publication-fixture@example.test','fixture-only','{}','{}',now(),now());
@@ -135,6 +135,57 @@ select is((select count(*)::integer from public.import_batches),3,'no rejected m
 select is((select count(*)::integer from private.mt5_publication_approvals),3,'no rejected mutation left a partial approval');
 select is((select count(*)::integer from private.integration_mutation_audits),3,'audit count matches committed effects exactly');
 select is((select starting_balance from public.trading_accounts where user_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'),1000::numeric,'opening baseline unchanged through publication');
+
+-- Do not quantize broker components at a legacy fixed scale before rounding the
+-- complete trade to account precision: +/-0.004999999 USD both normalize to zero.
+savepoint precision_fixture;
+update private.integration_grants set status='ACTIVE',revoked_at=null;
+insert into private.mt5_source_revisions(connection_id,kind,source_id,observed_at,payload,payload_hash,fencing_token,operation_id)
+select 'cccccccc-cccc-4ccc-8ccc-cccccccccccc','DEAL',ticket,'2026-01-03T00:00:00Z',
+ jsonb_build_object('ticket',ticket,'positionId',position,'orderId',ticket,'symbol','EURUSD',
+   'type',case when opening then 'BUY' else 'SELL' end,'entry',case when opening then 'IN' else 'OUT' end,
+   'volume','1','price',case when opening then '1.123456789012345678' else '1.25' end,
+   'occurredAt',case when opening then '2026-01-01T00:00:00.000Z' else '2026-01-03T00:00:00.000Z' end,
+   'profit',profit,'commission','0','swap','0','fee','0'),repeat('d',64),1,gen_random_uuid()
+from (values ('40','400',true,'0'),('41','400',false,'0.004999999'),
+             ('42','401',true,'0'),('43','401',false,'-0.004999999'),
+             ('44','402',true,'0'),('45','402',false,'0.000000000000000001')) v(ticket,position,opening,profit);
+insert into private.mt5_source_facts(connection_id,kind,source_id,current_revision_id,last_observed_at)
+select connection_id,kind,source_id,id,observed_at from private.mt5_source_revisions where source_id in ('40','41','42','43','44','45');
+create function pg_temp.precision_request(p_position text,p_opening text) returns jsonb language sql as $$
+  select jsonb_set(pg_temp.request(),'{episodeIdentities}',jsonb_build_array('cccccccc-cccc-4ccc-8ccc-cccccccccccc:'||p_position||':'||p_opening||':BUY'));
+$$;
+create function pg_temp.precision_proposal(p_position text,p_opening text,p_gross text,p_net text default '0.00',p_outcome text default 'BREAK_EVEN') returns jsonb language sql as $$
+  select jsonb_set(pg_temp.proposal(true),'{episodes}',jsonb_build_array((pg_temp.proposal(true)->'episodes'->0)
+    ||jsonb_build_object('canonicalIdentity','cccccccc-cccc-4ccc-8ccc-cccccccccccc:'||p_position||':'||p_opening||':BUY',
+      'positionId',p_position,'openingDealTicket',p_opening,'grossPnl',p_gross,'commission','0','tradingCredits','0',
+      'finalNetPnl',p_net,'outcome',p_outcome,'usedPartialExits',false,'recognizedCash',p_net,
+      'sourceRevisions',(select jsonb_agg(jsonb_build_object('sourceId',f.source_id,'revisionId',f.current_revision_id::text))
+        from private.mt5_source_facts f join private.mt5_source_revisions r on r.id=f.current_revision_id
+        where r.payload->>'positionId'=p_position),
+      'allocations',jsonb_build_array(jsonb_build_object('dealTicket',p_opening,'part','OPEN','volume','1','grossPnl','0','commission','0','swap','0','fee','0','convention','BROKER_FACT'),
+        jsonb_build_object('dealTicket',(p_opening::integer+1)::text,'part','CLOSE','volume','1','grossPnl',p_gross,'commission','0','swap','0','fee','0','convention','BROKER_FACT')))));
+$$;
+select lives_ok($$select private.mt5_publish_browser(pg_temp.precision_request('400','40'),pg_temp.precision_proposal('400','40','0.004999999'))$$,'positive sub-minor broker result publishes without premature rounding');
+select is((select gross_pnl from public.trades where mt5_opening_deal_ticket='40'),0.004999999::numeric,'positive gross retains full component precision');
+select ok((select net_pnl=0 and outcome='BREAK_EVEN' from public.trades where mt5_opening_deal_ticket='40'),'positive sub-minor complete result is exact normalized break-even');
+select lives_ok($$select private.mt5_publish_browser(pg_temp.precision_request('401','42'),pg_temp.precision_proposal('401','42','-0.004999999'))$$,'negative sub-minor broker result publishes without premature rounding');
+select is((select gross_pnl from public.trades where mt5_opening_deal_ticket='42'),-0.004999999::numeric,'negative gross retains full component precision');
+select ok((select net_pnl=0 and outcome='BREAK_EVEN' from public.trades where mt5_opening_deal_ticket='42'),'negative sub-minor complete result is exact normalized break-even');
+update public.trading_accounts set currency_precision=20 where user_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+update private.mt5_connections set identity=jsonb_set(identity,'{currencyPrecision}','20');
+savepoint legacy_scale;
+drop trigger trades_normalize_validate_outcome on public.trades;
+alter table public.trades alter column net_pnl type numeric(24,8);
+create trigger trades_normalize_validate_outcome
+before insert or update of status,outcome,net_pnl,account_id on public.trades
+for each row execute function private.normalize_and_validate_trade_outcome();
+select throws_ok($$select private.mt5_publish_browser(pg_temp.precision_request('402','44'),pg_temp.precision_proposal('402','44','0.000000000000000001','0.00000000000000000100','WIN'))$$,'23514','Final broker PnL contradicts financial components.','legacy fixed scale demonstrably erases a representable positive result before classification');
+rollback to legacy_scale;
+select lives_ok($$select private.mt5_publish_browser(pg_temp.precision_request('402','44'),pg_temp.precision_proposal('402','44','0.000000000000000001','0.00000000000000000100','WIN'))$$,'configured precision above eight decimals is honored at persistence');
+select is((select net_pnl from public.trades where mt5_opening_deal_ticket='44'),0.000000000000000001::numeric,'small representable positive final PnL is not lost to legacy scale');
+select is((select outcome::text from public.trades where mt5_opening_deal_ticket='44'),'WIN','positive normalized high-precision PnL remains a win');
+rollback to precision_fixture;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values('dddddddd-dddd-4ddd-8ddd-dddddddddddd','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
   'publication-non-owner@example.test','fixture-only','{}','{}',now(),now());

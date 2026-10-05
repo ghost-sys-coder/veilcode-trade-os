@@ -309,8 +309,8 @@ select lives_ok(
   'final PnL is normalized at account currency precision before classification'
 );
 select is(
-  (select net_pnl::text from public.trades where id = (select trade_id from phase_01_precision_context)),
-  '0.00000000',
+  (select net_pnl from public.trades where id = (select trade_id from phase_01_precision_context)),
+  0::numeric,
   'normalized break-even PnL is persisted as exact zero'
 );
 select lives_ok(

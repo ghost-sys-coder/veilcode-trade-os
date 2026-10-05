@@ -423,7 +423,7 @@ try {
     await page.getByText(/The selected canonical trades were published\./).waitFor();
     const publishedClosed=await database.query("select id,status,net_pnl::text,outcome,mt5_execution_version::text from public.trades where mt5_connection_id=$1",[connectionId]);
     assert.equal(publishedClosed.rowCount,1); assert.equal(publishedClosed.rows[0].id,publishedOpen.rows[0].id);
-    assert.equal(publishedClosed.rows[0].status,"CLOSED"); assert.equal(publishedClosed.rows[0].net_pnl,"95.00000000");
+    assert.equal(publishedClosed.rows[0].status,"CLOSED"); assert.equal(publishedClosed.rows[0].net_pnl,"95.00");
     assert.equal(publishedClosed.rows[0].outcome,"WIN"); assert.equal(publishedClosed.rows[0].mt5_execution_version,"2");
     const publicationEvidence=await database.query("select count(*)::integer as count from private.mt5_execution_versions where connection_id=$1",[connectionId]);
     assert.equal(publicationEvidence.rows[0].count,2);

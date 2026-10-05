@@ -21,14 +21,14 @@ class SourceTests(unittest.TestCase):
                 source.decimal_string(invalid)
 
     def test_explicit_currency_precision_is_not_assumed_two(self):
-        for currency, precision in (("JPY", 0), ("KWD", 3), ("USD", 2)):
+        for currency, precision in (("JPY", 0), ("KWD", 3), ("USD", 2), ("USD", 9), ("USD", 20)):
             source.identity({**IDENTITY, "currencyCode": currency, "currencyPrecision": precision})
 
     def test_invalid_or_live_identity_is_rejected(self):
         for field, value in (
             ("accountKind", "LIVE"),
             ("currencyPrecision", True),
-            ("currencyPrecision", 9),
+            ("currencyPrecision", 21),
             ("login", 12345),
             ("positionMode", "UNKNOWN"),
             ("server", " Broker-Demo"),

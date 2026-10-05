@@ -112,6 +112,15 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-05: publication checkpoint `ab0919e` pushed successfully. Subsequent review
+  aligned MT5 identity and final-PnL persistence with the account's 0..20 configured
+  precision contract; legacy typmod regression reproduced and corrected. All 28
+  local migrations replay with no schema diff. Latest checks: 347 application tests,
+  346 database assertions, 40 browser/provider/API checks and 167 Python tests in
+  both base and isolated SDK runtimes. Prepared official pinned SDK/NumPy on D:
+  without shared-Python or terminal changes. Native startup XML validation passed;
+  actual task registration and demo attachment remain pending. See the updated
+  [publication/runtime report](MT5_PUBLICATION_VERIFICATION.md).
 - 2026-10-05: resumed after the user's stop request. Implemented explicit selected-trade
   publication from stored source revisions through central TypeScript reconstruction
   and a private atomic PostgreSQL publisher. Replays, concurrent-change rejection,
