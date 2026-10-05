@@ -29,9 +29,19 @@ const directory = new URL("../supabase/tests/", import.meta.url);
 const suites = (await readdir(directory)).filter((file) => file.endsWith(".test.sql")).sort();
 if (!suites.length) throw new Error("No database suites found.");
 const client = new pg.Client({ ...connection, connectionTimeoutMillis: 15_000, statement_timeout: 60_000 });
+let connectionLost = false;
+client.on("error", () => {
+  connectionLost = true;
+  process.exitCode = 1;
+  console.error("Disposable database connection was interrupted; details suppressed.");
+});
 
 try {
   await client.connect();
+  // Share the OAuth/browser fixture lock: those checks temporarily configure the
+  // same local resource rows. The session lock survives each suite's rollback
+  // and is released on disconnect, including errors; never race these fixtures.
+  await client.query("select pg_advisory_lock(670051234)");
   for (const suite of suites) {
     const sql = await readFile(new URL(suite, directory), "utf8");
     if (!/^\s*begin\s*;/i.test(sql) || !/rollback\s*;\s*$/i.test(sql)) {
@@ -54,12 +64,16 @@ try {
       console.error(`FAIL: ${suite}; SQLSTATE ${typeof error.code === "string" ? error.code : "unavailable"}. Details suppressed.`);
       process.exitCode = 1;
     } finally {
-      await client.query("rollback");
+      if (!connectionLost) {
+        try { await client.query("rollback"); }
+        catch { connectionLost = true; process.exitCode = 1; }
+      }
     }
+    if (connectionLost) break;
   }
 } catch {
   console.error("Disposable database tests could not complete; connection details suppressed.");
   process.exitCode = 1;
 } finally {
-  await client.end();
+  try { await client.end(); } catch { process.exitCode = 1; }
 }

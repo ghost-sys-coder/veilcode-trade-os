@@ -32,8 +32,8 @@ export async function loadOAuthConsent(provider: ConsentProvider, input: unknown
     if (!user.data.user || user.data.user.id !== claims.data.claims.sub) return { status: "SIGN_IN_REQUIRED" };
     const details = await provider.auth.oauth.getAuthorizationDetails(id.data);
     if (details.error || !details.data) return { status: "INVALID_REQUEST" };
-    // Already-consented redirects can carry codes. Never forward them before
-    // application grants/resource checks exist, even if Supabase auto-consented.
+    // Already-consented redirects can carry codes without a new account selection.
+    // Never let Supabase auto-consent bypass application grant validation.
     if (typeof details.data === "object" && "redirect_url" in details.data) return { status: "BLOCKED" };
     const request = parseConsentRequest(details.data, id.data, user.data.user.id);
     return request ? { status: "REQUEST", request } : { status: "INVALID_REQUEST" };
@@ -42,7 +42,7 @@ export async function loadOAuthConsent(provider: ConsentProvider, input: unknown
   }
 }
 
-/** Approval intentionally has no implementation until the full grant gate passes. */
+/** Denial adapter; approvals use the separate, account-bound grant workflow. */
 export async function decideOAuthConsent(provider: ConsentProvider, input: unknown, decision: unknown): Promise<
   { status: "DENIED"; redirectUrl: string } | { status: "SIGN_IN_REQUIRED" | "INVALID_REQUEST" | "UNAVAILABLE" | "BLOCKED" }
 > {

@@ -1,16 +1,27 @@
 # MT5 Synchronization Implementation Plan
 
-Branch: `feature/mt5-sync`. Status: MT5-0 in progress; not operationally ready.
+Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
+not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
 ## Delivery checklist
 
-- [ ] MT5-0: documentation/branches and authentication compatibility.
+- [x] MT5-0: documentation/branches and local authentication compatibility.
 - [ ] MT5-1: verified actors, shared services, transactional storage/APIs.
 - [ ] MT5-2: source reconstruction, finance, identity migrations and fixtures.
 - [ ] MT5-3: collector, durable recovery and Windows startup.
 - [ ] MT5-4: account onboarding, reconciliation and monitoring UI.
-- [ ] MT5-5: full regression gates and 48-hour multi-account demo soak.
+- [ ] MT5-5: full regression gates and focused multi-account demo interruption checks.
+  Mandatory 48-hour soak waiting was deferred by the user on 2026-10-05; no soak
+  completion is claimed.
+
+MT5-3 increment: protected renewable credentials, bounded native-worker supervision
+and the local polling/heartbeat/reconciliation coordinator are implemented. New
+spools start PAUSED; explicit attention survives restart. A new worker ID per
+coordinator lifetime preserves laptop/VPS fencing without changing old operation
+envelopes. Operational consent/startup commands, Task Scheduler installation and
+the real-terminal/soak matrix remain pending. Exact verification and limitations:
+[credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
 
 Do not begin authenticated broker persistence until MT5-0 passes. A failed
 authentication gate requires an explicit plan revision, not a static shared
@@ -117,6 +128,14 @@ Incomplete history or unresolved financial effects are never called reconciled.
 SQLite stores account-scoped captured events and pending uploads. Server
 checkpoints advance only after durable commit; unresolved rows must be
 durably staged before progression. Lost acknowledgements cause safe replay.
+The capture protocol now requires `collection: { id, index, count }` on every
+batch (zero-based index, count 1..100000, at most 200 events per batch). The
+collection checkpoint/count are frozen; an immutable slot is committed with
+its source facts, receipt and audit. Only all declared slots advance the
+server checkpoint. An original receipt is never rewritten after completion.
+Operation lookup returns COMMITTED with that original result, or UNKNOWN at
+the lookup's transactional observation. Unknown alone never authorizes a new
+operation: recovery first needs a new server fence preventing old writes.
 Reconnect, verify identity, replay uploads, retrieve overlapping history,
 reconcile positions, then resume polling.
 
@@ -156,8 +175,10 @@ rotation/revocation, outage recovery, spool recovery and future VPS handover.
 
 Use disposable test databases and controlled demo terminals, never broker
 orders or destructive production tests. Run all roadmap commands plus Python
-unit/integration/static checks. Require a 48-hour multi-account demo soak with
-controlled interruptions. Record actual start/end, observations, versions and
+unit/integration/static checks. The user removed the mandatory 48-hour waiting gate
+on 2026-10-05 to prioritize same-day MT5 and MCP delivery. Run focused multi-account
+demo interruption checks; retain extended soak as a deferred operational follow-up.
+Record actual start/end, observations, versions and
 results; do not manufacture elapsed-time evidence or mark unrun checks passed.
 
 ## Reference facts

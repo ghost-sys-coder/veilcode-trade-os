@@ -90,7 +90,9 @@ export function normalizeMoney(
 ): string {
   assertCurrencyPrecision(currencyPrecision);
 
-  return parseDecimal(value).toFixed(currencyPrecision, Decimal.ROUND_HALF_UP);
+  const normalized = parseDecimal(value).toFixed(currencyPrecision, Decimal.ROUND_HALF_UP);
+  // Decimal preserves a negative-zero sign after rounding; money does not.
+  return parseDecimal(normalized).isZero() ? new Decimal(0).toFixed(currencyPrecision) : normalized;
 }
 
 export function compareNormalizedMoneyToZero(

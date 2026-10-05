@@ -102,6 +102,22 @@ CSV, MT4, MT5, and broker data must pass through an account-scoped batch and row
 
 The commit UI and broker adapters remain intentionally disabled until a real provider export is reviewed. Imports may enrich execution facts but cannot silently replace manual thesis, psychology, screenshots, rule evidence, reviews, grades, or lessons. See [Future imports](docs/FUTURE_IMPORTS.md).
 
+## Integration development (not operationally released)
+
+MT5 is being built on `feature/mt5-sync`; `feature/mcp-access` remains parked until
+the MT5 release gates pass. Local OAuth consent, account-bound grants, fenced source
+capture, durable Python upload recovery, user-protected renewable credentials,
+bounded Windows worker supervision and a fixture-tested polling coordinator exist.
+No real terminal is attached and staging does not yet publish canonical trades.
+An operational consent/startup entry point, Task Scheduler installation, approved
+onboarding, reconciliation and the 48-hour multi-account demo soak remain required.
+
+Run `npm run test:mt5-python` and `npm run check:mt5-python` using the
+[Python development setup](integrations/mt5/README.md). Local-only browser/API tests
+use the disposable Supabase stack described in [the local runbook](docs/LOCAL_INTEGRATION_TESTING.md).
+See [integration roadmap](docs/INTEGRATION_ROADMAP.md) and the current
+[credentials/supervision verification](docs/MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
+
 ## Deployment to Vercel
 
 1. Create a Vercel project from this repository.
@@ -114,7 +130,7 @@ The commit UI and broker adapters remain intentionally disabled until a real pro
 
 ## Known limitations
 
-- No automated execution, signals, live broker connection, or MT4/MT5 terminal bridge.
+- No automated execution, signals, live broker connection, or operational MT4/MT5 terminal bridge.
 - CSV commit is not exposed until a broker-specific mapping can be validated safely.
 - Equity and unrealized PnL are manual snapshots; realized balance remains authoritative.
 - Monetary aggregation across currencies requires a future explicit FX-conversion layer.
