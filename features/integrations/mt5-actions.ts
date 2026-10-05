@@ -5,8 +5,24 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { controlMt5Connection, registerMt5Connection, Mt5OnboardingError } from "@/services/mt5/onboarding";
 import { publishMt5Trades } from "@/services/mt5/publication";
+import { saveMt5SymbolMapping } from "@/services/mt5/symbol-mapping";
 
 type ActionState = { message: string; success: boolean };
+export async function mapMt5BrokerSymbol(_previous:ActionState,form:FormData):Promise<ActionState> {
+  let connectionId:string;
+  try {
+    const result=await saveMt5SymbolMapping(await createClient(),{connectionId:form.get("connection_id"),operationId:form.get("operation_id"),
+      version:form.get("version"),snapshotToken:form.get("snapshot_token"),brokerSymbol:form.get("broker_symbol"),
+      instrumentId:form.get("instrument_id"),reason:form.get("reason")});
+    connectionId=result.connectionId;
+  } catch (error) {
+    return {success:false,message:error instanceof Error && error.message==="MT5_PUBLICATION_REVIEW_REQUIRED"
+      ? "Reload the preview and check the mapping. Published broker symbols cannot be reassigned; unavailable instruments and changed source snapshots require review."
+      : "Mapping was not confirmed. Check the selected symbol, instrument, reason and active account grant. Retry the same submission to recover a committed approval."};
+  }
+  revalidatePath(`/settings/integrations/mt5/${connectionId}`);
+  redirect(`/settings/integrations/mt5/${connectionId}?status=symbol-mapped`);
+}
 export async function approveMt5Publication(_previous: ActionState, form: FormData): Promise<ActionState> {
   let connectionId: string;
   try {

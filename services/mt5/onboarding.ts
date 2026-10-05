@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { buildMt5OnboardingPreview, mt5ConnectionViewSchema, mt5StoredSourceSchema } from "@/domain/mt5/onboarding";
 import { mt5IdentitySchema } from "@/domain/mt5/source";
+import { mt5SymbolMappingSchema } from "@/domain/mt5/symbol-mapping";
 import { verifyDirectBrowser } from "@/services/integrations/grant-management";
 import type { IntegrationDatabase } from "@/types/integration-database";
 import { getIntegrationConfig } from "@/config/integrations";
@@ -18,7 +19,8 @@ const sourcePageSchema = z.object({ connectionId: z.string().uuid(),snapshotToke
   tradeCount: z.number().int().nonnegative(),
   trades: z.array(z.object({ id: z.string().uuid(),symbol: z.string(),direction: z.enum(["BUY","SELL"]),
     openedAt: z.string().nullable(),closedAt: z.string().nullable(),canonicalIdentity: z.string().nullable(),closedNetPnl: z.string().nullable() })),
-  events: z.array(mt5StoredSourceSchema),sourceFactCount: z.number().int().nonnegative(),incompleteCollections: z.number().int().nonnegative() });
+  events: z.array(mt5StoredSourceSchema),sourceFactCount: z.number().int().nonnegative(),incompleteCollections: z.number().int().nonnegative(),
+  symbolMappings:z.array(mt5SymbolMappingSchema).default([]),symbolMappingCount:z.number().int().nonnegative().default(0) });
 
 export async function listMt5Connections(client: Client) {
   await verifyDirectBrowser(client);
@@ -54,11 +56,13 @@ export async function getMt5OnboardingSnapshot(client: Client, connectionId: str
   if (!connection) throw new Mt5OnboardingError();
   const sources: z.infer<typeof mt5StoredSourceSchema>[] = [];
   const existing: z.infer<typeof sourcePageSchema>["trades"] = [];
+  const symbolMappings:z.infer<typeof mt5SymbolMappingSchema>[]=[];
   let snapshot: string | null = null;
   let ledgerToken: string | null = null;
   let account: z.infer<typeof sourcePageSchema>["account"] | null = null;
   let total = 0;
   let tradeCount = 0;
+  let symbolMappingCount=0;
   let offset = 0;
   do {
     const result = await client.rpc("mt5_browser_source_page",{ p_connection_id: connectionId,p_offset: offset,p_limit: 1000 });
@@ -68,16 +72,17 @@ export async function getMt5OnboardingSnapshot(client: Client, connectionId: str
       || (snapshot !== null && snapshot !== page.snapshotToken) || (snapshot !== null && total !== page.sourceFactCount)) throw new Mt5OnboardingError("CHANGED");
     if (ledgerToken !== null && ledgerToken !== page.ledgerToken) throw new Mt5OnboardingError("CHANGED");
     ledgerToken = page.ledgerToken; account = page.account;
-    snapshot = page.snapshotToken; total = page.sourceFactCount; tradeCount = page.tradeCount;
-    if (Math.max(total,tradeCount) > 100_000) throw new Mt5OnboardingError("INVALID"); // Never truncate silently.
+    snapshot = page.snapshotToken; total = page.sourceFactCount; tradeCount = page.tradeCount; symbolMappingCount=page.symbolMappingCount;
+    if (Math.max(total,tradeCount,symbolMappingCount) > 100_000) throw new Mt5OnboardingError("INVALID"); // Never truncate silently.
     if (!page.events.length && sources.length < total) throw new Mt5OnboardingError("CHANGED");
     sources.push(...page.events);
     if (!page.trades.length && existing.length < tradeCount) throw new Mt5OnboardingError("CHANGED");
-    existing.push(...page.trades); offset += 1000;
-  } while (offset < Math.max(total,tradeCount));
-  const instruments: { id: string; symbol: string }[] = [];
+    if (!page.symbolMappings.length && symbolMappings.length<symbolMappingCount) throw new Mt5OnboardingError("CHANGED");
+    existing.push(...page.trades); symbolMappings.push(...page.symbolMappings); offset += 1000;
+  } while (offset < Math.max(total,tradeCount,symbolMappingCount));
+  const instruments: { id: string; symbol: string; display_name: string; user_id: string | null }[] = [];
   for (let offset = 0; ; offset += 1000) {
-    const result = await client.from("instruments").select("id,symbol").order("id").range(offset,offset+999);
+    const result = await client.from("instruments").select("id,symbol,display_name,user_id").order("id").range(offset,offset+999);
     if (result.error) throw new Mt5OnboardingError();
     instruments.push(...result.data);
     if (result.data.length < 1000) break;
@@ -90,12 +95,12 @@ export async function getMt5OnboardingSnapshot(client: Client, connectionId: str
   const checked = sourcePageSchema.parse(final.data);
   if (checked.snapshotToken !== snapshot || checked.ledgerToken !== ledgerToken || checked.version !== connection.version
     || checked.captureCheckpoint !== connection.captureCheckpoint) throw new Mt5OnboardingError("CHANGED");
-  return { connection,account,sources,instruments,existingTrades: existing,snapshotToken: snapshot!,ledgerToken: ledgerToken! };
+  return { connection,account,sources,instruments,symbolMappings,existingTrades: existing,snapshotToken: snapshot!,ledgerToken: ledgerToken! };
 }
 
 export async function getMt5OnboardingPreview(client: Client, connectionId: string) {
   const snapshot = await getMt5OnboardingSnapshot(client,connectionId);
   return { connection: snapshot.connection,accountName: snapshot.account.name,snapshotToken: snapshot.snapshotToken,
-    ledgerToken: snapshot.ledgerToken,preview: buildMt5OnboardingPreview({ ...snapshot,
+    ledgerToken: snapshot.ledgerToken,instruments:snapshot.instruments,symbolMappings:snapshot.symbolMappings,preview: buildMt5OnboardingPreview({ ...snapshot,
       startingBalance: snapshot.account.startingBalance,ledgerBalance: snapshot.account.ledgerBalance }) };
 }

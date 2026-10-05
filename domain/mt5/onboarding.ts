@@ -2,6 +2,7 @@ import { z } from "zod";
 import { mt5IdentitySchema, mt5SourceEventSchema, type Mt5SourceEvent } from "@/domain/mt5/source";
 import { reconstructMt5Deals, type Mt5Episode } from "@/domain/mt5/reconstruct";
 import { normalizeMoney, parseDecimal, sumDecimals } from "@/domain/money/decimal";
+import type { Mt5SymbolMapping } from "@/domain/mt5/symbol-mapping";
 
 const timestamp = z.iso.datetime({ offset: true });
 const version = z.string().regex(/^[1-9][0-9]*$/);
@@ -39,6 +40,7 @@ export function buildMt5OnboardingPreview(input: {
   connection: Mt5ConnectionView; sources: Mt5StoredSource[];
   instruments: { id: string; symbol: string }[]; existingTrades: PreviewExistingTrade[];
   startingBalance: string; ledgerBalance: string;
+  symbolMappings?: Mt5SymbolMapping[];
 }) {
   const precision = input.connection.identity.currencyPrecision;
   const events = input.sources.map(source => source.event);
@@ -75,14 +77,16 @@ export function buildMt5OnboardingPreview(input: {
       detail: "No current position observation confirms this open episode. Absence is not proof of closure." });
   }
   const episodes: PreviewEpisode[] = result.episodes.map(episode => {
-    const candidates = input.instruments.filter(instrument => instrument.symbol === episode.symbol);
+    const approvedMapping=input.symbolMappings?.find(mapping=>mapping.brokerSymbol===episode.symbol);
+    const candidates = input.instruments.filter(instrument => approvedMapping
+      ? instrument.id===approvedMapping.instrumentId : instrument.symbol === episode.symbol);
     const instrumentId = candidates.length === 1 ? candidates[0].id : null;
     if (!instrumentId) problems.push({ code: "SYMBOL_MAPPING_REQUIRED",positionId: episode.positionId,
       detail: `Explicit instrument mapping is required for ${episode.symbol}; no suffix or approximate matching is used.` });
     // Only the source's own canonical identity may update automatically. Every
     // plausible manual/other-source overlap is held for explicit reconciliation.
     const matches = input.existingTrades.filter(trade => trade.canonicalIdentity === null
-      && trade.symbol === episode.symbol && trade.direction === episode.direction && trade.openedAt !== null
+      && trade.symbol === (candidates[0]?.symbol ?? episode.symbol) && trade.direction === episode.direction && trade.openedAt !== null
       && (Date.parse(trade.openedAt) === Date.parse(episode.openedAt)
         || (Date.parse(trade.openedAt) <= Date.parse(episode.closedAt ?? "9999-12-31T00:00:00Z")
           && Date.parse(trade.closedAt ?? "9999-12-31T00:00:00Z") >= Date.parse(episode.openedAt))));

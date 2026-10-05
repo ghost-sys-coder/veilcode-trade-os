@@ -328,3 +328,26 @@ Selectable execution rows use `rounded-lg border-border/70 bg-muted/25 p-4`,
 compact semibold descriptions, muted captions and native `accent-primary`
 checkboxes. Baseline acknowledgement is separate from trade selection. No
 checkbox defaults to approval; pending submission disables the fieldset.
+
+### MT5 broker-symbol approval
+
+File: `features/integrations/mt5-symbol-mapping-form.tsx`
+Last updated: 2026-10-05
+
+| Property | Class |
+| --- | --- |
+| Background | parent Card `bg-card`; history `bg-muted/25` |
+| Border | controls `border-input`; history `border-border/70` |
+| Border radius | controls and history `rounded-lg` |
+| Text — primary | labels from Label; history `text-sm font-semibold` |
+| Text — secondary | `text-xs leading-5 text-muted-foreground` |
+| Spacing | form `space-y-4 gap-4`; history `p-4` |
+| Hover state | existing Button; focus `focus-visible:ring-ring/25` |
+| Shadow | inherited Card/Button primitives |
+| Accent usage | primary approval Button; no profit/success implication |
+
+**Pattern notes:** Native selects use the same 40px height and theme tokens as
+account controls. No instrument is pre-approved. Show catalog scope and friendly
+instrument names alongside symbols, not UUIDs. Mapping requires a reason;
+pending submission disables controls. Current mapping displays its version,
+reason and UTC timestamp; immutable decisions remain in private audit history.

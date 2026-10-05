@@ -2,7 +2,7 @@ import { beforeEach,afterEach,describe,expect,it,vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IntegrationDatabase } from "@/types/integration-database";
 import { getVerifiedBrowserContext,type VerifiedBrowserContext } from "@/services/integrations/browser-context";
-import { mt5PublicationTransaction } from "@/services/integrations/publication-database";
+import { mt5PublicationTransaction,mt5SymbolMappingTransaction } from "@/services/integrations/publication-database";
 import { mt5PublicationRequestSchema } from "@/domain/mt5/publication";
 
 const driver=vi.hoisted(()=>({construct:vi.fn(),connect:vi.fn(),query:vi.fn(),end:vi.fn()}));
@@ -24,6 +24,13 @@ beforeEach(()=>{
 });
 afterEach(()=>vi.unstubAllEnvs());
 describe("private publication transaction boundary",()=>{
+  it("uses the fixed private mapping call with verified context",async()=>{
+    const mapping={connectionId:id,operationId:id,version:"1",snapshotToken:"a".repeat(64),brokerSymbol:"EURUSD.m",instrumentId:id,reason:"Confirmed broker alias"};
+    await mt5SymbolMappingTransaction(await actor(),mapping);
+    expect(driver.query.mock.calls[2]).toEqual(["select private.mt5_save_symbol_mapping($1::jsonb) as result",[JSON.stringify(mapping)]]);
+    await expect(mt5SymbolMappingTransaction({userId:id} as VerifiedBrowserContext,mapping)).rejects.toThrow();
+    expect(driver.construct).toHaveBeenCalledTimes(1);
+  });
   it("uses one connection and transaction with fixed queries and verified claims",async()=>{
     expect(await mt5PublicationTransaction(await actor(),request)).toBe(null);
     expect(driver.query.mock.calls.map(call=>call[0])).toEqual(["begin","select set_config('request.jwt.claims',$1,true)",

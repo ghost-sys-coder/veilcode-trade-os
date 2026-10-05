@@ -68,7 +68,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures and migrations pass locally; source-backed manual canonical publication verified; automatic publication and reviewed-source resolution pending |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
-| MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: mapping, balance bridge, monitoring, fenced controls and explicit selected-trade approval/publication pass local browser checks; full onboarding approval, classifications and demo pilot pending |
+| MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account and audited broker-symbol mapping, balance bridge, monitoring, fenced controls and selected-trade publication pass local browser checks; full onboarding approval, cash classifications and demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
 | MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | Parked |
@@ -112,6 +112,17 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-05: precision/runtime checkpoint `464b0d4` committed and pushed.
+  Implemented explicit broker-symbol approval, typed current mappings, append-only
+  correction chains, source/version checks and durable atomic receipts. Approved
+  aliases publish into canonical instruments while retaining raw broker identities;
+  manual overlaps remain held and published symbols cannot be reassigned. Verified
+  354 application tests, 387 database assertions (9 suites), 41 browser/provider/API
+  checks and 167 Python tests, plus typecheck, lint, build and local SQL/security
+  checks. All 29 migrations replay with no schema diff. No hosted migration,
+  existing terminal change, merge or MCP implementation. Cash classification,
+  full onboarding approval, automated publication and real-demo pilot remain
+  pending. See [symbol-mapping verification](MT5_SYMBOL_MAPPING_VERIFICATION.md).
 - 2026-10-05: publication checkpoint `ab0919e` pushed successfully. Subsequent review
   aligned MT5 identity and final-PnL persistence with the account's 0..20 configured
   precision contract; legacy typmod regression reproduced and corrected. All 28

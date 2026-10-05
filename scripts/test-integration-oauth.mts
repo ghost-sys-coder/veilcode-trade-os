@@ -447,6 +447,42 @@ try {
     assert.equal(await page.getByText("USD 95.00",{exact:true}).count(),1);
     assert.equal(pageErrors,0);
     passed("published broker trade loads through the normal trading journal without a client/runtime error");
+    stage="actual browser symbol mapping";
+    const aliasAt=new Date().toISOString();
+    const aliasDeal={...batch.events[0].payload,ticket:"90",orderId:"90",positionId:"900",symbol:"EURUSD.m",occurredAt:"2026-02-01T00:00:00.000Z"};
+    const aliasPosition=positionObservation("90",aliasAt);
+    aliasPosition.payload.symbol="EURUSD.m";
+    await publicationCapture([{kind:"DEAL",sourceId:"90",observedAt:aliasAt,payload:aliasDeal},aliasPosition,
+      ...['20','30','40'].map(ticket=>positionObservation(ticket,aliasAt)),
+      {kind:"ACCOUNT",sourceId:"ACCOUNT",observedAt:aliasAt,payload:{balance:"1087",equity:"1087",unrealizedPnl:"0",observedAt:aliasAt}}],aliasAt);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    assert.equal(await page.getByRole("checkbox",{name:/opening deal 90/}).count(),0);
+    await page.getByLabel("Captured broker symbol",{exact:true}).selectOption("EURUSD.m");
+    const mappedInstrument=await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null");
+    await page.getByLabel("Corresponding Trade OS instrument",{exact:true}).selectOption(mappedInstrument.rows[0].id);
+    await page.getByLabel("Symbol mapping reason",{exact:true}).fill("Confirmed demo broker EURUSD suffix represents the EURUSD instrument");
+    await page.getByRole("button",{name:"Approve symbol mapping",exact:true}).click();
+    await page.getByText("Symbol mapping saved. The preview below uses the approved instrument.",{exact:true}).waitFor();
+    await page.screenshot({path:`${artifactDirectory}/mt5-symbol-mapping-dark.png`,fullPage:true});
+    await page.getByRole("button",{name:"Use light theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>!document.documentElement.classList.contains("dark"));
+    await page.screenshot({path:`${artifactDirectory}/mt5-symbol-mapping-light.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+    await page.screenshot({path:`${artifactDirectory}/mt5-symbol-mapping-mobile-light.png`,fullPage:true});
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole("button",{name:"Use dark theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>document.documentElement.classList.contains("dark"));
+    await page.getByRole("checkbox",{name:/opening deal 90/}).check();
+    await page.getByRole("checkbox",{name:/I confirm the preserved opening baseline/}).check();
+    await page.getByLabel("Publication approval reason").fill("Approve explicitly mapped source-backed alias position");
+    await page.getByRole("button",{name:"Publish selected trades",exact:true}).click();
+    await page.getByText(/The selected canonical trades were published\./).waitFor();
+    const aliasPublished=await database.query("select t.instrument_id,t.status,t.net_pnl,v.execution->>'symbol' as broker_symbol from public.trades t join private.mt5_execution_versions v on v.trade_id=t.id and v.execution_version=t.mt5_execution_version where t.mt5_connection_id=$1 and t.mt5_opening_deal_ticket='90'",[connectionId]);
+    assert.equal(aliasPublished.rowCount,1);assert.equal(aliasPublished.rows[0].instrument_id,mappedInstrument.rows[0].id);
+    assert.equal(aliasPublished.rows[0].broker_symbol,"EURUSD.m");assert.equal(aliasPublished.rows[0].status,"OPEN");assert.equal(aliasPublished.rows[0].net_pnl,null);
+    assert.equal(pageErrors,0);
+    passed("actual browser mapping resolves an alias only after explicit instrument/reason approval and publishes canonical identity while preserving broker provenance");
     await page.goto(`${uiOrigin}/settings/integrations`);
     await page.reload();
     await page.getByText("Worker controls",{ exact: true }).click();
@@ -575,6 +611,8 @@ try {
       // This is never a normal application/audit deletion workflow.
       await database.query("begin");
       await database.query("set local session_replication_role = replica");
+      await database.query("delete from private.mt5_symbol_mapping_events where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_symbol_mappings where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_execution_sources where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_execution_versions where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_publication_approvals where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);

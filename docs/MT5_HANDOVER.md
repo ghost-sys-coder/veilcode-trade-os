@@ -5,6 +5,8 @@ Date: 2026-10-05. This is an incomplete integration, not a release report.
 **Historical snapshot:** work subsequently resumed at the user's request.
 The publication scaffold described below is now implemented and locally verified;
 see [current publication verification](MT5_PUBLICATION_VERIFICATION.md).
+The subsequent explicit broker-symbol workflow is also implemented and verified;
+see [symbol-mapping verification](MT5_SYMBOL_MAPPING_VERIFICATION.md).
 Keep this handover as the record of the earlier stop, not the current worktree status.
 
 ## Repository state verified at handover

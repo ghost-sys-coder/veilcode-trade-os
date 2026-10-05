@@ -60,6 +60,19 @@ describe("MT5 import onboarding preview", () => {
     const result = preview(closed,{ instruments: [{ id: instrumentId,symbol: "EURUSD.a" }] });
     expect(result.episodes[0].instrumentId).toBeNull(); expect(result.episodes[0].publishable).toBe(false);
   });
+  it("uses explicit mappings without changing raw broker symbols or financial values",()=>{
+    const alias=closed.map(source=>source.event.kind==="DEAL"?dealSource({...source.event.payload,symbol:"EURUSD.m"}):source);
+    const mappings=[{brokerSymbol:"EURUSD.m",instrumentId,version:"1",reason:"Broker alias confirmed",updatedAt:checkpoint}];
+    const result=preview(alias,{symbolMappings:mappings});
+    expect(result.episodes[0]).toMatchObject({instrumentId,publishable:true});
+    expect(result.episodes[0].episode.symbol).toBe("EURUSD.m");
+    expect(result.bridge.proposedClosedPnlChange).toBe("95.00");
+    const conflict=preview(alias,{symbolMappings:mappings,existingTrades:[{id,symbol:"EURUSD",direction:"BUY",openedAt:"2026-10-01T09:00:00Z",closedAt:null,canonicalIdentity:null,closedNetPnl:null}]});
+    expect(conflict.episodes[0]).toMatchObject({publishable:false,matchingTradeIds:[id]});
+  });
+  it("does not fall back to guessed exact symbols when an approved instrument is unavailable",()=>{
+    expect(preview(closed,{symbolMappings:[{brokerSymbol:"EURUSD",instrumentId:id,version:"1",reason:"Selected custom instrument",updatedAt:checkpoint}]}).episodes[0].publishable).toBe(false);
+  });
   it("does not choose silently between ambiguous exact symbols", () => {
     expect(preview(closed,{ instruments: [{ id,symbol: "EURUSD" },{ id: instrumentId,symbol: "EURUSD" }] }).episodes[0].publishable).toBe(false);
   });
