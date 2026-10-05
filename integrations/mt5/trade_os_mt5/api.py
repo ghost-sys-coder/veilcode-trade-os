@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
+from .json_boundary import reject_constant as _reject_constant
+from .json_boundary import unique_object as _unique_object
 from .outbox import Binding, OutboxError, _uuid
 
 MAX_RESPONSE_BYTES = 1_048_576
@@ -26,19 +28,6 @@ class ApiError(Exception):
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
-
-
-def _reject_constant(value):
-    raise ValueError("Non-JSON constant")
-
-
-def _unique_object(pairs):
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("Duplicate JSON key")
-        result[key] = value
-    return result
 
 
 def utc_response(value: Any) -> str:
@@ -143,6 +132,8 @@ class IntegrationApi:
             token = self._access_token()
             if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", token):
                 raise ValueError
+        except ApiError:
+            raise
         except Exception:
             raise ApiError("INTEGRATION_ACCESS_DENIED") from None
         try:
@@ -209,18 +200,23 @@ class IntegrationApi:
         except (ValueError, UnicodeError):
             raise ApiError("INVALID_API_RESPONSE") from None
 
-    def verify_binding(self, binding: Binding) -> None:
+    def verify_binding(self, binding: Binding, *, client_id: str | None = None) -> dict[str, Any]:
+        return self.verify_account(binding.owner_id, binding.account_id, client_id=client_id)
+
+    def verify_account(self, owner_id: str, account_id: str, *, client_id: str | None = None) -> dict[str, Any]:
         response = self._request("/session")
         actor = response.get("actor")
         if (
             response.get("version") != "v1"
             or not isinstance(actor, dict)
-            or actor.get("user_id") != binding.owner_id
-            or actor.get("account_id") != binding.account_id
+            or actor.get("user_id") != owner_id
+            or actor.get("account_id") != account_id
             or actor.get("purpose") != "MT5"
             or actor.get("resource") != self.resource
+            or (client_id is not None and actor.get("client_id") != client_id)
         ):
             raise ApiError("INTEGRATION_ACCOUNT_MISMATCH")
+        return actor
 
     def acquire_lease(self, request: dict[str, Any]) -> dict[str, Any]:
         return lease_response(self._request("/mt5/lease", request), request["connectionId"])

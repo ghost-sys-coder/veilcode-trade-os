@@ -192,7 +192,7 @@ class UploaderTests(unittest.TestCase):
         self.box.db.execute("pragma user_version=1")
         self.box.close()
         self.box = Outbox(self.path, Binding(OWNER, ACCOUNT, CONNECTION))
-        self.assertEqual(self.box.db.execute("pragma user_version").fetchone()[0], 2)
+        self.assertEqual(self.box.db.execute("pragma user_version").fetchone()[0], 3)
         self.assertEqual(self.box.next_attempt(WORKER, "1"), prior)
 
     def test_backoff_is_jittered_exponential_and_capped(self):

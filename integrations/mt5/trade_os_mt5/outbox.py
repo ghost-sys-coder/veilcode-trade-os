@@ -79,7 +79,7 @@ class Outbox:
             if self.db.execute("pragma quick_check").fetchone()[0] != "ok":
                 raise OutboxError("Outbox requires integrity recovery")
             version = self.db.execute("pragma user_version").fetchone()[0]
-            if version not in (0, 1, 2):
+            if version not in (0, 1, 2, 3):
                 raise OutboxError("Unsupported outbox version")
             with self._transaction():
                 self.db.execute("""create table if not exists binding (
@@ -102,6 +102,23 @@ class Outbox:
                 self.db.execute("""create table if not exists lease_attempts (
                     sequence integer primary key,operation_id text not null unique,worker_id text not null,
                     envelope_json text not null,envelope_hash text not null,receipt_json text)""")
+                self.db.execute("""create table if not exists collector_runtime (
+                    singleton integer primary key check(singleton=1),worker_id text not null,
+                    mode text not null check(mode in ('RUNNING','PAUSED','ATTENTION')),attention_code text,
+                    last_full_history_at text,last_contact_at text,
+                    check((mode='ATTENTION' and attention_code is not null) or (mode<>'ATTENTION' and attention_code is null)))""")
+                self.db.execute("""create table if not exists collector_control_events (
+                    sequence integer primary key,previous_mode text not null,new_mode text not null,
+                    reason text not null,created_at text not null)""")
+                self.db.execute("""create table if not exists collector_generations (
+                    sequence integer primary key,worker_id text not null unique,started_at text not null)""")
+                for action in ("update", "delete"):
+                    self.db.execute(f"""create trigger if not exists collector_control_no_{action}
+                        before {action} on collector_control_events begin
+                        select raise(abort,'Collector control evidence is append only'); end""")
+                    self.db.execute(f"""create trigger if not exists collector_generations_no_{action}
+                        before {action} on collector_generations begin
+                        select raise(abort,'Collector generation evidence is append only'); end""")
                 row = self.db.execute("select * from binding").fetchone()
                 values = (self.binding.owner_id, self.binding.account_id, self.binding.connection_id)
                 if row is None:
@@ -110,7 +127,12 @@ class Outbox:
                     )
                 elif tuple(row[key] for key in ("owner_id", "account_id", "connection_id")) != values:
                     raise OutboxError("Outbox account mapping mismatch")
-                self.db.execute("pragma user_version=2")
+                self.db.execute(
+                    """insert into collector_runtime(singleton,worker_id,mode)
+                    values(1,?,'PAUSED') on conflict(singleton) do nothing""",
+                    (str(uuid4()),),
+                )
+                self.db.execute("pragma user_version=3")
         except BaseException:
             self.db.close()
             raise
@@ -367,3 +389,63 @@ class Outbox:
     def checkpoints(self) -> tuple[str | None, str | None]:
         row = self.db.execute("select capture_checkpoint,server_checkpoint from binding where singleton=1").fetchone()
         return row[0], row[1]
+
+    def runtime(self) -> dict[str, Any]:
+        row = dict(self.db.execute("select * from collector_runtime where singleton=1").fetchone())
+        _uuid(row["worker_id"])
+        if row["mode"] not in ("RUNNING", "PAUSED", "ATTENTION"):
+            raise OutboxError("Invalid collector control state")
+        for key in ("last_full_history_at", "last_contact_at"):
+            if row[key] is not None:
+                _instant(row[key])
+        return row
+
+    def start_generation(self, started_at: str) -> str:
+        """Call only while holding the OS-owned coordinator lock.
+
+        Each process lifetime has a new identity, including a copied VPS spool.
+        Never rewrite an uncertain upload or old lease attempt to that identity.
+        The uploader must acquire a new server fence before recovering old work.
+        """
+        worker_id, started_at = str(uuid4()), _instant(started_at)
+        with self._transaction():
+            self.db.execute(
+                "insert into collector_generations(worker_id,started_at) values(?,?)", (worker_id, started_at)
+            )
+            self.db.execute("update collector_runtime set worker_id=? where singleton=1", (worker_id,))
+        return worker_id
+
+    def set_mode(self, mode: str, reason: str, created_at: str, *, attention_code: str | None = None) -> None:
+        """Local operator controls; not a replacement for server grants/fencing.
+
+        Default is PAUSED, and process restart never clears attention. Application
+        pause/revocation continues to be enforced by the private server RPCs.
+        """
+        if (
+            mode not in ("RUNNING", "PAUSED", "ATTENTION")
+            or not isinstance(reason, str)
+            or not 8 <= len(reason.strip()) <= 1000
+            or (mode == "ATTENTION") != (attention_code is not None)
+            or (
+                attention_code is not None
+                and (not isinstance(attention_code, str) or not re.fullmatch(r"[A-Z0-9_]{1,80}", attention_code))
+            )
+        ):
+            raise OutboxError("Invalid collector control change")
+        created_at = _instant(created_at)
+        with self._transaction():
+            previous = self.runtime()["mode"]
+            self.db.execute(
+                "insert into collector_control_events(previous_mode,new_mode,reason,created_at) values(?,?,?,?)",
+                (previous, mode, reason.strip(), created_at),
+            )
+            self.db.execute(
+                "update collector_runtime set mode=?,attention_code=? where singleton=1", (mode, attention_code)
+            )
+
+    def mark_runtime_time(self, field: str, timestamp: str) -> None:
+        if field not in ("last_full_history_at", "last_contact_at"):
+            raise OutboxError("Invalid collector runtime field")
+        timestamp = _instant(timestamp)
+        with self._transaction():
+            self.db.execute(f"update collector_runtime set {field}=? where singleton=1", (timestamp,))

@@ -11,7 +11,17 @@ Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 - [ ] MT5-2: source reconstruction, finance, identity migrations and fixtures.
 - [ ] MT5-3: collector, durable recovery and Windows startup.
 - [ ] MT5-4: account onboarding, reconciliation and monitoring UI.
-- [ ] MT5-5: full regression gates and 48-hour multi-account demo soak.
+- [ ] MT5-5: full regression gates and focused multi-account demo interruption checks.
+  Mandatory 48-hour soak waiting was deferred by the user on 2026-10-05; no soak
+  completion is claimed.
+
+MT5-3 increment: protected renewable credentials, bounded native-worker supervision
+and the local polling/heartbeat/reconciliation coordinator are implemented. New
+spools start PAUSED; explicit attention survives restart. A new worker ID per
+coordinator lifetime preserves laptop/VPS fencing without changing old operation
+envelopes. Operational consent/startup commands, Task Scheduler installation and
+the real-terminal/soak matrix remain pending. Exact verification and limitations:
+[credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
 
 Do not begin authenticated broker persistence until MT5-0 passes. A failed
 authentication gate requires an explicit plan revision, not a static shared
@@ -165,8 +175,10 @@ rotation/revocation, outage recovery, spool recovery and future VPS handover.
 
 Use disposable test databases and controlled demo terminals, never broker
 orders or destructive production tests. Run all roadmap commands plus Python
-unit/integration/static checks. Require a 48-hour multi-account demo soak with
-controlled interruptions. Record actual start/end, observations, versions and
+unit/integration/static checks. The user removed the mandatory 48-hour waiting gate
+on 2026-10-05 to prioritize same-day MT5 and MCP delivery. Run focused multi-account
+demo interruption checks; retain extended soak as a deferred operational follow-up.
+Record actual start/end, observations, versions and
 results; do not manufacture elapsed-time evidence or mark unrun checks passed.
 
 ## Reference facts

@@ -29,7 +29,9 @@ review completion, historical rule snapshots, ownership and audit history.
 1. Create `feature/mt5-sync` from the baseline and commit all three plan files.
 2. Create `feature/mcp-access` from that documentation commit and park it.
 3. Implement shared integration foundations and MT5 only on the MT5 branch.
-4. Merge MT5 only after all required gates, including the 48-hour demo soak.
+4. Merge MT5 only after its required correctness/security gates and focused
+   demo-terminal interruption checks. On 2026-10-05 the user removed the mandatory
+   48-hour soak wait to prioritize same-day MT5 and MCP delivery.
 5. Update the MCP branch from the validated `master`, then implement MCP.
 6. Validate MCP independently before its merge. No third foundation branch,
    duplicated foundation implementation or premature MCP feature work.
@@ -65,9 +67,9 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally: real provider, signed tokens and browser; hosted configuration/deployment unverified |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures pass; canonical commit/identity migrations pending |
-| MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: HTTP uploader/recovery verified against real local API; read-only broker adapter fixture-tested; credentials, scheduling, Windows supervision and actual terminals pending |
+| MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operational consent/startup entry point, Task Scheduler and actual terminals pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | Not started |
-| MT5-5 | Operational readiness | Full checks plus 48-hour multi-account soak | Not started |
+| MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
 | MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | Parked |
 | MCP-3 | Client verification and readiness | Required client matrix plus regression checks | Parked |
@@ -90,8 +92,12 @@ static checks, MCP protocol tests, browser tests and real-client checks.
 Missing Windows/client verification is pending, not passed.
 
 Reports record exact commands/results, fixture calculations, client
-versions, limitations and blockers. MT5 readiness also requires a 48-hour
-multi-account demo soak with controlled interruptions. Separate enablement
+versions, limitations and blockers. The originally required 48-hour multi-account
+demo soak is now deferred by explicit user instruction, not recorded as passed.
+Use focused recovery and real-demo interruption checks for the expedited gate.
+Security, monetary accuracy, isolation and regression gates remain required;
+same-day delivery is a priority, not a claim that unfinished capabilities are ready.
+Separate enablement
 flags keep integrations off until approved rollout; disabling one stops
 new activity but preserves persisted facts, provenance and audits.
 
@@ -106,6 +112,11 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-05: user superseded the mandatory 48-hour soak waiting gate and requested
+  expedited MT5 and MCP delivery today. Extended soak remains recommended follow-up,
+  not a blocker or a passed test. Focused interruption and correctness/security
+  checks remain required. Latest local provider/browser/supervised-worker rerun
+  passes all 33 checks after native job containment; approval service is available.
 - 2026-10-05: approved specification saved; branch setup and authentication
   compatibility verification are the first implementation tasks.
 - 2026-10-05: documentation committed as `b17c14a` on `feature/mt5-sync`;
@@ -155,3 +166,15 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   browser/API checks, 282 application tests and 228 database assertions, plus
   static checks/build. All operational and merge gates remain required; MCP parked.
   See [transport/reader report](MT5_TRANSPORT_READER_VERIFICATION.md).
+- 2026-10-05: implemented user-scoped Windows DPAPI credentials, public-client PKCE,
+  renewable tokens, protected vault ACLs, bounded capture/upload subprocesses and
+  the polling/heartbeat/reconciliation coordinator. Local outbox version 3 preserves
+  all old pending operations, with durable pause/attention and append-only control
+  and collector-generation evidence. Every coordinator lifetime has a new worker
+  ID, including a copied VPS spool. Native tests prove supervisor death terminates
+  only its contained Python worker, not a breakaway terminal stand-in. Verified
+  146 Python tests, 282 application tests and 228 database assertions. Real local
+  provider/browser/API checks passed 33 before the final containment addition;
+  that final Docker/browser rerun is pending an approval-service usage-limit reset.
+  No terminal, hosted migration, merge, deployment or MCP implementation occurred.
+  See [credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).

@@ -106,16 +106,17 @@ The commit UI and broker adapters remain intentionally disabled until a real pro
 
 MT5 is being built on `feature/mt5-sync`; `feature/mcp-access` remains parked until
 the MT5 release gates pass. Local OAuth consent, account-bound grants, fenced source
-capture, durable Python upload recovery and a fixture-tested read-only dedicated
-terminal adapter exist. No real terminal is attached and staging does not yet publish
-canonical trades. Credentials, Windows startup/supervision, approved onboarding,
-reconciliation and the 48-hour multi-account demo soak remain required.
+capture, durable Python upload recovery, user-protected renewable credentials,
+bounded Windows worker supervision and a fixture-tested polling coordinator exist.
+No real terminal is attached and staging does not yet publish canonical trades.
+An operational consent/startup entry point, Task Scheduler installation, approved
+onboarding, reconciliation and the 48-hour multi-account demo soak remain required.
 
 Run `npm run test:mt5-python` and `npm run check:mt5-python` using the
 [Python development setup](integrations/mt5/README.md). Local-only browser/API tests
 use the disposable Supabase stack described in [the local runbook](docs/LOCAL_INTEGRATION_TESTING.md).
 See [integration roadmap](docs/INTEGRATION_ROADMAP.md) and the current
-[transport/reader verification](docs/MT5_TRANSPORT_READER_VERIFICATION.md).
+[credentials/supervision verification](docs/MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
 
 ## Deployment to Vercel
 

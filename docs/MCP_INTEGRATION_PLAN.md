@@ -1,6 +1,9 @@
 # Trade OS MCP Access Implementation Plan
 
-Branch: `feature/mcp-access`. Status: parked until MT5 passes its merge gate.
+Branch: `feature/mcp-access`. Status: queued after the shared MT5 checkpoint.
+The user requested same-day MT5/MCP delivery on 2026-10-05 and removed the mandatory
+48-hour soak wait. MT5 correctness/security and focused demo checks remain required;
+extended soak is deferred rather than reported as passed.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
 ## Delivery checklist

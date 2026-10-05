@@ -35,7 +35,7 @@ is an empty or explicitly disposable local database, never a populated user
 workspace or a hosted database. Prefer `npm run replay:local-db`, which verifies
 zero local users, trades, grants, connections, operations, audits and source
 revisions before resetting. It refuses a populated database and never loads
-production `.env`. All 23 migrations and the seed now replay successfully.
+production `.env`. All 24 migrations and the seed now replay successfully.
 
 For an existing local database whose data must be kept, use the normal local
 migration workflow instead of resetting it.

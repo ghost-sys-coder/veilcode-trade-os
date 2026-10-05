@@ -54,6 +54,28 @@ def session():
 
 
 class ApiTests(unittest.TestCase):
+    def test_renewable_provider_attention_error_is_preserved_not_masked(self):
+        def provider():
+            raise ApiError("OAUTH_REAUTHORIZATION_REQUIRED")
+
+        api = IntegrationApi("https://trade.example", provider)
+        with patch.object(api._opener, "open") as network:
+            with self.assertRaises(ApiError) as error:
+                api._request("/session")
+            self.assertEqual(error.exception.code, "OAUTH_REAUTHORIZATION_REQUIRED")
+            network.assert_not_called()
+
+    def test_expected_client_id_must_match_authoritative_session(self):
+        data = session()
+        with serve(body=data) as (origin, _):
+            api = IntegrationApi(origin, lambda: TOKEN, allow_local_http=True)
+            data["actor"]["resource"] = api.resource
+            data["actor"]["client_id"] = CONNECTION
+            api.verify_account(OWNER, ACCOUNT, client_id=CONNECTION)
+            with self.assertRaises(ApiError) as error:
+                api.verify_account(OWNER, ACCOUNT, client_id=OWNER)
+            self.assertEqual(error.exception.code, "INTEGRATION_ACCOUNT_MISMATCH")
+
     def test_plain_http_requires_explicit_local_test_allowance(self):
         for origin in ("http://trade.example", "http://127.0.0.1:3100", "ftp://trade.example"):
             with self.subTest(origin=origin), self.assertRaises(ApiError):

@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import assert from "node:assert/strict";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readdir, rm, rmdir } from "node:fs/promises";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
@@ -24,6 +25,8 @@ const withBrowser = process.argv.includes("--browser");
 const uiOrigin = "http://127.0.0.1:3100";
 const artifactDirectory = fileURLToPath(new URL("../.artifacts/integration-tests/", import.meta.url));
 const pythonSpool = fileURLToPath(new URL(`../.artifacts/integration-tests/python-${randomUUID()}.sqlite3`, import.meta.url));
+const pythonOAuthDirectory = fileURLToPath(new URL(`../.artifacts/integration-tests/oauth-${randomUUID()}/`, import.meta.url));
+let pythonWorkerConnection: string | undefined;
 let pageErrors = 0;
 function passed(message: string) { checks++; console.log(`PASS ${checks}: ${message}`); }
 try {
@@ -106,19 +109,38 @@ try {
     passed("logged-in public calculator does not show a sign-in button");
   }
 
-  async function requestAuthorization(targetResource: string) {
+  function pythonOAuth(action: string, extra: Record<string,unknown> = {}) {
+    let output: string;
+    try { output = execFileSync("python",["-m","trade_os_mt5.verify_local_oauth"],{
+      cwd: fileURLToPath(new URL("..",import.meta.url)),
+      env: { ...process.env,PYTHONPATH: fileURLToPath(new URL("../integrations/mt5",import.meta.url)) },
+      input: JSON.stringify({ action,issuer,origin: uiOrigin,ownerId: fixtureUser,accountId: accountResult.data!.id,
+        clientId: fixtureClient,directory: pythonOAuthDirectory,...extra }),
+      encoding: "utf8",stdio: ["pipe","pipe","pipe"],timeout: 60_000,
+    }); } catch (error) {
+      if (error instanceof Error && "stderr" in error && typeof error.stderr === "string") {
+        const code = error.stderr.match(/^Local Python OAuth fixture failed: ([A-Z0-9_]+)\s*$/)?.[1];
+        if (code) console.error(`Python OAuth boundary rejected: ${code}`);
+      }
+      throw new Error("Local Python OAuth fixture rejected.");
+    }
+    return JSON.parse(output) as { authorizationUrl: string; access_token: string; refresh_token: string; encrypted: boolean; revoked: boolean;
+      pendingPages?: number; serverCheckpoint?: string | null };
+  }
+  async function requestAuthorization(targetResource: string, preparedUrl?: string) {
     const verifier = randomBytes(48).toString("base64url");
     const challenge = createHash("sha256").update(verifier).digest("base64url");
     const url = new URL(`${issuer}/oauth/authorize`);
     url.search = new URLSearchParams({ client_id: fixtureClient!, redirect_uri: callback, response_type: "code", scope: "email",
       state: randomUUID(), resource: targetResource, code_challenge_method: "S256", code_challenge: challenge }).toString();
-    const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    const authorizationUrl = preparedUrl ? new URL(preparedUrl) : url;
+    const response = await fetch(authorizationUrl, { redirect: "manual", signal: AbortSignal.timeout(10_000) });
     assert([302,303,307].includes(response.status));
     const authorizationId = new URL(response.headers.get("location")!).searchParams.get("authorization_id");
     assert(authorizationId);
     const details = await browser.auth.oauth.getAuthorizationDetails(authorizationId);
     assert(!details.error && details.data && "authorization_id" in details.data);
-    return { authorizationId, verifier, state: url.searchParams.get("state")! };
+    return { authorizationId, verifier, state: authorizationUrl.searchParams.get("state")! };
   }
   async function exchange(code: string, verifier: string) {
     return fetch(`${issuer}/oauth/token`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -132,7 +154,8 @@ try {
   passed("real authorization with a wrong resource cannot obtain an application grant");
   await browser.auth.oauth.denyAuthorization(wrong.authorizationId, { skipBrowserRedirect: true });
   stage = "grant approval";
-  const request = await requestAuthorization(resource);
+  const pythonBegin = page ? pythonOAuth("begin",{ redirectUri: callback }) : undefined;
+  const request = await requestAuthorization(resource,pythonBegin?.authorizationUrl);
   let approvedGrant: { id: string; version: string };
   let redirect: URL;
   if (page) {
@@ -175,8 +198,16 @@ try {
   assert(!invalid.ok);
   passed("wrong PKCE verifier is rejected by the provider");
   stage = "PKCE exchange";
-  const response = await exchange(code, request.verifier); assert(response.ok);
-  const tokens = await response.json() as { access_token: string; refresh_token: string };
+  let tokens: { access_token: string; refresh_token: string };
+  if (page) {
+    const pythonTokens = pythonOAuth("finish",{ callbackUrl: redirect.toString() });
+    assert.equal(pythonTokens.encrypted,true);
+    tokens = pythonTokens;
+    passed("actual Python PKCE exchange verifies the live grant and persists only user-protected Windows credentials");
+  } else {
+    const response = await exchange(code,request.verifier); assert(response.ok);
+    tokens = await response.json() as typeof tokens;
+  }
   assert(tokens.access_token && tokens.refresh_token);
   stage = "signed resource claims";
   const signingKey = integrationSigningKeys(issuer);
@@ -294,20 +325,38 @@ try {
       body: JSON.stringify({ connectionId,workerId,operationId: randomUUID() }),signal: AbortSignal.timeout(10_000) });
     assert.equal(resumedLeaseResponse.status,200);
     const resumedLease = await resumedLeaseResponse.json() as { fencingToken: string };
+    stage = "actual supervised Python upload with protected credentials";
+    pythonWorkerConnection = connectionId;
+    const workerCheckpoint = new Date().toISOString();
+    const protectedUpload = pythonOAuth("workerUpload",{ connectionId,workerId,identity,checkpoint: workerCheckpoint,
+      event: { ...batch.events[0],sourceId: "40",observedAt: workerCheckpoint,
+        payload: { ...batch.events[0].payload,ticket: "40",orderId: "40",positionId: "400" } } });
+    assert.equal(protectedUpload.pendingPages,0); assert(protectedUpload.serverCheckpoint);
+    const supervisedEffects = await database.query("select count(*)::integer as revisions from private.mt5_source_revisions where connection_id=$1 and source_id='40'",[connectionId]);
+    assert.equal(supervisedEffects.rows[0].revisions,1);
+    passed("actual supervised workers reload the default protected vault, upload through the live API once, and restart without duplicating source facts");
     const switched = await capture({ ...batch,operationId: randomUUID(),fencingToken: resumedLease.fencingToken,identity: { ...identity,login: "98765" } });
     assert.equal(switched.status,409); assert.equal(switched.data.status,"ATTENTION");
     const paused = await database.query("select status,(select count(*)::integer from private.mt5_source_revisions where connection_id=$1) as revisions from private.mt5_connections where id=$1",[connectionId]);
-    assert.deepEqual(paused.rows[0],{ status: "ATTENTION",revisions: 3 });
+    assert.deepEqual(paused.rows[0],{ status: "ATTENTION",revisions: 4 });
     passed("an unexpected account switch pauses the HTTP connection without importing wrong-account facts");
   }
   const forbidden = await integration.from("trading_accounts").select("id");
   assert(!forbidden.error && forbidden.data?.length === 0);
   passed("a real authorized OAuth token cannot directly read workspace tables");
   stage = "refresh";
-  const refresh = await fetch(`${issuer}/oauth/token`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "refresh_token", client_id: fixtureClient!, refresh_token: tokens.refresh_token, resource }), signal: AbortSignal.timeout(10_000) });
-  assert(refresh.ok);
-  const renewed = await refresh.json() as { access_token: string; refresh_token: string };
+  let renewed: { access_token: string; refresh_token: string };
+  if (page) {
+    const pythonRenewed = pythonOAuth("refresh");
+    assert.equal(pythonRenewed.encrypted,true);
+    renewed = pythonRenewed;
+    passed("actual Python restart loads protected credentials and refreshes through the real provider before atomically saving rotation");
+  } else {
+    const refresh = await fetch(`${issuer}/oauth/token`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id: fixtureClient!, refresh_token: tokens.refresh_token, resource }), signal: AbortSignal.timeout(10_000) });
+    assert(refresh.ok);
+    renewed = await refresh.json() as typeof renewed;
+  }
   assert(renewed.access_token && renewed.refresh_token);
   assert.notEqual(renewed.refresh_token, tokens.refresh_token);
   await verifyIntegrationToken(renewed.access_token, { issuer, resource, key: signingKey });
@@ -329,6 +378,10 @@ try {
   const revokedActor = await integration.rpc("authorize_integration", { p_resource: resource, p_purpose: "MT5" });
   assert(revokedActor.error?.code === "42501");
   passed("application revocation rejects an existing unexpired token immediately");
+  if (page) {
+    assert.equal(pythonOAuth("revoked").revoked,true);
+    passed("a cached Python credential remains unusable after immediate application revocation");
+  }
   const refreshAfterRevocation = await fetch(`${issuer}/oauth/token`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "refresh_token", client_id: fixtureClient!, refresh_token: renewed.refresh_token, resource }), signal: AbortSignal.timeout(10_000) });
   assert(!refreshAfterRevocation.ok);
@@ -356,6 +409,36 @@ try {
   // Only this runner's explicit UUID-named disposable spool, never a directory.
   assert(pythonSpool.startsWith(artifactDirectory) && /^python-[0-9a-f-]+\.sqlite3$/.test(pythonSpool.slice(artifactDirectory.length)));
   for (const suffix of ["","-wal","-shm"]) await rm(pythonSpool+suffix,{ force: true });
+  // Exact UUID directory and validated encrypted/lock files; no recursive delete.
+  assert(pythonOAuthDirectory.startsWith(artifactDirectory) && /^oauth-[0-9a-f-]+[\\/]$/.test(pythonOAuthDirectory.slice(artifactDirectory.length)));
+  try {
+    const children = await readdir(pythonOAuthDirectory);
+    assert(children.every(name => name === "TradeOS" || name === pythonWorkerConnection));
+    if (children.includes("TradeOS")) {
+      const tradeOsDirectory = join(pythonOAuthDirectory,"TradeOS");
+      assert.deepEqual(await readdir(tradeOsDirectory),["credentials"]);
+      const credentialsDirectory = join(tradeOsDirectory,"credentials");
+      for (const name of await readdir(credentialsDirectory)) {
+        assert(/^[0-9a-f-]+\.(dpapi|lock)$/.test(name));
+        await rm(join(credentialsDirectory,name));
+      }
+      await rmdir(credentialsDirectory); await rmdir(tradeOsDirectory);
+    }
+    if (pythonWorkerConnection && children.includes(pythonWorkerConnection)) {
+      assert(/^[0-9a-f-]{36}$/.test(pythonWorkerConnection));
+      const connectionDirectory = join(pythonOAuthDirectory,pythonWorkerConnection);
+      for (const name of await readdir(connectionDirectory)) {
+        assert(["outbox.sqlite3","outbox.sqlite3-wal","outbox.sqlite3-shm","worker.lock"].includes(name));
+        await rm(join(connectionDirectory,name));
+      }
+      await rmdir(connectionDirectory);
+    }
+    await rmdir(pythonOAuthDirectory);
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+      console.error("Encrypted local credential fixture cleanup requires attention."); process.exitCode = 1;
+    }
+  }
   try {
     if (database && fixtureUser) {
       // Disposable fixture cleanup is session-local and exact-owner scoped.
