@@ -7,6 +7,9 @@ The publication scaffold described below is now implemented and locally verified
 see [current publication verification](MT5_PUBLICATION_VERIFICATION.md).
 The subsequent explicit broker-symbol workflow is also implemented and verified;
 see [symbol-mapping verification](MT5_SYMBOL_MAPPING_VERIFICATION.md).
+Explicit cash attribution and captured-history snapshot approval are now also
+implemented and locally verified; see
+[cash/onboarding verification](MT5_CASH_ONBOARDING_VERIFICATION.md).
 Keep this handover as the record of the earlier stop, not the current worktree status.
 
 ## Repository state verified at handover

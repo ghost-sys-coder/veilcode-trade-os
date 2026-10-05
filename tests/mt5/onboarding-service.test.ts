@@ -1,7 +1,7 @@
 import { afterEach,describe,expect,it,vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IntegrationDatabase } from "@/types/integration-database";
-import { controlMt5Connection,getMt5OnboardingPreview,registerMt5Connection } from "@/services/mt5/onboarding";
+import { controlMt5Connection,getMt5OnboardingPreview,getMt5OnboardingSnapshot,registerMt5Connection } from "@/services/mt5/onboarding";
 
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const checkpoint = "2026-10-01T12:00:00+00:00";
@@ -50,6 +50,35 @@ describe("verified MT5 onboarding services", () => {
     f.rpc.mockImplementation(async (name,args) => { const response = await original(name,args);
       return name === "mt5_browser_source_page" && args?.p_offset === 1000 ? { ...response,data: { ...response.data as object,ledgerToken: "c".repeat(64) } } : response; });
     await expect(getMt5OnboardingPreview(f.client,id)).rejects.toThrow("CHANGED");
+  });
+  it("reads cash decisions and adjustments beyond the first pagination page",async()=>{
+    const f=fixture(),original=f.rpc.getMockImplementation()!;
+    f.rpc.mockImplementation(async(name,args)=>{
+      const response=await original(name,args);if(name!=="mt5_browser_source_page")return response;
+      const offset=args?.p_offset??0,limit=args?.p_limit??1000;
+      return {...response,data:{...response.data as object,cashDecisionCount:1001,adjustmentCount:1001,
+        cashDecisions:Array.from({length:Math.min(limit,1001-offset)},(_,i)=>({sourceTicket:String(offset+i+1),sourceRevisionId:"1",
+          disposition:"ZERO_EFFECT",amount:"0.00",adjustmentId:null,reason:"Normalized cash reviewed",createdAt:checkpoint})),
+        adjustments:Array.from({length:Math.min(limit,1001-offset)},()=>({id,type:"OTHER",amount:"-0.000000000000000001",
+          occurredAt:checkpoint,isPerformanceNeutral:false}))}};
+    });
+    const result=await getMt5OnboardingSnapshot(f.client,id);
+    expect(result.cashDecisions).toHaveLength(1001);expect(result.cashDecisions.at(-1)?.sourceTicket).toBe("1001");
+    expect(result.adjustments).toHaveLength(1001);expect(result.adjustments.at(-1)?.amount).toBe("-0.000000000000000001");
+  });
+  it.each(["cashDecisions","adjustments"] as const)("never silently truncates %s when a declared page disappears",async(field)=>{
+    const f=fixture(),original=f.rpc.getMockImplementation()!;
+    f.rpc.mockImplementation(async(name,args)=>{
+      const response=await original(name,args);return name!=="mt5_browser_source_page"?response:
+        {...response,data:{...response.data as object,[field==="cashDecisions"?"cashDecisionCount":"adjustmentCount"]:1001,[field]:[]}};
+    });
+    await expect(getMt5OnboardingSnapshot(f.client,id)).rejects.toThrow("CHANGED");
+  });
+  it("rejects incomplete-collection changes even when source and ledger hashes match",async()=>{
+    const f=fixture(),original=f.rpc.getMockImplementation()!;
+    f.rpc.mockImplementation(async(name,args)=>{const response=await original(name,args);return name!=="mt5_browser_source_page"?response:
+      {...response,data:{...response.data as object,incompleteCollections:1}};});
+    await expect(getMt5OnboardingSnapshot(f.client,id)).rejects.toThrow("CHANGED");
   });
   it("cannot use an OAuth client as browser consent or controls", async () => {
     const f = fixture(); f.auth.getClaims.mockResolvedValueOnce({ error: null,data: { claims: { sub: id,client_id: id } } });

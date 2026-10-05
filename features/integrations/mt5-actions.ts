@@ -6,8 +6,39 @@ import { createClient } from "@/lib/supabase/server";
 import { controlMt5Connection, registerMt5Connection, Mt5OnboardingError } from "@/services/mt5/onboarding";
 import { publishMt5Trades } from "@/services/mt5/publication";
 import { saveMt5SymbolMapping } from "@/services/mt5/symbol-mapping";
+import { classifyMt5Cash,approveMt5Onboarding } from "@/services/mt5/cash-onboarding";
 
 type ActionState = { message: string; success: boolean };
+export async function classifyMt5CashMovement(_previous:ActionState,form:FormData):Promise<ActionState> {
+  let connectionId:string;
+  try {
+    const adjustmentType=form.get("adjustment_type")||null;
+    const classification=form.get("performance_classification");
+    const result=await classifyMt5Cash(await createClient(),{connectionId:form.get("connection_id"),operationId:form.get("operation_id"),version:form.get("version"),
+      snapshotToken:form.get("snapshot_token"),ledgerToken:form.get("ledger_token"),sourceTicket:form.get("source_ticket"),sourceRevisionId:form.get("source_revision_id"),
+      disposition:form.get("disposition"),adjustmentType,isPerformanceNeutral:adjustmentType===null?null:adjustmentType==="OTHER"?
+        classification==="true"?true:classification==="false"?false:null:true,
+      existingAdjustmentId:form.get("existing_adjustment_id")||null,reason:form.get("reason")});
+    connectionId=result.connectionId;
+  } catch {
+    return {success:false,message:"Cash classification was not confirmed. Reload and verify the source, baseline, matching existing adjustment and explicit performance classification. Changed or already-classified evidence requires reconciliation; retry the same submission after an uncertain response."};
+  }
+  for(const path of ["/accounts","/dashboard","/analytics","/goals","/prop",`/settings/integrations/mt5/${connectionId}`]) revalidatePath(path);
+  redirect(`/settings/integrations/mt5/${connectionId}?status=cash-classified`);
+}
+export async function completeMt5Onboarding(_previous:ActionState,form:FormData):Promise<ActionState> {
+  let connectionId:string;
+  try {
+    const result=await approveMt5Onboarding(await createClient(),{connectionId:form.get("connection_id"),operationId:form.get("operation_id"),version:form.get("version"),
+      snapshotToken:form.get("snapshot_token"),ledgerToken:form.get("ledger_token"),openingBaseline:form.get("opening_baseline"),
+      availableHistoryConfirmed:form.get("confirm_history")==="on",reason:form.get("reason")});
+    connectionId=result.connectionId;
+  } catch {
+    return {success:false,message:"Onboarding was not approved. Publish every eligible execution, resolve cash/history conflicts, and verify a current zero-difference balance bridge. Reload if the source or ledger changed; retry the same submission after an uncertain response."};
+  }
+  revalidatePath("/settings/integrations");revalidatePath(`/settings/integrations/mt5/${connectionId}`);
+  redirect(`/settings/integrations/mt5/${connectionId}?status=onboarding-approved`);
+}
 export async function mapMt5BrokerSymbol(_previous:ActionState,form:FormData):Promise<ActionState> {
   let connectionId:string;
   try {

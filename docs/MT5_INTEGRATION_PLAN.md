@@ -49,6 +49,19 @@ canonical instrument. Published aliases cannot be reassigned; manual overlaps
 remain held. Mapping never changes financial units or approves reconciliation.
 See [symbol-mapping verification](MT5_SYMBOL_MAPPING_VERIFICATION.md).
 
+Further MT5-2/4 increment: cash movements now support explicit baseline-funding,
+new-adjustment, existing-adjustment-link and normalized-zero decisions. Signed
+source components are calculated centrally and corroborated by the database.
+Fixed types are performance-neutral; OTHER needs an explicit true/false answer.
+Financial facts become protected; OTHER interpretation changes retain the
+existing audit workflow. Captured-history approval requires all executions
+published, all cash resolved and a fresh exact-zero normalized balance bridge.
+Its immutable proof becomes stale on changed source/ledger/checkpoint evidence.
+It never resumes a paused collector or enables unattended canonical publication.
+Revised cash, credit facilities and manual trade conflicts still require further
+reconciliation workflows. See
+[cash/onboarding verification](MT5_CASH_ONBOARDING_VERIFICATION.md).
+
 Do not begin authenticated broker persistence until MT5-0 passes. A failed
 authentication gate requires an explicit plan revision, not a static shared
 secret, service-role exposure or unbound user token as a substitute.

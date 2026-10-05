@@ -351,3 +351,26 @@ account controls. No instrument is pre-approved. Show catalog scope and friendly
 instrument names alongside symbols, not UUIDs. Mapping requires a reason;
 pending submission disables controls. Current mapping displays its version,
 reason and UTC timestamp; immutable decisions remain in private audit history.
+
+### MT5 cash attribution and snapshot onboarding
+
+File: `features/integrations/mt5-cash-onboarding-forms.tsx`
+Last updated: 2026-10-05
+
+| Property | Class |
+| --- | --- |
+| Background | inherited `bg-card`; acknowledgement/history `bg-muted/25` |
+| Border | controls `border-input`; acknowledgement/history `border-border/70` |
+| Border radius | controls and evidence rows `rounded-lg` |
+| Text — primary | Label primitive; evidence `text-sm font-semibold` |
+| Text — secondary | `text-xs leading-5 text-muted-foreground` |
+| Spacing | forms `space-y-4 gap-4`; acknowledgement/history `p-4` |
+| Hover state | Button primitive; focus `focus-visible:ring-ring/25` |
+| Shadow | inherited Card/Button primitives |
+| Accent usage | `accent-primary`; primary action does not imply trading profit |
+
+**Pattern notes:** Match existing integration controls in both themes. No cash
+meaning or performance classification defaults to approval. Show readable
+account-adjustment amounts and dates rather than UUID labels. Disable pending
+fieldsets, announce failures through alerts, and keep explicit snapshot approval
+separate from source publication. Never present stale evidence as reconciled.

@@ -2,8 +2,10 @@ import { beforeEach,afterEach,describe,expect,it,vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IntegrationDatabase } from "@/types/integration-database";
 import { getVerifiedBrowserContext,type VerifiedBrowserContext } from "@/services/integrations/browser-context";
-import { mt5PublicationTransaction,mt5SymbolMappingTransaction } from "@/services/integrations/publication-database";
+import { mt5PublicationTransaction,mt5SymbolMappingTransaction,mt5CashTransaction,mt5OnboardingTransaction } from "@/services/integrations/publication-database";
 import { mt5PublicationRequestSchema } from "@/domain/mt5/publication";
+import { mt5CashRequestSchema } from "@/domain/mt5/cash";
+import { mt5OnboardingRequestSchema } from "@/domain/mt5/onboarding-approval";
 
 const driver=vi.hoisted(()=>({construct:vi.fn(),connect:vi.fn(),query:vi.fn(),end:vi.fn()}));
 vi.mock("pg",()=>({Client:class {
@@ -24,6 +26,25 @@ beforeEach(()=>{
 });
 afterEach(()=>vi.unstubAllEnvs());
 describe("private publication transaction boundary",()=>{
+  it.each(["CASH","ONBOARDING"] as const)("uses fixed %s calls and SQL null for receipt-only retries",async(kind)=>{
+    const decision=kind==="CASH"?mt5CashRequestSchema.parse({connectionId:id,operationId:id,version:"1",snapshotToken:request.snapshotToken,ledgerToken:request.ledgerToken,
+      sourceTicket:"100",sourceRevisionId:"1",disposition:"ZERO_EFFECT",adjustmentType:null,isPerformanceNeutral:null,existingAdjustmentId:null,reason:request.reason})
+      :mt5OnboardingRequestSchema.parse({connectionId:id,operationId:id,version:"1",snapshotToken:request.snapshotToken,ledgerToken:request.ledgerToken,
+        openingBaseline:"1000",availableHistoryConfirmed:true,reason:request.reason});
+    const invoke=(context:VerifiedBrowserContext,proposal?:object)=>kind==="CASH"
+      ?mt5CashTransaction(context,decision as Parameters<typeof mt5CashTransaction>[1],proposal)
+      :mt5OnboardingTransaction(context,decision as Parameters<typeof mt5OnboardingTransaction>[1],proposal);
+    const sql=`select private.${kind==="CASH"?"mt5_classify_cash":"mt5_approve_onboarding"}($1::jsonb,$2::jsonb) as result`;
+    await invoke(await actor());
+    expect(driver.query.mock.calls[2]).toEqual([sql,[JSON.stringify(decision),null]]);
+    await expect(invoke({userId:id} as VerifiedBrowserContext)).rejects.toThrow();
+    expect(driver.construct).toHaveBeenCalledTimes(1);
+    driver.query.mockClear(); await invoke(await actor(),{trusted:true});
+    expect(driver.query.mock.calls[2]).toEqual([sql,[JSON.stringify(decision),JSON.stringify({trusted:true})]]);
+    driver.query.mockImplementation(async(query:string)=>{if(query===sql)throw {code:"23514",message:"private financial evidence"};return {rows:[]};});
+    await expect(invoke(await actor(),{})).rejects.toThrow("MT5_PUBLICATION_REVIEW_REQUIRED");
+    expect(driver.query).toHaveBeenLastCalledWith("rollback");
+  });
   it("uses the fixed private mapping call with verified context",async()=>{
     const mapping={connectionId:id,operationId:id,version:"1",snapshotToken:"a".repeat(64),brokerSymbol:"EURUSD.m",instrumentId:id,reason:"Confirmed broker alias"};
     await mt5SymbolMappingTransaction(await actor(),mapping);

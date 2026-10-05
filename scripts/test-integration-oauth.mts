@@ -483,6 +483,68 @@ try {
     assert.equal(aliasPublished.rows[0].broker_symbol,"EURUSD.m");assert.equal(aliasPublished.rows[0].status,"OPEN");assert.equal(aliasPublished.rows[0].net_pnl,null);
     assert.equal(pageErrors,0);
     passed("actual browser mapping resolves an alias only after explicit instrument/reason approval and publishes canonical identity while preserving broker provenance");
+    stage="actual browser cash and onboarding";
+    const cashAt=new Date().toISOString();
+    const cashEvents=[
+      {ticket:"100",type:"BALANCE",profit:"1000",fee:"0",occurredAt:"2025-12-30T00:00:00.000Z"},
+      {ticket:"101",type:"BALANCE",profit:"250",fee:"0",occurredAt:"2026-03-01T00:00:00.000Z"},
+      {ticket:"102",type:"BALANCE",profit:"-50",fee:"0",occurredAt:"2026-03-02T00:00:00.000Z"},
+      {ticket:"103",type:"CHARGE",profit:"-5",fee:"-0.125",occurredAt:"2026-03-03T00:00:00.000Z"},
+    ].map(item=>({kind:"DEAL",sourceId:item.ticket,observedAt:cashAt,payload:{...item,orderId:null,positionId:null,symbol:null,
+      entry:null,volume:"0",price:"0",commission:"0",swap:"0"}}));
+    const cashAliasPosition=positionObservation("90",cashAt);cashAliasPosition.payload.symbol="EURUSD.m";
+    await publicationCapture([...cashEvents,cashAliasPosition,...['20','30','40'].map(ticket=>positionObservation(ticket,cashAt)),
+      {kind:"ACCOUNT",sourceId:"ACCOUNT",observedAt:cashAt,payload:{balance:"1281.87",equity:"1281.87",unrealizedPnl:"0",observedAt:cashAt}}],cashAt);
+    const existingWithdrawal=await database.query("insert into public.account_adjustments(user_id,account_id,type,amount,occurred_at) values($1,$2,'WITHDRAWAL',-50,'2026-03-02T00:00:00Z') returning id",[fixtureUser,accountResult.data.id]);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    assert(await page.getByRole("button",{name:"Approve captured-history onboarding",exact:true}).isDisabled());
+    for(const ticket of ["20","30","40"])await page.getByRole("checkbox",{name:new RegExp(`opening deal ${ticket}`)}).check();
+    await page.getByRole("checkbox",{name:/I confirm the preserved opening baseline/}).check();
+    await page.getByLabel("Publication approval reason").fill("Approve remaining reconstructed executions before cash reconciliation");
+    await page.getByRole("button",{name:"Publish selected trades",exact:true}).click();
+    await page.getByText(/The selected canonical trades were published\./).waitFor();
+    for(const [ticket,disposition,type] of [["100","BASELINE_FUNDING",null],["101","ADJUSTMENT","DEPOSIT"],["102","LINK_EXISTING","WITHDRAWAL"],["103","ADJUSTMENT","OTHER"]] as const){
+      await page.getByLabel("Unresolved cash movement",{exact:true}).selectOption(ticket);
+      await page.getByLabel("Cash attribution",{exact:true}).selectOption(disposition);
+      if(type)await page.getByLabel("Adjustment type",{exact:true}).selectOption(type);
+      if(type==="OTHER")await page.getByLabel("Performance classification",{exact:true}).selectOption("false");
+      if(disposition==="LINK_EXISTING")await page.getByLabel("Existing recorded adjustment",{exact:true}).selectOption(existingWithdrawal.rows[0].id);
+      await page.getByLabel("Cash classification reason",{exact:true}).fill(`Captured demo cash ${ticket} explicitly reviewed against broker history`);
+      if(ticket==="103"){
+        const cashCard=page.locator('[data-slot="card"]').filter({has:page.getByText("Classify broker cash evidence",{exact:true})});
+        await cashCard.screenshot({path:`${artifactDirectory}/mt5-cash-form-dark.png`});
+        await page.getByRole("button",{name:"Use light theme",exact:true}).first().press("Space");
+        await page.waitForFunction(()=>!document.documentElement.classList.contains("dark"));
+        await cashCard.screenshot({path:`${artifactDirectory}/mt5-cash-form-light.png`});
+        await page.setViewportSize({width:390,height:844});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+        await cashCard.screenshot({path:`${artifactDirectory}/mt5-cash-form-mobile-light.png`});
+        await page.setViewportSize({width:1440,height:1000});
+        await page.getByRole("button",{name:"Use dark theme",exact:true}).first().press("Space");
+        await page.waitForFunction(()=>document.documentElement.classList.contains("dark"));
+      }
+      await page.getByRole("button",{name:"Record cash classification",exact:true}).click();
+      // Redirects reuse the success URL. A previously visible notice is not
+      // evidence that this later mutation has committed and refreshed the form.
+      await page.getByLabel("Unresolved cash movement",{exact:true}).locator(`option[value="${ticket}"]`).waitFor({state:"detached"});
+      await page.getByText("Cash attribution recorded with source evidence and audit history. The balance bridge has been recalculated.",{exact:true}).waitFor();
+      const classified:{rows:{disposition:string}[]}=await database.query("select disposition from private.mt5_cash_decisions where connection_id=$1 and source_ticket=$2",[connectionId,ticket]);
+      assert.equal(classified.rows[0]?.disposition,disposition);
+    }
+    assert.equal((await database.query("select count(*)::integer as count from public.account_adjustments where account_id=$1",[accountResult.data.id])).rows[0].count,3);
+    assert.equal((await database.query("select count(*)::integer as count from public.trades where mt5_connection_id=$1",[connectionId])).rows[0].count,5);
+    await page.getByRole("button",{name:"Approve captured-history onboarding",exact:true}).isEnabled().then(assert);
+    passed("browser cash attribution keeps funding in baseline, links a manual withdrawal once, and normalizes -5.125 to -5.13 with explicit OTHER false");
+    await page.screenshot({path:`${artifactDirectory}/mt5-cash-onboarding-dark.png`,fullPage:true});
+    await page.getByRole("button",{name:"Use light theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>!document.documentElement.classList.contains("dark"));
+    await page.screenshot({path:`${artifactDirectory}/mt5-cash-onboarding-light.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+    await page.screenshot({path:`${artifactDirectory}/mt5-cash-onboarding-mobile-light.png`,fullPage:true});
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole("button",{name:"Use dark theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>document.documentElement.classList.contains("dark"));
     await page.goto(`${uiOrigin}/settings/integrations`);
     await page.reload();
     await page.getByText("Worker controls",{ exact: true }).click();
@@ -493,6 +555,16 @@ try {
     assert.equal(pausedControl.rows[0].status,"PAUSED"); assert.equal(pausedControl.rows[0].worker_id,null);
     assert(BigInt(pausedControl.rows[0].fencing_token)>BigInt(resumedLease.fencingToken));
     passed("actual browser controls require reasons, preserve onboarding and fence the old collector on pause/resume");
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    await page.getByRole("checkbox",{name:/I reviewed all captured available history/}).check();
+    await page.getByLabel("Onboarding approval reason",{exact:true}).fill("Review current source snapshot: 1000 +95 +250 -50 -5.13 -8 =1281.87");
+    await page.getByRole("button",{name:"Approve captured-history onboarding",exact:true}).click();
+    await page.getByText(/Captured-history snapshot approved at/).waitFor();
+    const approval=await database.query("select c.status,(select count(*) from private.mt5_onboarding_approvals a where a.connection_id=c.id)::integer as count from private.mt5_connections c where c.id=$1",[connectionId]);
+    assert.equal(approval.rows[0].status,"PAUSED");assert.equal(approval.rows[0].count,1);
+    assert.equal(pageErrors,0);
+    passed("browser approval records one source/ledger proof for an exact 1281.87 bridge while leaving the collector paused");
+    await page.goto(`${uiOrigin}/settings/integrations`);
     await page.setViewportSize({ width: 390,height: 844 });
     await page.reload();
     await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
@@ -565,7 +637,7 @@ try {
   }
   console.log(`Local OAuth gate: ${checks} checks passed. ${withBrowser ? "Local browser consent/regression verified;" : "Browser coverage pending;"} actual MT5 terminal and MCP clients pending separate verification.`);
 } catch {
-  if (page && (stage.startsWith("browser mapping") || stage === "actual browser monitoring and preview" || stage === "actual browser canonical publication")) {
+  if (page && (stage.startsWith("browser mapping") || stage.startsWith("actual browser"))) {
     await page.screenshot({ path: `${artifactDirectory}/mt5-mapping-failure.png`,fullPage: true }).catch(() => {});
   }
   console.error(`FAIL: local OAuth gate at ${stage}. Provider responses and credentials suppressed.`);
@@ -611,6 +683,10 @@ try {
       // This is never a normal application/audit deletion workflow.
       await database.query("begin");
       await database.query("set local session_replication_role = replica");
+      await database.query("delete from private.mt5_cash_decisions where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_onboarding_approvals where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from public.account_adjustment_classifications where adjustment_id in (select id from public.account_adjustments where user_id=$1)",[fixtureUser]);
+      await database.query("delete from public.account_adjustments where user_id=$1",[fixtureUser]);
       await database.query("delete from private.mt5_symbol_mapping_events where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_symbol_mappings where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_execution_sources where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
