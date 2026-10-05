@@ -4,7 +4,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import pg from "pg";
-import { assessTapMessages, databaseTestConnection } from "./lib/database-test-safety.mjs";
+import { assessTapMessages, databaseTestConnection, injectPendingSchema } from "./lib/database-test-safety.mjs";
 
 let connectionString = process.env.TRADE_OS_TEST_DATABASE_URL;
 
@@ -26,7 +26,8 @@ if (!connectionString) {
 
 const connection = databaseTestConnection(connectionString, process.env.TRADE_OS_TEST_DATABASE_IS_DISPOSABLE === "true");
 const directory = new URL("../supabase/tests/", import.meta.url);
-const suites = (await readdir(directory)).filter((file) => file.endsWith(".test.sql")).sort();
+const selectedSuite = process.argv.find(arg => arg.startsWith("--suite="))?.slice(8);
+const suites = (await readdir(directory)).filter((file) => file.endsWith(".test.sql") && (!selectedSuite || file===selectedSuite)).sort();
 if (!suites.length) throw new Error("No database suites found.");
 const client = new pg.Client({ ...connection, connectionTimeoutMillis: 15_000, statement_timeout: 60_000 });
 let connectionLost = false;
@@ -42,6 +43,18 @@ try {
   // same local resource rows. The session lock survives each suite's rollback
   // and is released on disconnect, including errors; never race these fixtures.
   await client.query("select pg_advisory_lock(670051234)");
+  // Iterate pending schema inside EACH suite transaction. No migration history
+  // entry or schema persists after its ROLLBACK, even when a suite fails.
+  let pendingSchema = "";
+  if (process.argv.includes("--pending-migrations")) {
+    const recorded = await client.query("select version from supabase_migrations.schema_migrations");
+    const applied = new Set(recorded.rows.map(row => row.version));
+    const migrationDirectory = new URL("../supabase/migrations/",import.meta.url);
+    const pending = (await readdir(migrationDirectory)).filter(file => /^\d+_.+\.sql$/.test(file)
+      && !applied.has(file.split("_")[0])).sort();
+    pendingSchema = (await Promise.all(pending.map(file => readFile(new URL(file,migrationDirectory),"utf8")))).join("\n");
+    console.log(`Testing ${pending.length} pending migrations transactionally; schema/history remain unchanged.`);
+  }
   for (const suite of suites) {
     const sql = await readFile(new URL(suite, directory), "utf8");
     if (!/^\s*begin\s*;/i.test(sql) || !/rollback\s*;\s*$/i.test(sql)) {
@@ -49,7 +62,7 @@ try {
     }
     console.log(`Suite: ${suite}`);
     try {
-      const results = await client.query(sql);
+      const results = await client.query(injectPendingSchema(sql,pendingSchema));
       const statements = Array.isArray(results) ? results : [results];
       const messages = statements.flatMap((result) =>
         result.rows.flatMap((row) => Object.values(row).filter((value) => typeof value === "string")),

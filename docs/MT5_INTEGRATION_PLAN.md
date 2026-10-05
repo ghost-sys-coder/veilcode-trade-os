@@ -24,6 +24,31 @@ registration are implemented; actual startup installation/invocation and real-te
 checks remain pending. Extended soak is deferred. Exact verification and limitations:
 [credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
 
+MT5-2/4 increment: canonical episode identity and trading-credit storage,
+owner-only account mapping/monitoring, read-only history preview, balance bridge,
+and audited fenced browser pause/resume are verified locally. The preview never
+publishes trades, silently matches manual positions, changes a baseline, or
+approves reconciliation. Approval/publication and classification workflows remain
+pending. Exact results and limitations:
+[onboarding/finance verification](MT5_ONBOARDING_FINANCE_VERIFICATION.md).
+
+Subsequent MT5-2/4 increment: explicit selected-trade approval now publishes
+eligible canonical OPEN/CLOSED records atomically with immutable source attribution,
+execution revisions, approval evidence and operation receipts. This is verified
+through the actual local browser and normal journal. Frozen PAUSED capture can be
+approved without resuming a collector. Unclassified cash and conflicts stay staged;
+onboarding/reconciliation and unattended publication are not approved by this action.
+See [publication verification](MT5_PUBLICATION_VERIFICATION.md).
+
+Further MT5-2/4 increment: explicit broker-symbol decisions now resolve aliases
+and ambiguous catalog matches through typed private current mappings and
+append-only correction history. Mapping requires an instrument and reason; every
+decision checks the live owner/session/grant and source/version fingerprints.
+Approved aliases preserve raw broker execution identity while using the selected
+canonical instrument. Published aliases cannot be reassigned; manual overlaps
+remain held. Mapping never changes financial units or approves reconciliation.
+See [symbol-mapping verification](MT5_SYMBOL_MAPPING_VERIFICATION.md).
+
 Do not begin authenticated broker persistence until MT5-0 passes. A failed
 authentication gate requires an explicit plan revision, not a static shared
 secret, service-role exposure or unbound user token as a substitute.

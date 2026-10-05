@@ -1,0 +1,4 @@
+# Official MetaQuotes native SDK. Runtime is Windows x86-64 / CPython 3.13.
+# Install into a dedicated virtual environment, never the shared desktop Python.
+MetaTrader5==5.0.6231
+numpy==2.5.3

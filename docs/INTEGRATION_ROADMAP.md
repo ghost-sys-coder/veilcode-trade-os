@@ -66,9 +66,9 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | --- | --- | --- | --- |
 | MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally: real provider, signed tokens and browser; hosted configuration/deployment unverified |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
-| MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures pass; canonical commit/identity migrations pending |
+| MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures and migrations pass locally; source-backed manual canonical publication verified; automatic publication and reviewed-source resolution pending |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
-| MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | Not started |
+| MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account and audited broker-symbol mapping, balance bridge, monitoring, fenced controls and selected-trade publication pass local browser checks; full onboarding approval, cash classifications and demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
 | MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | Parked |
@@ -112,6 +112,37 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-05: precision/runtime checkpoint `464b0d4` committed and pushed.
+  Implemented explicit broker-symbol approval, typed current mappings, append-only
+  correction chains, source/version checks and durable atomic receipts. Approved
+  aliases publish into canonical instruments while retaining raw broker identities;
+  manual overlaps remain held and published symbols cannot be reassigned. Verified
+  354 application tests, 387 database assertions (9 suites), 41 browser/provider/API
+  checks and 167 Python tests, plus typecheck, lint, build and local SQL/security
+  checks. All 29 migrations replay with no schema diff. No hosted migration,
+  existing terminal change, merge or MCP implementation. Cash classification,
+  full onboarding approval, automated publication and real-demo pilot remain
+  pending. See [symbol-mapping verification](MT5_SYMBOL_MAPPING_VERIFICATION.md).
+- 2026-10-05: publication checkpoint `ab0919e` pushed successfully. Subsequent review
+  aligned MT5 identity and final-PnL persistence with the account's 0..20 configured
+  precision contract; legacy typmod regression reproduced and corrected. All 28
+  local migrations replay with no schema diff. Latest checks: 347 application tests,
+  346 database assertions, 40 browser/provider/API checks and 167 Python tests in
+  both base and isolated SDK runtimes. Prepared official pinned SDK/NumPy on D:
+  without shared-Python or terminal changes. Native startup XML validation passed;
+  actual task registration and demo attachment remain pending. See the updated
+  [publication/runtime report](MT5_PUBLICATION_VERIFICATION.md).
+- 2026-10-05: resumed after the user's stop request. Implemented explicit selected-trade
+  publication from stored source revisions through central TypeScript reconstruction
+  and a private atomic PostgreSQL publisher. Replays, concurrent-change rejection,
+  immutable execution attribution, live-session/grant checks and preserved baselines
+  pass locally. Fixed journal monetary display to honor account precision. Verified
+  345 application tests, 336 database assertions (8 suites), 167 Python tests and
+  40 real local provider/browser/API checks, plus typecheck, lint, build and SQL/Python
+  static checks. All 27 migrations replay in a shadow database with no schema diff.
+  Selected publication does not approve reconciliation or unattended synchronization.
+  No hosted deployment, real terminal attachment, merge or MCP implementation occurred.
+  See [publication verification](MT5_PUBLICATION_VERIFICATION.md).
 - 2026-10-05: credentials/supervision checkpoint `cba5579` committed and pushed on
   `feature/mt5-sync`; no merge. Added strict local operator commands, bounded
   loopback consent receiver and explicit sign-in Task Scheduler registration.

@@ -10,7 +10,7 @@ const grantViewSchema = z.object({
 });
 export type ConnectedGrant = z.infer<typeof grantViewSchema>;
 
-async function verifyBrowser(client: SupabaseClient<IntegrationDatabase>) {
+export async function verifyDirectBrowser(client: SupabaseClient<IntegrationDatabase>) {
   const claims = await client.auth.getClaims();
   if (claims.error || !claims.data?.claims.sub || claims.data.claims.client_id != null) throw new IntegrationAuthorizationError();
   const user = await client.auth.getUser();
@@ -19,7 +19,7 @@ async function verifyBrowser(client: SupabaseClient<IntegrationDatabase>) {
 
 export async function listConnectedGrants(client: SupabaseClient<IntegrationDatabase>): Promise<ConnectedGrant[]> {
   try {
-    await verifyBrowser(client);
+    await verifyDirectBrowser(client);
     const response = await client.rpc("list_integration_grants");
     if (response.error) throw new IntegrationAuthorizationError();
     return z.array(grantViewSchema).parse(response.data);
@@ -30,7 +30,7 @@ export async function revokeConnectedGrant(client: SupabaseClient<IntegrationDat
   const parsed = z.object({ id: z.string().uuid(), version: z.string().regex(/^[1-9][0-9]*$/) }).safeParse(input);
   if (!parsed.success) throw new IntegrationAuthorizationError();
   try {
-    await verifyBrowser(client);
+    await verifyDirectBrowser(client);
     const result = await client.rpc("revoke_integration_grant", { p_grant_id: parsed.data.id, p_expected_version: parsed.data.version });
     if (result.error) throw new IntegrationAuthorizationError();
     const revoked = z.object({ id: z.string().uuid(), revoked: z.literal(true), client_id: z.string().uuid() }).parse(result.data);

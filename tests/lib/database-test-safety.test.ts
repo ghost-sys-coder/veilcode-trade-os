@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { assessTapMessages, databaseTestConnection } from "../../scripts/lib/database-test-safety.mjs";
+import { assessTapMessages, databaseTestConnection, injectPendingSchema } from "../../scripts/lib/database-test-safety.mjs";
 
 describe("disposable database test safety", () => {
+  it("injects pending schema literally inside the rollback transaction", () => {
+    const schema = "create function fixture() returns text as $$ select '$&'; $$ language sql;";
+    expect(injectPendingSchema("begin;\nselect fixture();\nrollback;",schema)).toBe(`begin;\n${schema}\n\nselect fixture();\nrollback;`);
+    expect(() => injectPendingSchema("select 1;",schema)).toThrow("rollback-isolated");
+  });
   it("uses plaintext only on loopback, never a production environment fallback", () => {
     expect(databaseTestConnection("postgresql://postgres:fixture@127.0.0.1:54322/postgres").ssl).toBe(false);
     expect(() => databaseTestConnection("postgresql://postgres:fixture@db.remote.example/postgres")).toThrow("IS_DISPOSABLE");

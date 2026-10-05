@@ -74,6 +74,7 @@ try {
     stage = "isolated browser startup";
     // Fresh headless profile; never attach to the user's browser or save cookies.
     browserUi = await chromium.launch({ channel: "chrome", headless: true });
+    console.log(`Browser verification: Chrome ${browserUi.version()}.`);
     page = await browserUi.newPage({ viewport: { width: 1440, height: 1000 } });
     page.setDefaultTimeout(30_000);
     page.on("pageerror", () => { pageErrors++; });
@@ -229,9 +230,25 @@ try {
     stage = "real authenticated MT5 capture API";
     const identity = { server: "Broker-Demo",login: "12345",terminalInstallationId: randomUUID(),
       currencyCode: "USD",currencyPrecision: 2,accountKind: "DEMO",positionMode: "NETTING" };
-    const mapping = await browser.rpc("mt5_register_connection", { p_grant_id: approvedGrant.id,p_operation_id: randomUUID(),p_identity: identity });
-    assert(!mapping.error && mapping.data && typeof mapping.data === "object" && "connectionId" in mapping.data);
-    const connectionId = mapping.data.connectionId as string;
+    stage = "actual browser demo mapping";
+    const monitoringDiscovery = await browser.rpc("mt5_list_connections");
+    assert(!monitoringDiscovery.error && Array.isArray(monitoringDiscovery.data));
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    stage = "browser mapping form availability";
+    await page.getByText("Map a dedicated demo terminal",{ exact: true }).waitFor();
+    assert((await page.getByLabel("Authorized Trade OS account").textContent())?.includes("USD"));
+    await page.getByLabel("Exact broker demo server").fill(identity.server);
+    await page.getByLabel("Demo account login").fill(identity.login);
+    await page.getByLabel("Position accounting mode").selectOption(identity.positionMode);
+    await page.getByLabel("Dedicated collector terminal-installation ID").fill(identity.terminalInstallationId);
+    stage = "browser mapping form submission";
+    await page.getByRole("button",{ name: "Map dedicated demo account",exact: true }).click();
+    stage = "browser mapping confirmation";
+    await page.getByText("Demo account mapped. Start capture with the dedicated collector, then review the import preview.",{ exact: true }).waitFor();
+    const mappedConnection = await database.query("select id from private.mt5_connections where owner_id=$1 and account_id=$2",[fixtureUser,accountResult.data.id]);
+    assert.equal(mappedConnection.rowCount,1);
+    const connectionId = mappedConnection.rows[0].id as string;
+    passed("actual browser form maps only an explicitly consented demo account with display-name selection");
     const workerId = randomUUID();
     const headers = { Authorization: `Bearer ${tokens.access_token}`,"Content-Type": "application/json" };
     const leaseResponse = await fetch(`${uiOrigin}/api/integrations/v1/mt5/lease`,{ method: "POST",headers,
@@ -340,6 +357,152 @@ try {
     const paused = await database.query("select status,(select count(*)::integer from private.mt5_source_revisions where connection_id=$1) as revisions from private.mt5_connections where id=$1",[connectionId]);
     assert.deepEqual(paused.rows[0],{ status: "ATTENTION",revisions: 4 });
     passed("an unexpected account switch pauses the HTTP connection without importing wrong-account facts");
+    stage = "actual browser monitoring and preview";
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.getByText("ATTENTION",{ exact: true }).waitFor();
+    await page.getByText("4 source facts · 0 published trades",{ exact: true }).waitFor();
+    await page.getByRole("link",{ name: "Review import preview & balance bridge",exact: true }).click();
+    await page.getByText("Balance reconciliation bridge",{ exact: true }).waitFor();
+    await page.getByText("No finalized PnL",{ exact: true }).first().waitFor();
+    assert.equal(await page.getByText("Awaiting explicit attribution",{ exact: true }).count(),0);
+    assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1",[fixtureUser])).rows[0].count,0);
+    if (!(await page.evaluate(() => document.documentElement.classList.contains("dark")))) {
+      await page.getByRole("button",{ name: "Use dark theme",exact: true }).first().press("Space");
+    }
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    await page.screenshot({ path: `${artifactDirectory}/mt5-import-preview-dark.png`,fullPage: true });
+    await page.getByRole("button",{ name: "Use light theme",exact: true }).first().press("Space");
+    await page.waitForFunction(() => !document.documentElement.classList.contains("dark"));
+    await page.screenshot({ path: `${artifactDirectory}/mt5-import-preview-light.png`,fullPage: true });
+    await page.getByRole("button",{ name: "Use dark theme",exact: true }).first().press("Space");
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    passed("browser preview shows open execution groups and an unreconciled balance bridge without publishing fabricated plans or PnL");
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.getByText("Worker controls",{ exact: true }).click();
+    await page.getByLabel("Resume reason").fill("Explicit fixture recovery after account identity review");
+    await page.getByRole("button",{ name: "Resume server capture",exact: true }).click();
+    await page.getByText("Server capture enabled. If the local collector is paused or requires attention, explicitly resume it locally after resolving the cause.",{ exact: true }).waitFor();
+    stage = "actual browser canonical publication";
+    await database.query("update public.trading_accounts set starting_balance=1000 where id=$1 and user_id=$2",[accountResult.data.id,fixtureUser]);
+    const publicationLeaseResponse=await fetch(`${uiOrigin}/api/integrations/v1/mt5/lease`,{method:"POST",headers,
+      body:JSON.stringify({connectionId,workerId,operationId:randomUUID()}),signal:AbortSignal.timeout(10_000)});
+    assert.equal(publicationLeaseResponse.status,200);
+    const publicationLease=await publicationLeaseResponse.json() as {fencingToken:string};
+    function positionObservation(ticket:string,observedAt:string) {
+      return {kind:"POSITION",sourceId:ticket+"0",observedAt,payload:{positionId:ticket+"0",ticket:ticket+"0",symbol:"EURUSD",direction:"BUY",
+        volume:"1",entryPrice:"1.1",currentStop:"1.0",currentTarget:null,unrealizedPnl:"0",observedAt}};
+    }
+    async function publicationCapture(events:unknown[],checkpoint:string) {
+      const result=await capture({...batch,operationId:randomUUID(),fencingToken:publicationLease.fencingToken,checkpoint,
+        collection:{id:randomUUID(),index:0,count:1},events});
+      assert.equal(result.status,200); assert.equal(result.data.collectionComplete,true);
+    }
+    const publicationAt=new Date().toISOString();
+    await publicationCapture([...['10','20','30','40'].map(ticket=>positionObservation(ticket,publicationAt)),
+      {kind:"ACCOUNT",sourceId:"ACCOUNT",observedAt:publicationAt,payload:{balance:"992",equity:"992",unrealizedPnl:"0",observedAt:publicationAt}}],publicationAt);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    await page.getByRole("checkbox",{name:/opening deal 10/}).check();
+    await page.getByRole("checkbox",{name:/I confirm the preserved opening baseline/}).check();
+    await page.getByLabel("Publication approval reason").fill("Approve complete source-backed open execution fixture");
+    await page.getByRole("button",{name:"Publish selected trades",exact:true}).click();
+    await page.getByText(/The selected canonical trades were published\./).waitFor();
+    const publishedOpen=await database.query("select id,status,net_pnl,planned_stop_loss,actual_r from public.trades where mt5_connection_id=$1",[connectionId]);
+    assert.equal(publishedOpen.rowCount,1); assert.equal(publishedOpen.rows[0].status,"OPEN");
+    assert.equal(publishedOpen.rows[0].net_pnl,null); assert.equal(publishedOpen.rows[0].actual_r,null); assert.equal(publishedOpen.rows[0].planned_stop_loss,null);
+    passed("actual browser approval publishes one canonical OPEN trade while preserving unknown plans/R and excluding open cash from realized PnL");
+    const closingAt=new Date().toISOString();
+    await publicationCapture([{kind:"DEAL",sourceId:"11",observedAt:closingAt,payload:{...batch.events[0].payload,ticket:"11",orderId:"11",
+      type:"SELL",entry:"OUT",occurredAt:"2026-01-02T00:00:00.000Z",profit:"100",commission:"-3",price:"1.2"}},
+      ...['20','30','40'].map(ticket=>positionObservation(ticket,closingAt)),
+      {kind:"ACCOUNT",sourceId:"ACCOUNT",observedAt:closingAt,payload:{balance:"1089",equity:"1089",unrealizedPnl:"0",observedAt:closingAt}}],closingAt);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    await page.getByRole("checkbox",{name:/opening deal 10/}).check();
+    await page.getByRole("checkbox",{name:/I confirm the preserved opening baseline/}).check();
+    await page.getByLabel("Publication approval reason").fill("Approve final closure after complete source-backed execution");
+    await page.getByRole("button",{name:"Publish selected trades",exact:true}).click();
+    await page.getByText(/The selected canonical trades were published\./).waitFor();
+    const publishedClosed=await database.query("select id,status,net_pnl::text,outcome,mt5_execution_version::text from public.trades where mt5_connection_id=$1",[connectionId]);
+    assert.equal(publishedClosed.rowCount,1); assert.equal(publishedClosed.rows[0].id,publishedOpen.rows[0].id);
+    assert.equal(publishedClosed.rows[0].status,"CLOSED"); assert.equal(publishedClosed.rows[0].net_pnl,"95.00");
+    assert.equal(publishedClosed.rows[0].outcome,"WIN"); assert.equal(publishedClosed.rows[0].mt5_execution_version,"2");
+    const publicationEvidence=await database.query("select count(*)::integer as count from private.mt5_execution_versions where connection_id=$1",[connectionId]);
+    assert.equal(publicationEvidence.rows[0].count,2);
+    if (await page.getByRole("button",{name:"Use dark theme",exact:true}).first().isVisible())
+      await page.getByRole("button",{name:"Use dark theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>document.documentElement.classList.contains("dark"));
+    await page.screenshot({path:`${artifactDirectory}/mt5-canonical-publication-dark.png`,fullPage:true});
+    await page.getByRole("button",{name:"Use light theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>!document.documentElement.classList.contains("dark"));
+    await page.screenshot({path:`${artifactDirectory}/mt5-canonical-publication-light.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+    await page.screenshot({path:`${artifactDirectory}/mt5-canonical-publication-mobile-light.png`,fullPage:true});
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole("button",{name:"Use dark theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>document.documentElement.classList.contains("dark"));
+    passed("actual browser closure updates the same canonical identity to 95 net PnL (100 minus 2+3 costs) with two recoverable execution versions");
+    await page.goto(`${uiOrigin}/trades`);
+    await page.getByRole("heading",{name:"Canonical trades",exact:true}).waitFor();
+    assert.equal(await page.getByRole("link",{name:"EURUSD · BUY",exact:true}).getAttribute("href"),`/trades/${publishedOpen.rows[0].id}`);
+    assert.equal(await page.getByText("USD 95.00",{exact:true}).count(),1);
+    assert.equal(pageErrors,0);
+    passed("published broker trade loads through the normal trading journal without a client/runtime error");
+    stage="actual browser symbol mapping";
+    const aliasAt=new Date().toISOString();
+    const aliasDeal={...batch.events[0].payload,ticket:"90",orderId:"90",positionId:"900",symbol:"EURUSD.m",occurredAt:"2026-02-01T00:00:00.000Z"};
+    const aliasPosition=positionObservation("90",aliasAt);
+    aliasPosition.payload.symbol="EURUSD.m";
+    await publicationCapture([{kind:"DEAL",sourceId:"90",observedAt:aliasAt,payload:aliasDeal},aliasPosition,
+      ...['20','30','40'].map(ticket=>positionObservation(ticket,aliasAt)),
+      {kind:"ACCOUNT",sourceId:"ACCOUNT",observedAt:aliasAt,payload:{balance:"1087",equity:"1087",unrealizedPnl:"0",observedAt:aliasAt}}],aliasAt);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    assert.equal(await page.getByRole("checkbox",{name:/opening deal 90/}).count(),0);
+    await page.getByLabel("Captured broker symbol",{exact:true}).selectOption("EURUSD.m");
+    const mappedInstrument=await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null");
+    await page.getByLabel("Corresponding Trade OS instrument",{exact:true}).selectOption(mappedInstrument.rows[0].id);
+    await page.getByLabel("Symbol mapping reason",{exact:true}).fill("Confirmed demo broker EURUSD suffix represents the EURUSD instrument");
+    await page.getByRole("button",{name:"Approve symbol mapping",exact:true}).click();
+    await page.getByText("Symbol mapping saved. The preview below uses the approved instrument.",{exact:true}).waitFor();
+    await page.screenshot({path:`${artifactDirectory}/mt5-symbol-mapping-dark.png`,fullPage:true});
+    await page.getByRole("button",{name:"Use light theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>!document.documentElement.classList.contains("dark"));
+    await page.screenshot({path:`${artifactDirectory}/mt5-symbol-mapping-light.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+    await page.screenshot({path:`${artifactDirectory}/mt5-symbol-mapping-mobile-light.png`,fullPage:true});
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole("button",{name:"Use dark theme",exact:true}).first().press("Space");
+    await page.waitForFunction(()=>document.documentElement.classList.contains("dark"));
+    await page.getByRole("checkbox",{name:/opening deal 90/}).check();
+    await page.getByRole("checkbox",{name:/I confirm the preserved opening baseline/}).check();
+    await page.getByLabel("Publication approval reason").fill("Approve explicitly mapped source-backed alias position");
+    await page.getByRole("button",{name:"Publish selected trades",exact:true}).click();
+    await page.getByText(/The selected canonical trades were published\./).waitFor();
+    const aliasPublished=await database.query("select t.instrument_id,t.status,t.net_pnl,v.execution->>'symbol' as broker_symbol from public.trades t join private.mt5_execution_versions v on v.trade_id=t.id and v.execution_version=t.mt5_execution_version where t.mt5_connection_id=$1 and t.mt5_opening_deal_ticket='90'",[connectionId]);
+    assert.equal(aliasPublished.rowCount,1);assert.equal(aliasPublished.rows[0].instrument_id,mappedInstrument.rows[0].id);
+    assert.equal(aliasPublished.rows[0].broker_symbol,"EURUSD.m");assert.equal(aliasPublished.rows[0].status,"OPEN");assert.equal(aliasPublished.rows[0].net_pnl,null);
+    assert.equal(pageErrors,0);
+    passed("actual browser mapping resolves an alias only after explicit instrument/reason approval and publishes canonical identity while preserving broker provenance");
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.reload();
+    await page.getByText("Worker controls",{ exact: true }).click();
+    await page.getByLabel("Pause reason").fill("Explicit fixture pause before further review");
+    await page.getByRole("button",{ name: "Pause server uploads",exact: true }).click();
+    await page.getByText("Server uploads paused; the previous worker lease is invalidated.",{ exact: true }).waitFor();
+    const pausedControl = await database.query("select status,worker_id,fencing_token from private.mt5_connections where id=$1",[connectionId]);
+    assert.equal(pausedControl.rows[0].status,"PAUSED"); assert.equal(pausedControl.rows[0].worker_id,null);
+    assert(BigInt(pausedControl.rows[0].fencing_token)>BigInt(resumedLease.fencingToken));
+    passed("actual browser controls require reasons, preserve onboarding and fence the old collector on pause/resume");
+    await page.setViewportSize({ width: 390,height: 844 });
+    await page.reload();
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    assert(await page.getByRole("link",{ name: "Review import preview & balance bridge",exact: true }).isVisible());
+    const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth>window.innerWidth);
+    assert.equal(horizontalOverflow,false);
+    await page.screenshot({ path: `${artifactDirectory}/mt5-monitor-mobile-dark.png`,fullPage: true });
+    await page.setViewportSize({ width: 1440,height: 1000 });
+    await page.reload();
+    passed("MT5 monitoring remains usable on a narrow viewport without page-level horizontal overflow; both preview themes render");
   }
   const forbidden = await integration.from("trading_accounts").select("id");
   assert(!forbidden.error && forbidden.data?.length === 0);
@@ -402,6 +565,9 @@ try {
   }
   console.log(`Local OAuth gate: ${checks} checks passed. ${withBrowser ? "Local browser consent/regression verified;" : "Browser coverage pending;"} actual MT5 terminal and MCP clients pending separate verification.`);
 } catch {
+  if (page && (stage.startsWith("browser mapping") || stage === "actual browser monitoring and preview" || stage === "actual browser canonical publication")) {
+    await page.screenshot({ path: `${artifactDirectory}/mt5-mapping-failure.png`,fullPage: true }).catch(() => {});
+  }
   console.error(`FAIL: local OAuth gate at ${stage}. Provider responses and credentials suppressed.`);
   process.exitCode = 1;
 } finally {
@@ -445,6 +611,13 @@ try {
       // This is never a normal application/audit deletion workflow.
       await database.query("begin");
       await database.query("set local session_replication_role = replica");
+      await database.query("delete from private.mt5_symbol_mapping_events where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_symbol_mappings where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_execution_sources where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_execution_versions where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_publication_approvals where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from public.trades where user_id=$1",[fixtureUser]);
+      await database.query("delete from public.import_batches where user_id=$1",[fixtureUser]);
       await database.query("delete from private.mt5_capture_progress where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_capture_batches where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_capture_collections where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);

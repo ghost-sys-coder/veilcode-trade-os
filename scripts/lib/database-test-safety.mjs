@@ -23,6 +23,15 @@ export function databaseTestConnection(value, allowRemote = false) {
   return { connectionString: url.href, ssl: local ? false : { rejectUnauthorized: true } };
 }
 
+/** Insert literal pending DDL inside a strictly rollback-isolated suite. */
+export function injectPendingSchema(sql, schema) {
+  if (!/^\s*begin\s*;/i.test(sql) || !/rollback\s*;\s*$/i.test(sql)) {
+    throw new Error("Database suite must be rollback-isolated.");
+  }
+  // A callback is essential: replacement strings interpret PL/pgSQL's $$.
+  return schema ? sql.replace(/^(\s*begin\s*;)/i, begin => `${begin}\n${schema}\n`) : sql;
+}
+
 /** pgTAP must declare and actually run the entire plan; no empty false passes. */
 export function assessTapMessages(messages) {
   const plans = messages.filter((message) => /^1\.\.[0-9]+$/.test(message));

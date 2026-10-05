@@ -298,3 +298,56 @@ Last updated: 2026-10-05
 Use the account's display name, not its UUID, for account scope. Separate
 application revocation success from a pending provider-credential retry. Empty
 and unavailable states remain distinct; authorization is not terminal health.
+
+### MT5 monitoring and onboarding preview
+
+Files: `features/integrations/mt5-monitor.tsx`, `features/integrations/mt5-forms.tsx`, `app/(app)/settings/integrations/mt5/[connectionId]/page.tsx`
+Last updated: 2026-10-05
+
+| Property | Class |
+| --- | --- |
+| Background | Card `bg-card`; notices `bg-primary/5`; disclosures `bg-muted/25 open:bg-card` |
+| Border | headers and disclosures `border-border/70`; pending notice `border-primary/20` |
+| Border radius | Card `rounded-xl`; notices/disclosures `rounded-lg` |
+| Text — primary | `text-sm font-semibold`; amounts `font-mono tabular-nums` |
+| Text — secondary | `text-xs leading-5 text-muted-foreground` |
+| Spacing | page `space-y-6`; forms `space-y-4 gap-4`; notices `p-4` |
+| Hover state | existing Button/TableRow; links `hover:underline` |
+| Shadow | Card inherits `surface-shadow` |
+| Accent usage | `text-primary`; stale/unknown states are not profit or success |
+
+**Pattern notes:** Use account display names in selectors, exact broker IDs only
+in provenance context. Keep controls in disclosures outside table overflow.
+Distinguish source capture, canonical publication and reconciliation. Show
+observed equity separately from ledger balance. Do not imply unavailable local
+upload counts are zero. Native selects share the 40px control height and token
+focus ring; all forms announce pending/result states accessibly.
+
+Publication approval uses the same `space-y-4` form pattern and primary Button.
+Selectable execution rows use `rounded-lg border-border/70 bg-muted/25 p-4`,
+compact semibold descriptions, muted captions and native `accent-primary`
+checkboxes. Baseline acknowledgement is separate from trade selection. No
+checkbox defaults to approval; pending submission disables the fieldset.
+
+### MT5 broker-symbol approval
+
+File: `features/integrations/mt5-symbol-mapping-form.tsx`
+Last updated: 2026-10-05
+
+| Property | Class |
+| --- | --- |
+| Background | parent Card `bg-card`; history `bg-muted/25` |
+| Border | controls `border-input`; history `border-border/70` |
+| Border radius | controls and history `rounded-lg` |
+| Text — primary | labels from Label; history `text-sm font-semibold` |
+| Text — secondary | `text-xs leading-5 text-muted-foreground` |
+| Spacing | form `space-y-4 gap-4`; history `p-4` |
+| Hover state | existing Button; focus `focus-visible:ring-ring/25` |
+| Shadow | inherited Card/Button primitives |
+| Accent usage | primary approval Button; no profit/success implication |
+
+**Pattern notes:** Native selects use the same 40px height and theme tokens as
+account controls. No instrument is pre-approved. Show catalog scope and friendly
+instrument names alongside symbols, not UUIDs. Mapping requires a reason;
+pending submission disables controls. Current mapping displays its version,
+reason and UTC timestamp; immutable decisions remain in private audit history.

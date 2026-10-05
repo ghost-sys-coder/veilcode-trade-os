@@ -1,4 +1,4 @@
-# MT5 collector (demo pilot and canonical publication still pending)
+# MT5 collector (automatic publication and demo pilot still pending)
 
 Python 3.13.2; no terminal attachment or broker execution. This directory currently
 contains strict source boundaries, the account-bound durable SQLite outbox,
@@ -6,7 +6,66 @@ authenticated HTTP transport/uploader, a read-only dedicated-terminal adapter,
 PKCE/Windows-protected renewable credentials, bounded process supervision and a
 local polling coordinator. Local operator commands, a loopback consent receiver and
 explicit current-user Task Scheduler registration are implemented. Actual installation,
-demo pilot, canonical publication and onboarding UI are not yet verified/released.
+demo pilot and automatic publication are not yet verified/released. Mapping,
+onboarding preview, explicit selected-trade publication and browser monitoring/control are verified against
+local fixtures; they are not proof of a hosted deployment or terminal connection.
+
+## Browser mapping and review
+
+Open `/settings/integrations` after granting the approved public MT5 client
+account-specific consent. Map the exact demo server/login, position mode and
+terminal-installation UUID from the dedicated manifest. Currency and precision
+must match the selected Trade OS account; the selector shows its display name.
+Neither a local manifest nor a browser-hidden field can choose another owner.
+
+## Isolated native runtime
+
+The official SDK and NumPy versions are pinned in `requirements-runtime.txt`.
+Use Windows x86-64 CPython 3.13 and a separate virtual environment, not the
+shared interpreter used by another application. From the repository root:
+
+```powershell
+python -m venv .artifacts/mt5-runtime
+& '.artifacts/mt5-runtime/Scripts/python.exe' -m pip --isolated install --no-cache-dir --only-binary=:all: --index-url https://pypi.org/simple -r integrations/mt5/requirements-runtime.txt
+```
+
+This runtime is already prepared on this workstation; do not mistake package
+installation/import for a terminal connection. Import checks initialized no MT5
+terminal. All 167 Python tests also pass under this isolated interpreter.
+Native Task Scheduler validation passed without registering or running a task.
+
+The configured monetary precision range matches accounts/shared utilities (0..20).
+Source amounts/prices remain validated decimal strings, and the terminal's actual
+reported currency precision must match exactly; an account mismatch still pauses.
+Final net PnL uses unbounded PostgreSQL `numeric`, normalized by the account's
+precision before outcome classification, never a fixed eight-place storage scale.
+
+The connection card reports timestamped heartbeat health (stale after 120s),
+last durable sync, source/review counts, incomplete collections and missing
+server batches. Missing server batches are NOT the local SQLite pending-upload
+count; local upload reporting remains pending. Reload to obtain fresh health.
+
+`/settings/integrations/mt5/CONNECTION-UUID` previews directional episodes and
+the bridge between the current canonical ledger and observed broker balance.
+Missing/changed execution facts, manual overlaps, unknown instrument mappings,
+unclassified cash movements and absent position observations require review.
+Current stops do not become original planned stops. No preview changes financial
+records or approves an opening baseline/reconciliation.
+
+After reviewing an eligible group, use **Publish selected trades**, acknowledge the
+preserved positive opening baseline and provide a meaningful reason. Selection,
+source revisions and account-ledger fingerprints are checked transactionally; stale
+previews are rejected. Pause server uploads first to freeze a frequently changing
+preview. Publication while PAUSED does not resume the worker. Unknown plans/R and
+unreviewed behavioral fields remain unknown, and open cash is not realized PnL.
+This explicit operation does not enable unattended publication, classify cash,
+resolve manual conflicts or mark onboarding/reconciliation approved. See
+[publication verification](../../docs/MT5_PUBLICATION_VERIFICATION.md).
+
+Browser pause/resume needs a meaningful reason and current connection version.
+Both controls append a durable receipt/audit and invalidate the old worker fence.
+Resume cannot mark onboarding approved and does not clear a locally PAUSED or
+ATTENTION spool; resolve the cause and run explicit local `resume` if appropriate.
 
 ## Operator setup and commands
 
@@ -24,11 +83,12 @@ From `integrations/mt5` (so the Python package is discoverable):
 
 ```powershell
 $collectorConfig = 'D:\TradeOS-Collectors\APPROVED-CONNECTION-UUID\connection.json'
-python -m trade_os_mt5.cli init --config $collectorConfig
-python -m trade_os_mt5.cli consent --config $collectorConfig
-python -m trade_os_mt5.cli status --config $collectorConfig
-python -m trade_os_mt5.cli resume --config $collectorConfig --reason 'Approved demo collection after onboarding review'
-python -m trade_os_mt5.cli run --config $collectorConfig
+$collectorPython = 'D:\FOREX_TRADING\trade-os\.artifacts\mt5-runtime\Scripts\python.exe'
+& $collectorPython -m trade_os_mt5.cli init --config $collectorConfig
+& $collectorPython -m trade_os_mt5.cli consent --config $collectorConfig
+& $collectorPython -m trade_os_mt5.cli status --config $collectorConfig
+& $collectorPython -m trade_os_mt5.cli resume --config $collectorConfig --reason 'Approved demo collection after onboarding review'
+& $collectorPython -m trade_os_mt5.cli run --config $collectorConfig
 ```
 
 `init` protects only the connection directory/config and creates a PAUSED spool;
@@ -51,8 +111,8 @@ never credentials. Do not delete a spool to resolve an error.
 Inspect and explicitly install sign-in startup only after approved configuration:
 
 ```powershell
-python -m trade_os_mt5.cli startup-spec --config $collectorConfig
-python -m trade_os_mt5.cli install-startup --config $collectorConfig
+& $collectorPython -m trade_os_mt5.cli startup-spec --config $collectorConfig
+& $collectorPython -m trade_os_mt5.cli install-startup --config $collectorConfig
 ```
 
 The repository's `powershell -NoProfile -File scripts/test-mt5-startup.ps1`
@@ -198,8 +258,9 @@ the old record atomically only after server verification. If the provider omits 
 new refresh token, retain the previous one. A lost refresh response, interrupted
 exchange or failed credential persistence requires fresh consent; never blindly
 replay a possibly consumed refresh token. No OAuth-server refresh-reuse guarantee
-is assumed from browser-session behavior. A consent callback listener is not yet
-shipped; `verify_local_oauth` is a strictly local disposable test fixture.
+is assumed from browser-session behavior. The bounded consent callback listener
+is implemented in `consent.py`; `verify_local_oauth` remains a strictly local
+disposable test fixture, not the normal operator setup flow.
 
 ## Bounded supervision and coordinator
 
@@ -231,7 +292,8 @@ then looks up/reconciles old effects. Never reuse another running collector's ID
 Unknown errors, account switches, revoked/uncertain authentication, disk failures
 and malformed replies require attention. A UTC clock earlier than the existing
 capture cursor requires clock repair and explicit resume; the cursor is not rewound.
-These local controls do not replace private server grants, RLS, leases or future
-application pause/resume workflows. Monitoring UI and Task Scheduler remain pending.
+These local controls do not replace private server grants, RLS, leases or the
+application's audited pause/resume workflow. Monitoring UI and startup registration
+code are implemented; actual task registration/invocation and demo pilot remain pending.
 
 See [the exact verification report](../../docs/MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).

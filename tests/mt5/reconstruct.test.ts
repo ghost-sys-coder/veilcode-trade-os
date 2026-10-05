@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseDecimal, sumDecimals } from "@/domain/money/decimal";
 import { reconstructMt5Deals } from "@/domain/mt5/reconstruct";
-import { assertMt5Identity, mt5DealSchema, type Mt5Deal, type Mt5Identity } from "@/domain/mt5/source";
+import { assertMt5Identity, mt5IdentitySchema, mt5DealSchema, type Mt5Deal, type Mt5Identity } from "@/domain/mt5/source";
 import { calculateNetPnl } from "@/domain/trades/financials";
 
 const connection = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -18,6 +18,10 @@ const identity: Mt5Identity = { login: "12345", server: "Broker-Demo", terminalI
   currencyCode: "USD", currencyPrecision: 2, accountKind: "DEMO", positionMode: "NETTING" };
 
 describe("MT5 account isolation", () => {
+  it("accepts the same configured precision range as trading accounts", () => {
+    for (const currencyPrecision of [0,2,3,9,20]) expect(mt5IdentitySchema.safeParse({...identity,currencyPrecision}).success).toBe(true);
+    for (const currencyPrecision of [-1,21,1.5,"2"]) expect(mt5IdentitySchema.safeParse({...identity,currencyPrecision}).success).toBe(false);
+  });
   it("accepts only the exact explicitly mapped demo identity", () => { expect(assertMt5Identity(identity,identity)).toEqual(identity); });
   it.each([
     { login: "12346" }, { server: "Different-Demo" }, { terminalInstallationId: secondConnection },
@@ -35,6 +39,10 @@ describe("MT5 account isolation", () => {
 });
 
 describe("MT5 directional episodes and financial attribution", () => {
+  it("preserves a positive representable result at twenty configured decimals", () => {
+    expect(reconstruct([deal("1"),deal("2",{type:"SELL",entry:"OUT",profit:"0.000000000000000001"})],20).episodes[0])
+      .toMatchObject({finalNetPnl:"0.00000000000000000100",outcome:"WIN"});
+  });
   it("closes a simple position with non-negative costs and broker trading credits", () => {
     const result = reconstruct([deal("1",{ commission: "-2" }),deal("2",{ type: "SELL",entry: "OUT",profit: "100",commission: "-3",swap: "1.5",fee: "-0.5" })]);
     expect(result.issues).toEqual([]);

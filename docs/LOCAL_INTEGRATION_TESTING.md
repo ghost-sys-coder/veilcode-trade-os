@@ -35,10 +35,18 @@ is an empty or explicitly disposable local database, never a populated user
 workspace or a hosted database. Prefer `npm run replay:local-db`, which verifies
 zero local users, trades, grants, connections, operations, audits and source
 revisions before resetting. It refuses a populated database and never loads
-production `.env`. All 24 migrations and the seed now replay successfully.
+production `.env`. The original 24 migrations and seed replayed successfully;
+the schema-pull shadow check now also replays all 26 migrations with no schema
+differences. No hosted schema changes are made by these commands.
 
 For an existing local database whose data must be kept, use the normal local
 migration workflow instead of resetting it.
+
+Before applying new migrations, `npm run test:db -- --pending-migrations`
+injects unapplied repository migration SQL inside each test transaction. Every
+suite rolls it back: neither schema nor migration history is changed. Literal
+PL/pgSQL delimiters are preserved. `npm run db:types -- --local` regenerates
+types using only the discovered disposable local database; numerics remain strings.
 
 ## Verification
 

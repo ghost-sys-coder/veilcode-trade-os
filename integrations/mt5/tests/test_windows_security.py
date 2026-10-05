@@ -1,8 +1,10 @@
+import ctypes
 import json
 import os
 import subprocess
 import sys
 import unittest
+from ctypes import wintypes
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -88,27 +90,51 @@ print('verified')"""
             protect(b"", self.context)
 
     def test_cross_process_lock_excludes_duplicate_and_releases_after_death(self):
-        code = """import sys,time
+        code = """import os,sys,time
 from pathlib import Path
 from trade_os_mt5.windows_security import SingleInstance
 lock=SingleInstance(Path(sys.argv[1]))
-print('locked',flush=True)
+print('locked:'+str(os.getpid()),flush=True)
 time.sleep(30)"""
         process = subprocess.Popen(
             [sys.executable, "-c", code, str(self.store.lock_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
+        # Windows venv python.exe is a launcher: Popen.pid need not be the
+        # interpreter holding the lock. Wait for the controlled child's handle,
+        # not merely for the launcher; its job termination is asynchronous.
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes, kernel.OpenProcess.restype = (
+            [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE
+        )
+        kernel.WaitForSingleObject.argtypes, kernel.WaitForSingleObject.restype = (
+            [wintypes.HANDLE, wintypes.DWORD], wintypes.DWORD
+        )
+        kernel.TerminateProcess.argtypes, kernel.TerminateProcess.restype = (
+            [wintypes.HANDLE, wintypes.UINT], wintypes.BOOL
+        )
+        kernel.CloseHandle.argtypes, kernel.CloseHandle.restype = [wintypes.HANDLE], wintypes.BOOL
+        actual_handle = None
         try:
-            self.assertEqual(process.stdout.readline().strip(), b"locked")
+            prefix, actual_pid = process.stdout.readline().strip().split(b":")
+            self.assertEqual(prefix, b"locked")
+            actual_handle = kernel.OpenProcess(0x00100001, False, int(actual_pid))
+            self.assertTrue(actual_handle)
             with self.assertRaises(CredentialError) as error:
                 self.store.lock()
             self.assertEqual(error.exception.code, "COLLECTOR_ALREADY_RUNNING")
             process.kill()
             process.wait(5)
+            self.assertEqual(kernel.WaitForSingleObject(actual_handle, 5000), 0)
             with self.store.lock():
                 pass
         finally:
             if process.poll() is None:
                 process.kill()
+            if actual_handle:
+                if kernel.WaitForSingleObject(actual_handle, 0) == 258:
+                    kernel.TerminateProcess(actual_handle, 1)  # Only our controlled fixture's captured handle.
+                    kernel.WaitForSingleObject(actual_handle, 5000)
+                kernel.CloseHandle(actual_handle)
             process.communicate(timeout=5)
 
     def test_permission_descriptor_has_only_user_and_system_not_inherited_everyone(self):

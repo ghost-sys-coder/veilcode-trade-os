@@ -83,7 +83,7 @@ export const mt5IdentitySchema = z.object({
   login: brokerIdentifier,
   terminalInstallationId: z.string().uuid(),
   currencyCode: z.string().regex(/^[A-Z]{3}$/),
-  currencyPrecision: z.number().int().min(0).max(8),
+  currencyPrecision: z.number().int().min(0).max(20),
   accountKind: z.enum(["DEMO","LIVE","CONTEST"]),
   positionMode: z.enum(["HEDGING","NETTING"]),
 }).strict();

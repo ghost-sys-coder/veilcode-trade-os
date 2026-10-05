@@ -66,7 +66,7 @@ def identity(value: Any) -> None:
         not isinstance(value["currencyCode"], str)
         or not re.fullmatch(r"[A-Z]{3}", value["currencyCode"])
         or type(value["currencyPrecision"]) is not int
-        or not 0 <= value["currencyPrecision"] <= 8
+        or not 0 <= value["currencyPrecision"] <= 20
         or value["accountKind"] != "DEMO"
         or value["positionMode"] not in ("HEDGING", "NETTING")
     ):
