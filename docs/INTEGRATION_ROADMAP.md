@@ -1,7 +1,7 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
-Baseline: clean `master` at `412da1c`. Two feature branches, in addition to
+Original baseline: clean `master` at `412da1c`. Two feature branches, in addition to
 `master`: `feature/mt5-sync` and `feature/mcp-access`.
 
 ## Authority and boundaries
@@ -62,7 +62,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 
 | ID | Deliverable | Gate | Initial status |
 | --- | --- | --- | --- |
-| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | In progress: discovery passed; consent groundwork built; full gate pending |
+| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | In progress: discovery and local database isolation passed; full OAuth gate pending |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | Not started |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | Not started |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | Not started |
@@ -123,3 +123,14 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   validation and database isolation are verified. Already-consented code
   redirects are blocked rather than bypassing the application grant gate.
   Disposable-database and real-client verification remain pending.
+- 2026-10-05: Docker recovered after the user relocated its disk image. Local
+  Supabase replayed all 20 migrations; 26 OAuth-isolation and 100 regression
+  assertions pass and roll back. Application tests: 173; typecheck, lint and
+  production build pass. Added local asymmetric signing-key preparation and
+  a safe all-suite database runner. Hosted data/schema were untouched.
+  See [local test runbook](LOCAL_INTEGRATION_TESTING.md).
+- 2026-10-05: repository inspection found external PR #1 already merged the
+  earlier groundwork into `master` at `61ed889`. Fast-forwarded the MT5 branch
+  to preserve that state; MCP remains parked at `b17c14a`. The partial merge
+  is not MT5 completion: consent approval, account grants, resource binding,
+  revocation, real-client tests and the demo soak remain release gates.

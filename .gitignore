@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/supabase/signing_keys.json
 
 # debug
 npm-debug.log*
