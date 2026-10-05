@@ -62,7 +62,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 
 | ID | Deliverable | Gate | Initial status |
 | --- | --- | --- | --- |
-| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Blocked: OAuth discovery unavailable; administrator setup needed |
+| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | In progress: discovery passed; consent groundwork built; full gate pending |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | Not started |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | Not started |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | Not started |
@@ -116,3 +116,10 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   discovery, not proof that PKCE/resource binding is supported or unsupported.
   No integration persistence, migrations, terminal configuration or broker
   reads/writes have been enabled. See [verification report](INTEGRATION_AUTH_GATE_REPORT.md).
+- 2026-10-05: administrator enabled OAuth Server with `/oauth/consent`.
+  Discovery now returns HTTP 200 and all advertised capability checks pass.
+  Built the consent page and verified-browser service boundary, with safe
+  rejection and no approval implementation until account-bound grants, resource
+  validation and database isolation are verified. Already-consented code
+  redirects are blocked rather than bypassing the application grant gate.
+  Disposable-database and real-client verification remain pending.

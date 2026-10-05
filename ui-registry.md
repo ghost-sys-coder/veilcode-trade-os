@@ -249,3 +249,25 @@ Last updated: 2026-09-24
 | Accent usage | active navigation marker and brand tile use `primary` |
 
 **Pattern notes:** The desktop sidebar has three explicit vertical regions: a fixed brand header, a `min-h-0 flex-1 overflow-y-auto` navigation region, and a `shrink-0` account footer. Only the middle region may scroll, so footer controls remain visible at short viewport heights.
+
+### Integration consent
+
+File: `app/oauth/consent/page.tsx`
+Last updated: 2026-10-05
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-background`; Card inherits `bg-card` |
+| Border | header `border-b border-border/70`; notices `border-border/70` or `border-primary/20` |
+| Border radius | Card inherits `rounded-xl`; notices `rounded-lg` |
+| Text — primary | `text-foreground`; title `text-2xl`; labels `font-semibold` |
+| Text — secondary | `text-sm leading-6 text-muted-foreground` |
+| Spacing | `space-y-5 pt-5`; notice `p-4`; action `gap-3` |
+| Hover state | existing Button primitive; return link `hover:underline` |
+| Shadow | Card inherits `surface-shadow` |
+| Accent usage | `text-primary`, `bg-primary/5`; disabled approval is not a success state |
+
+**Pattern notes:** Match the existing secure-login surfaces in both themes.
+Render client metadata as escaped text, not clickable external links or logo
+requests. Approval availability must reflect server-side security readiness;
+a disabled control is never the authorization boundary itself.
