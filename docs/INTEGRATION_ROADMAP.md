@@ -62,7 +62,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 
 | ID | Deliverable | Gate | Initial status |
 | --- | --- | --- | --- |
-| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | In progress |
+| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Blocked: OAuth discovery unavailable; administrator setup needed |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | Not started |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | Not started |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | Not started |
@@ -108,3 +108,11 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 - 2026-10-05: approved specification saved; branch setup and authentication
   compatibility verification are the first implementation tasks.
+- 2026-10-05: documentation committed as `b17c14a` on `feature/mt5-sync`;
+  `feature/mcp-access` created at that commit and parked. `master` unchanged.
+- 2026-10-05: read-only, secret-redacted authentication preflight implemented.
+  Network-enabled discovery returned HTTP 404; public JWKS succeeded.
+  Administrative dashboard requires login. This is evidence of unavailable
+  discovery, not proof that PKCE/resource binding is supported or unsupported.
+  No integration persistence, migrations, terminal configuration or broker
+  reads/writes have been enabled. See [verification report](INTEGRATION_AUTH_GATE_REPORT.md).
