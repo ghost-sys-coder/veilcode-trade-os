@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { dateKey, journalDate } from "@/domain/journal/analytics";
-import { parseDecimal } from "@/domain/money/decimal";
+import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
 import { runWithConcurrency } from "@/lib/async/run-with-concurrency";
 import { normalizeSupabaseNumeric } from "@/lib/supabase/numeric";
 import type { Database } from "@/types/database";
@@ -219,9 +219,9 @@ export async function getTradeJournalDataset(
       status: trade.status,
       outcome: trade.outcome,
       plannedRiskPercentage: optionalNumeric(trade.planned_risk_percentage),
-      plannedRiskAmount: optionalNumeric(trade.planned_risk_amount),
+      plannedRiskAmount: trade.planned_risk_amount===null ? null : normalizeMoney(normalizeSupabaseNumeric(trade.planned_risk_amount),account.currency_precision),
       plannedRiskReward: optionalNumeric(trade.planned_risk_reward),
-      netPnl: optionalNumeric(trade.net_pnl),
+      netPnl: trade.net_pnl===null ? null : normalizeMoney(normalizeSupabaseNumeric(trade.net_pnl),account.currency_precision),
       actualR: optionalNumeric(trade.actual_r),
       grade: review?.trade_quality_grade ?? null,
       thesis: trade.thesis,

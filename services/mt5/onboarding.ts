@@ -48,7 +48,7 @@ export async function controlMt5Connection(client: Client, input: unknown) {
   return z.object({ connectionId: z.string().uuid(),version,status: z.enum(["PAUSED","ONBOARDING","ACTIVE"]) }).parse(result.data);
 }
 
-export async function getMt5OnboardingPreview(client: Client, connectionId: string) {
+export async function getMt5OnboardingSnapshot(client: Client, connectionId: string) {
   z.string().uuid().parse(connectionId);
   const connection = (await listMt5Connections(client)).find(item => item.id === connectionId);
   if (!connection) throw new Mt5OnboardingError();
@@ -90,6 +90,12 @@ export async function getMt5OnboardingPreview(client: Client, connectionId: stri
   const checked = sourcePageSchema.parse(final.data);
   if (checked.snapshotToken !== snapshot || checked.ledgerToken !== ledgerToken || checked.version !== connection.version
     || checked.captureCheckpoint !== connection.captureCheckpoint) throw new Mt5OnboardingError("CHANGED");
-  return { connection,accountName: account.name,snapshotToken: snapshot!,ledgerToken: ledgerToken!,preview: buildMt5OnboardingPreview({ connection,sources,
-    instruments,startingBalance: account.startingBalance,ledgerBalance: account.ledgerBalance,existingTrades: existing }) };
+  return { connection,account,sources,instruments,existingTrades: existing,snapshotToken: snapshot!,ledgerToken: ledgerToken! };
+}
+
+export async function getMt5OnboardingPreview(client: Client, connectionId: string) {
+  const snapshot = await getMt5OnboardingSnapshot(client,connectionId);
+  return { connection: snapshot.connection,accountName: snapshot.account.name,snapshotToken: snapshot.snapshotToken,
+    ledgerToken: snapshot.ledgerToken,preview: buildMt5OnboardingPreview({ ...snapshot,
+      startingBalance: snapshot.account.startingBalance,ledgerBalance: snapshot.account.ledgerBalance }) };
 }

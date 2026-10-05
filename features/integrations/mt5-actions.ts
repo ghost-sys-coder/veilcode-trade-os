@@ -4,8 +4,26 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { controlMt5Connection, registerMt5Connection, Mt5OnboardingError } from "@/services/mt5/onboarding";
+import { publishMt5Trades } from "@/services/mt5/publication";
 
 type ActionState = { message: string; success: boolean };
+export async function approveMt5Publication(_previous: ActionState, form: FormData): Promise<ActionState> {
+  let connectionId: string;
+  try {
+    if (form.get("confirm_baseline")!=="on") return { success:false,message:"Confirm the preserved opening baseline before publishing." };
+    const result=await publishMt5Trades(await createClient(),{ connectionId:form.get("connection_id"),operationId:form.get("operation_id"),
+      version:form.get("version"),snapshotToken:form.get("snapshot_token"),ledgerToken:form.get("ledger_token"),
+      openingBaseline:form.get("opening_baseline"),reason:form.get("reason"),episodeIdentities:form.getAll("episode_identity") });
+    connectionId=result.connectionId;
+  } catch (error) {
+    return {success:false,message:error instanceof Error && error.message==="MT5_PUBLICATION_REVIEW_REQUIRED"
+      ? "This preview changed or a selected trade needs review. Reload and check the history before approving again."
+      : "Publication was not confirmed. Check your selections, reason, active grant and database connection. Retry the same submission to recover a committed result."};
+  }
+  for (const path of ["/settings/integrations",`/settings/integrations/mt5/${connectionId}`,"/trades","/dashboard","/analytics","/calendar","/accounts"])
+    revalidatePath(path);
+  redirect(`/settings/integrations/mt5/${connectionId}?status=published`);
+}
 export async function mapMt5Account(_previous: ActionState, form: FormData): Promise<ActionState> {
   try {
     await registerMt5Connection(await createClient(),{ grantId: form.get("grant_id"),operationId: form.get("operation_id"),identity: {

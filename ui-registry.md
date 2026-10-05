@@ -322,3 +322,9 @@ Distinguish source capture, canonical publication and reconciliation. Show
 observed equity separately from ledger balance. Do not imply unavailable local
 upload counts are zero. Native selects share the 40px control height and token
 focus ring; all forms announce pending/result states accessibly.
+
+Publication approval uses the same `space-y-4` form pattern and primary Button.
+Selectable execution rows use `rounded-lg border-border/70 bg-muted/25 p-4`,
+compact semibold descriptions, muted captions and native `accent-primary`
+checkboxes. Baseline acknowledgement is separate from trade selection. No
+checkbox defaults to approval; pending submission disables the fieldset.

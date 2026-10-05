@@ -81,7 +81,7 @@ export function buildMt5OnboardingPreview(input: {
       detail: `Explicit instrument mapping is required for ${episode.symbol}; no suffix or approximate matching is used.` });
     // Only the source's own canonical identity may update automatically. Every
     // plausible manual/other-source overlap is held for explicit reconciliation.
-    const matches = input.existingTrades.filter(trade => trade.canonicalIdentity !== episode.canonicalIdentity
+    const matches = input.existingTrades.filter(trade => trade.canonicalIdentity === null
       && trade.symbol === episode.symbol && trade.direction === episode.direction && trade.openedAt !== null
       && (Date.parse(trade.openedAt) === Date.parse(episode.openedAt)
         || (Date.parse(trade.openedAt) <= Date.parse(episode.closedAt ?? "9999-12-31T00:00:00Z")

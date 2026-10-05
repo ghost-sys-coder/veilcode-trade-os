@@ -32,6 +32,14 @@ approves reconciliation. Approval/publication and classification workflows remai
 pending. Exact results and limitations:
 [onboarding/finance verification](MT5_ONBOARDING_FINANCE_VERIFICATION.md).
 
+Subsequent MT5-2/4 increment: explicit selected-trade approval now publishes
+eligible canonical OPEN/CLOSED records atomically with immutable source attribution,
+execution revisions, approval evidence and operation receipts. This is verified
+through the actual local browser and normal journal. Frozen PAUSED capture can be
+approved without resuming a collector. Unclassified cash and conflicts stay staged;
+onboarding/reconciliation and unattended publication are not approved by this action.
+See [publication verification](MT5_PUBLICATION_VERIFICATION.md).
+
 Do not begin authenticated broker persistence until MT5-0 passes. A failed
 authentication gate requires an explicit plan revision, not a static shared
 secret, service-role exposure or unbound user token as a substitute.

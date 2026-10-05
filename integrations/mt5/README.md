@@ -1,4 +1,4 @@
-# MT5 collector (demo pilot and canonical publication still pending)
+# MT5 collector (automatic publication and demo pilot still pending)
 
 Python 3.13.2; no terminal attachment or broker execution. This directory currently
 contains strict source boundaries, the account-bound durable SQLite outbox,
@@ -6,8 +6,8 @@ authenticated HTTP transport/uploader, a read-only dedicated-terminal adapter,
 PKCE/Windows-protected renewable credentials, bounded process supervision and a
 local polling coordinator. Local operator commands, a loopback consent receiver and
 explicit current-user Task Scheduler registration are implemented. Actual installation,
-demo pilot and canonical publication are not yet verified/released. Mapping,
-read-only onboarding preview and browser monitoring/control are verified against
+demo pilot and automatic publication are not yet verified/released. Mapping,
+onboarding preview, explicit selected-trade publication and browser monitoring/control are verified against
 local fixtures; they are not proof of a hosted deployment or terminal connection.
 
 ## Browser mapping and review
@@ -29,6 +29,16 @@ Missing/changed execution facts, manual overlaps, unknown instrument mappings,
 unclassified cash movements and absent position observations require review.
 Current stops do not become original planned stops. No preview changes financial
 records or approves an opening baseline/reconciliation.
+
+After reviewing an eligible group, use **Publish selected trades**, acknowledge the
+preserved positive opening baseline and provide a meaningful reason. Selection,
+source revisions and account-ledger fingerprints are checked transactionally; stale
+previews are rejected. Pause server uploads first to freeze a frequently changing
+preview. Publication while PAUSED does not resume the worker. Unknown plans/R and
+unreviewed behavioral fields remain unknown, and open cash is not realized PnL.
+This explicit operation does not enable unattended publication, classify cash,
+resolve manual conflicts or mark onboarding/reconciliation approved. See
+[publication verification](../../docs/MT5_PUBLICATION_VERIFICATION.md).
 
 Browser pause/resume needs a meaningful reason and current connection version.
 Both controls append a durable receipt/audit and invalidate the old worker fence.

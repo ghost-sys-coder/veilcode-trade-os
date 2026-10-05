@@ -26,7 +26,8 @@ if (!connectionString) {
 
 const connection = databaseTestConnection(connectionString, process.env.TRADE_OS_TEST_DATABASE_IS_DISPOSABLE === "true");
 const directory = new URL("../supabase/tests/", import.meta.url);
-const suites = (await readdir(directory)).filter((file) => file.endsWith(".test.sql")).sort();
+const selectedSuite = process.argv.find(arg => arg.startsWith("--suite="))?.slice(8);
+const suites = (await readdir(directory)).filter((file) => file.endsWith(".test.sql") && (!selectedSuite || file===selectedSuite)).sort();
 if (!suites.length) throw new Error("No database suites found.");
 const client = new pg.Client({ ...connection, connectionTimeoutMillis: 15_000, statement_timeout: 60_000 });
 let connectionLost = false;
