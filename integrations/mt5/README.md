@@ -6,7 +6,34 @@ authenticated HTTP transport/uploader, a read-only dedicated-terminal adapter,
 PKCE/Windows-protected renewable credentials, bounded process supervision and a
 local polling coordinator. Local operator commands, a loopback consent receiver and
 explicit current-user Task Scheduler registration are implemented. Actual installation,
-demo pilot, canonical publication and onboarding UI are not yet verified/released.
+demo pilot and canonical publication are not yet verified/released. Mapping,
+read-only onboarding preview and browser monitoring/control are verified against
+local fixtures; they are not proof of a hosted deployment or terminal connection.
+
+## Browser mapping and review
+
+Open `/settings/integrations` after granting the approved public MT5 client
+account-specific consent. Map the exact demo server/login, position mode and
+terminal-installation UUID from the dedicated manifest. Currency and precision
+must match the selected Trade OS account; the selector shows its display name.
+Neither a local manifest nor a browser-hidden field can choose another owner.
+
+The connection card reports timestamped heartbeat health (stale after 120s),
+last durable sync, source/review counts, incomplete collections and missing
+server batches. Missing server batches are NOT the local SQLite pending-upload
+count; local upload reporting remains pending. Reload to obtain fresh health.
+
+`/settings/integrations/mt5/CONNECTION-UUID` previews directional episodes and
+the bridge between the current canonical ledger and observed broker balance.
+Missing/changed execution facts, manual overlaps, unknown instrument mappings,
+unclassified cash movements and absent position observations require review.
+Current stops do not become original planned stops. No preview changes financial
+records or approves an opening baseline/reconciliation.
+
+Browser pause/resume needs a meaningful reason and current connection version.
+Both controls append a durable receipt/audit and invalidate the old worker fence.
+Resume cannot mark onboarding approved and does not clear a locally PAUSED or
+ATTENTION spool; resolve the cause and run explicit local `resume` if appropriate.
 
 ## Operator setup and commands
 

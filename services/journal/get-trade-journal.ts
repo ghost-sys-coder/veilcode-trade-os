@@ -238,6 +238,7 @@ export async function getTradeJournalDataset(
         commission: normalizeSupabaseNumeric(trade.commission),
         swap: normalizeSupabaseNumeric(trade.swap),
         other_fees: normalizeSupabaseNumeric(trade.other_fees),
+        trading_credits: normalizeSupabaseNumeric(trade.trading_credits),
         planned_risk_percentage: optionalNumeric(trade.planned_risk_percentage),
         planned_risk_amount: optionalNumeric(trade.planned_risk_amount),
         planned_risk_reward: optionalNumeric(trade.planned_risk_reward),

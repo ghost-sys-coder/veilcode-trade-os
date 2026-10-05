@@ -24,6 +24,14 @@ registration are implemented; actual startup installation/invocation and real-te
 checks remain pending. Extended soak is deferred. Exact verification and limitations:
 [credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
 
+MT5-2/4 increment: canonical episode identity and trading-credit storage,
+owner-only account mapping/monitoring, read-only history preview, balance bridge,
+and audited fenced browser pause/resume are verified locally. The preview never
+publishes trades, silently matches manual positions, changes a baseline, or
+approves reconciliation. Approval/publication and classification workflows remain
+pending. Exact results and limitations:
+[onboarding/finance verification](MT5_ONBOARDING_FINANCE_VERIFICATION.md).
+
 Do not begin authenticated broker persistence until MT5-0 passes. A failed
 authentication gate requires an explicit plan revision, not a static shared
 secret, service-role exposure or unbound user token as a substitute.

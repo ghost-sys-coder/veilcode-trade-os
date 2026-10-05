@@ -229,9 +229,25 @@ try {
     stage = "real authenticated MT5 capture API";
     const identity = { server: "Broker-Demo",login: "12345",terminalInstallationId: randomUUID(),
       currencyCode: "USD",currencyPrecision: 2,accountKind: "DEMO",positionMode: "NETTING" };
-    const mapping = await browser.rpc("mt5_register_connection", { p_grant_id: approvedGrant.id,p_operation_id: randomUUID(),p_identity: identity });
-    assert(!mapping.error && mapping.data && typeof mapping.data === "object" && "connectionId" in mapping.data);
-    const connectionId = mapping.data.connectionId as string;
+    stage = "actual browser demo mapping";
+    const monitoringDiscovery = await browser.rpc("mt5_list_connections");
+    assert(!monitoringDiscovery.error && Array.isArray(monitoringDiscovery.data));
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    stage = "browser mapping form availability";
+    await page.getByText("Map a dedicated demo terminal",{ exact: true }).waitFor();
+    assert((await page.getByLabel("Authorized Trade OS account").textContent())?.includes("USD"));
+    await page.getByLabel("Exact broker demo server").fill(identity.server);
+    await page.getByLabel("Demo account login").fill(identity.login);
+    await page.getByLabel("Position accounting mode").selectOption(identity.positionMode);
+    await page.getByLabel("Dedicated collector terminal-installation ID").fill(identity.terminalInstallationId);
+    stage = "browser mapping form submission";
+    await page.getByRole("button",{ name: "Map dedicated demo account",exact: true }).click();
+    stage = "browser mapping confirmation";
+    await page.getByText("Demo account mapped. Start capture with the dedicated collector, then review the import preview.",{ exact: true }).waitFor();
+    const mappedConnection = await database.query("select id from private.mt5_connections where owner_id=$1 and account_id=$2",[fixtureUser,accountResult.data.id]);
+    assert.equal(mappedConnection.rowCount,1);
+    const connectionId = mappedConnection.rows[0].id as string;
+    passed("actual browser form maps only an explicitly consented demo account with display-name selection");
     const workerId = randomUUID();
     const headers = { Authorization: `Bearer ${tokens.access_token}`,"Content-Type": "application/json" };
     const leaseResponse = await fetch(`${uiOrigin}/api/integrations/v1/mt5/lease`,{ method: "POST",headers,
@@ -340,6 +356,50 @@ try {
     const paused = await database.query("select status,(select count(*)::integer from private.mt5_source_revisions where connection_id=$1) as revisions from private.mt5_connections where id=$1",[connectionId]);
     assert.deepEqual(paused.rows[0],{ status: "ATTENTION",revisions: 4 });
     passed("an unexpected account switch pauses the HTTP connection without importing wrong-account facts");
+    stage = "actual browser monitoring and preview";
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.getByText("ATTENTION",{ exact: true }).waitFor();
+    await page.getByText("4 source facts · 0 published trades",{ exact: true }).waitFor();
+    await page.getByRole("link",{ name: "Review import preview & balance bridge",exact: true }).click();
+    await page.getByText("Balance reconciliation bridge",{ exact: true }).waitFor();
+    await page.getByText("No finalized PnL",{ exact: true }).first().waitFor();
+    assert.equal(await page.getByText("Awaiting explicit attribution",{ exact: true }).count(),0);
+    assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1",[fixtureUser])).rows[0].count,0);
+    if (!(await page.evaluate(() => document.documentElement.classList.contains("dark")))) {
+      await page.getByRole("button",{ name: "Use dark theme",exact: true }).first().press("Space");
+    }
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    await page.screenshot({ path: `${artifactDirectory}/mt5-import-preview-dark.png`,fullPage: true });
+    await page.getByRole("button",{ name: "Use light theme",exact: true }).first().press("Space");
+    await page.waitForFunction(() => !document.documentElement.classList.contains("dark"));
+    await page.screenshot({ path: `${artifactDirectory}/mt5-import-preview-light.png`,fullPage: true });
+    await page.getByRole("button",{ name: "Use dark theme",exact: true }).first().press("Space");
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    passed("browser preview shows open execution groups and an unreconciled balance bridge without publishing fabricated plans or PnL");
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.getByText("Worker controls",{ exact: true }).click();
+    await page.getByLabel("Resume reason").fill("Explicit fixture recovery after account identity review");
+    await page.getByRole("button",{ name: "Resume server capture",exact: true }).click();
+    await page.getByText("Server capture enabled. If the local collector is paused or requires attention, explicitly resume it locally after resolving the cause.",{ exact: true }).waitFor();
+    await page.reload();
+    await page.getByText("Worker controls",{ exact: true }).click();
+    await page.getByLabel("Pause reason").fill("Explicit fixture pause before further review");
+    await page.getByRole("button",{ name: "Pause server uploads",exact: true }).click();
+    await page.getByText("Server uploads paused; the previous worker lease is invalidated.",{ exact: true }).waitFor();
+    const pausedControl = await database.query("select status,worker_id,fencing_token from private.mt5_connections where id=$1",[connectionId]);
+    assert.equal(pausedControl.rows[0].status,"PAUSED"); assert.equal(pausedControl.rows[0].worker_id,null);
+    assert(BigInt(pausedControl.rows[0].fencing_token)>BigInt(resumedLease.fencingToken));
+    passed("actual browser controls require reasons, preserve onboarding and fence the old collector on pause/resume");
+    await page.setViewportSize({ width: 390,height: 844 });
+    await page.reload();
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    assert(await page.getByRole("link",{ name: "Review import preview & balance bridge",exact: true }).isVisible());
+    const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth>window.innerWidth);
+    assert.equal(horizontalOverflow,false);
+    await page.screenshot({ path: `${artifactDirectory}/mt5-monitor-mobile-dark.png`,fullPage: true });
+    await page.setViewportSize({ width: 1440,height: 1000 });
+    await page.reload();
+    passed("MT5 monitoring remains usable on a narrow viewport without page-level horizontal overflow; both preview themes render");
   }
   const forbidden = await integration.from("trading_accounts").select("id");
   assert(!forbidden.error && forbidden.data?.length === 0);
@@ -402,6 +462,9 @@ try {
   }
   console.log(`Local OAuth gate: ${checks} checks passed. ${withBrowser ? "Local browser consent/regression verified;" : "Browser coverage pending;"} actual MT5 terminal and MCP clients pending separate verification.`);
 } catch {
+  if (page && (stage.startsWith("browser mapping") || stage === "actual browser monitoring and preview")) {
+    await page.screenshot({ path: `${artifactDirectory}/mt5-mapping-failure.png`,fullPage: true }).catch(() => {});
+  }
   console.error(`FAIL: local OAuth gate at ${stage}. Provider responses and credentials suppressed.`);
   process.exitCode = 1;
 } finally {
