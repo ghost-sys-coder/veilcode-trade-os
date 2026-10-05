@@ -18,7 +18,11 @@ select ok(
 select is(
   (select count(*)::integer from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private' and p.prosecdef and p.prorettype <> 'trigger'::regtype
-     and p.prosrc not like '%perform private.require_direct_browser_session();%'),
+     and p.prosrc not like '%perform private.require_direct_browser_session();%'
+     and p.oid not in ('private.authorize_integration(text,text)'::regprocedure,
+       'private.integration_access_token_hook(jsonb)'::regprocedure,
+       'private.mt5_acquire_lease(text,uuid,uuid,uuid)'::regprocedure,
+       'private.mt5_capture(text,uuid,uuid,text,uuid,jsonb,text,jsonb)'::regprocedure)),
   0, 'non-trigger private security-definer workflows cannot bypass OAuth isolation'
 );
 

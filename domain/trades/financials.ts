@@ -10,6 +10,7 @@ export interface NetPnlInput {
   commission: DecimalInput;
   swap: DecimalInput;
   otherFees: DecimalInput;
+  tradingCredits?: DecimalInput;
   currencyPrecision: number;
 }
 
@@ -25,12 +26,17 @@ export function calculateNetPnl({
   commission,
   swap,
   otherFees,
+  tradingCredits = "0",
   currencyPrecision,
 }: NetPnlInput): string {
+  for (const value of [commission, swap, otherFees, tradingCredits]) {
+    if (parseDecimal(value).isNegative()) throw new RangeError("Trading costs and credits must be non-negative.");
+  }
   const netPnl = parseDecimal(grossPnl)
     .minus(parseDecimal(commission))
     .minus(parseDecimal(swap))
-    .minus(parseDecimal(otherFees));
+    .minus(parseDecimal(otherFees))
+    .plus(parseDecimal(tradingCredits));
 
   return normalizeMoney(netPnl, currencyPrecision);
 }

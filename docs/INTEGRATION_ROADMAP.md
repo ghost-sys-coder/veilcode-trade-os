@@ -62,9 +62,9 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 
 | ID | Deliverable | Gate | Initial status |
 | --- | --- | --- | --- |
-| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | In progress: discovery and local database isolation passed; full OAuth gate pending |
-| MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | Not started |
-| MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | Not started |
+| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally: real provider, signed tokens and browser; hosted configuration/deployment unverified |
+| MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
+| MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures pass; canonical commit/identity migrations pending |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | Not started |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | Not started |
 | MT5-5 | Operational readiness | Full checks plus 48-hour multi-account soak | Not started |
@@ -134,3 +134,10 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   to preserve that state; MCP remains parked at `b17c14a`. The partial merge
   is not MT5 completion: consent approval, account grants, resource binding,
   revocation, real-client tests and the demo soak remain release gates.
+- 2026-10-05: preserved external PR #2's merge at `21deda8`, then returned the
+  in-progress worktree from `master` to `feature/mt5-sync` and fast-forwarded
+  that feature branch. MCP remains parked. Added active account-bound grants,
+  resource signing hook, immediate revocation and browser consent/management.
+  Local real-provider/Chrome verification now passes, including concurrent
+  authenticated capture uploads. Source capture remains staging-only; no MT5
+  terminal has been attached. See [current foundation report](MT5_FOUNDATION_VERIFICATION.md).

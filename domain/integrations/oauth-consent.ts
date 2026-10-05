@@ -63,3 +63,20 @@ export function safeDenialRedirect(value: unknown, registeredCallback: string): 
 export function consentPath(authorizationId: string): string {
   return `/oauth/consent?authorization_id=${encodeURIComponent(authorizationIdSchema.parse(authorizationId))}`;
 }
+
+/** Approval carries only a provider code to the exact registered callback. */
+export function safeApprovalRedirect(value: unknown, registeredCallback: string): string | null {
+  if (typeof value !== "string" || value.length > 4096) return null;
+  const url = callbackUrl(value);
+  const base = callbackUrl(registeredCallback);
+  if (!url || !base || url.origin !== base.origin || url.pathname !== base.pathname
+    || url.searchParams.getAll("code").length !== 1 || !url.searchParams.get("code")) return null;
+  const allowed = new Set([...base.searchParams.keys(), "code", "state"]);
+  for (const name of url.searchParams.keys()) if (!allowed.has(name)) return null;
+  for (const name of new Set(base.searchParams.keys())) {
+    const expected = base.searchParams.getAll(name);
+    const actual = url.searchParams.getAll(name);
+    if (expected.length !== actual.length || expected.some((item, index) => item !== actual[index])) return null;
+  }
+  return url.href;
+}

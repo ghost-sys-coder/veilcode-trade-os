@@ -1,11 +1,12 @@
 # MT5 Synchronization Implementation Plan
 
-Branch: `feature/mt5-sync`. Status: MT5-0 in progress; not operationally ready.
+Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
+not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
 ## Delivery checklist
 
-- [ ] MT5-0: documentation/branches and authentication compatibility.
+- [x] MT5-0: documentation/branches and local authentication compatibility.
 - [ ] MT5-1: verified actors, shared services, transactional storage/APIs.
 - [ ] MT5-2: source reconstruction, finance, identity migrations and fixtures.
 - [ ] MT5-3: collector, durable recovery and Windows startup.

@@ -72,6 +72,11 @@ describe("Supabase numeric boundary", () => {
 });
 
 describe("currency normalization", () => {
+  it("normalizes negative zero without introducing a break-even tolerance", () => {
+    expect(normalizeMoney("-0.004",2)).toBe("0.00");
+    expect(classifyClosedTradeOutcome("-0.004",2,false)).toBe("BREAK_EVEN");
+    expect(classifyClosedTradeOutcome("-0.005",2,false)).toBe("LOSS");
+  });
   it("uses the account currency precision", () => {
     expect(normalizeMoney("123.5", 0)).toBe("124");
     expect(normalizeMoney("123.4567", 2)).toBe("123.46");

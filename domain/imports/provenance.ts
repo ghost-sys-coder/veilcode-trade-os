@@ -6,6 +6,8 @@ export interface ImportIdentity {
   externalTradeId?: string | null;
   externalOrderId?: string | null;
   externalPositionId?: string | null;
+  sourceConnectionId?: string | null;
+  sourceEpisodeId?: string | null;
   symbol: string;
   direction: TradeDirection;
   openedAt: string;
@@ -19,6 +21,8 @@ export interface ExistingTradeIdentity {
   externalTradeId?: string | null;
   externalOrderId?: string | null;
   externalPositionId?: string | null;
+  sourceConnectionId?: string | null;
+  sourceEpisodeId?: string | null;
   symbol: string;
   direction: TradeDirection;
   openedAt: string | null;
@@ -37,6 +41,13 @@ function identifier(value: string | null | undefined): string | null {
 
 function strongKeys(identity: ImportIdentity | ExistingTradeIdentity): string[] {
   const prefix = `${identity.accountId}:${identity.sourceType}`;
+  if (identity.sourceType === "MT5") {
+    const connection = identifier(identity.sourceConnectionId);
+    const episode = identifier(identity.sourceEpisodeId);
+    // Raw MT5 position/order/deal IDs are provenance, not unique canonical
+    // positions: netting reversals and reopened episodes may reuse them.
+    return connection && episode ? [`${prefix}:connection:${connection}:episode:${episode}`] : [];
+  }
   const trade = identifier(identity.externalTradeId);
   const position = identifier(identity.externalPositionId);
   const order = identifier(identity.externalOrderId);

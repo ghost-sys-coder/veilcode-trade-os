@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { authorizationIdSchema, consentPath, parseConsentRequest, safeDenialRedirect } from "@/domain/integrations/oauth-consent";
+import { authorizationIdSchema, consentPath, parseConsentRequest, safeDenialRedirect, safeApprovalRedirect } from "@/domain/integrations/oauth-consent";
 
 const userId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const authorizationId = "fixture-id";
@@ -14,6 +14,15 @@ const details = {
 };
 
 describe("OAuth consent boundaries", () => {
+  it("approves only code delivery to the exact registered callback", () => {
+    const base = "https://client.example/callback?environment=demo";
+    expect(safeApprovalRedirect(`${base}&code=fixture&state=nonce`, base)).toBe(`${base}&code=fixture&state=nonce`);
+  });
+  it.each([
+    "https://attacker.example/callback?code=fixture", "https://client.example/other?code=fixture",
+    "https://client.example/callback?code=fixture&access_token=secret", "https://client.example/callback?code=fixture&error=access_denied",
+    "https://client.example/callback?code=fixture&code=other", "https://client.example/callback?code=", "https://client.example/callback#code=fixture",
+  ])("rejects unsafe approval %s", (value) => expect(safeApprovalRedirect(value, "https://client.example/callback")).toBeNull());
   it("exposes only validated consent display fields, not raw provider data", () => {
     const request = parseConsentRequest(details, authorizationId, userId);
     expect(request?.scopes).toEqual(["openid", "email"]);

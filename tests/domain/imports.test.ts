@@ -104,4 +104,23 @@ describe("Phase 07 import provenance", () => {
     }]);
     expect(match.kind).toBe("CONFLICT");
   });
+  it("MT5 repeated position/order IDs do not collapse different directional episodes", () => {
+    const trade = { ...incoming,sourceType: "MT5" as const,sourceConnectionId: "connection-1",sourceEpisodeId: "100:1:BUY",
+      externalPositionId: "100",externalOrderId: "42" };
+    expect(classifyImportMatch({ ...trade,sourceEpisodeId: "100:2:SELL",direction: "SELL" },[{ ...trade,id: "episode-1" }]).kind).toBe("NONE");
+    expect(classifyImportMatch(trade,[{ ...trade,id: "episode-1" }]).kind).toBe("DUPLICATE");
+  });
+  it("MT5 reused tickets across connections remain separate even in one account", () => {
+    const trade = { ...incoming,sourceType: "MT5" as const,sourceConnectionId: "connection-1",sourceEpisodeId: "100:1:BUY" };
+    expect(classifyImportMatch({ ...trade,sourceConnectionId: "connection-2",openedAt: "2026-09-02T08:00:00.000Z" },[{ ...trade,id: "episode-1" }]).kind).toBe("NONE");
+  });
+  it("legacy unqualified MT5 IDs yield review conflicts, not automatic duplicate decisions", () => {
+    const trade = { ...incoming,sourceType: "MT5" as const,externalPositionId: "100" };
+    expect(classifyImportMatch(trade,[{ ...trade,id: "legacy-1" }]).kind).toBe("CONFLICT");
+    expect(importDeduplicationKey(trade)).toMatch(/^fallback:/);
+  });
+  it("non-MT5 import sources retain strong raw-position matching", () => {
+    const trade = { ...incoming,sourceType: "MT4" as const,externalTradeId: null,externalPositionId: "100" };
+    expect(classifyImportMatch(trade,[{ ...trade,id: "mt4-1" }])).toMatchObject({ kind: "DUPLICATE",deduplicationKey: "account-1:MT4:position:100" });
+  });
 });

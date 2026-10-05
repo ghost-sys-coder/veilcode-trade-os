@@ -1,7 +1,23 @@
-# Integration foundation: authentication preflight
+# Integration foundation: authentication verification history
 
 Date: 2026-10-05. Branch: `feature/mt5-sync`.
 This is an interim implementation report, not MT5/MCP completion or merge approval.
+
+## Current result (supersedes earlier pending observations below)
+
+Local authentication compatibility now passes: actual provider PKCE rejection
+and exchange, ES256 signature/issuer/resource verification, rotated refresh,
+account-bound grants, immediate application revocation and provider revocation.
+Real Chrome browser consent, account-name selection, login redirect, connected
+client revocation, logout and anonymous/authenticated public-calculator checks
+pass. Approval now has an implementation with PENDING -> provider approval ->
+ACTIVE activation; uncertain/invalid acknowledgements fail closed and revoke.
+
+The historical sections below record earlier stages, not the current feature
+inventory. [The current foundation report](MT5_FOUNDATION_VERIFICATION.md)
+records exact results, source-capture additions and remaining gates. Hosted
+configuration/deployment, actual MT5/MCP clients and the demo soak are not
+verified. No hosted migration, fixture or broker execution was performed.
 
 ## Delivered
 

@@ -1,4 +1,5 @@
 import { Database, FileCheck2, LockKeyhole, Settings2 } from "lucide-react";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Workspace control" title="Settings & data imports" description="Manage journal-local preferences and review the safeguarded path for future broker data." />
+      <Link href="/settings/integrations" className="inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline">Manage integrations & connected clients</Link>
       {query.error ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">{query.error}</p> : null}
       {query.message ? <p role="status" className="rounded-lg border border-profit/25 bg-profit/10 p-4 text-sm text-profit">{query.message}</p> : null}
 

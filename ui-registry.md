@@ -271,3 +271,30 @@ Last updated: 2026-10-05
 Render client metadata as escaped text, not clickable external links or logo
 requests. Approval availability must reflect server-side security readiness;
 a disabled control is never the authorization boundary itself.
+
+The account permission selector uses `h-10 rounded-lg border-input bg-background`
+with an explicit Label and `focus-visible:ring-ring`. Approval and rejection
+share the existing Button primitives; enabled approval is never inferred from
+identity scopes or a hidden form field.
+
+### Connected integration clients
+
+File: `app/(app)/settings/integrations/page.tsx`
+Last updated: 2026-10-05
+
+| Property | Class |
+| --- | --- |
+| Background | Card inherits `bg-card`; operational notice `bg-muted/30` |
+| Border | header `border-b border-border/70`; notice `border-border/70` |
+| Border radius | Card inherits `rounded-xl`; notices `rounded-lg` |
+| Text — primary | `font-semibold`; page header primitive |
+| Text — secondary | `text-xs text-muted-foreground`; identifiers `font-mono` |
+| Spacing | page `space-y-6`; notices `p-4`; register `px-0 pb-0` |
+| Hover state | existing TableRow/Button; navigation `hover:underline` |
+| Shadow | Card inherits `surface-shadow` |
+| Accent usage | `text-primary` icons; active status uses Badge primitive |
+
+**Pattern notes:** Connected-client scope is always visible next to its state.
+Use the account's display name, not its UUID, for account scope. Separate
+application revocation success from a pending provider-credential retry. Empty
+and unavailable states remain distinct; authorization is not terminal health.
