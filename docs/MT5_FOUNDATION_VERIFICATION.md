@@ -2,6 +2,8 @@
 
 Date: 2026-10-05. Branch: `feature/mt5-sync`.
 This is progress toward the complete MT5/MCP plan, not release or merge approval.
+This records the foundation at `e2b7347`; later collection/outbox evidence is in
+[capture and recovery verification](MT5_CAPTURE_RECOVERY_VERIFICATION.md).
 
 ## Delivered and verified
 
@@ -89,10 +91,10 @@ receipts all zero. No fixture was retained in the hosted project or local worksp
 - Capture is staging/provenance only. Canonical transactional commit, identity-index
   migrations, persisted trading credits, shared financial workflows, conflict review,
   symbol mappings and baseline/ledger reconciliation remain to be implemented.
-- Multi-page historical capture needs an explicit collection-completeness manifest
-  before the Python collector advances its authoritative server cursor. Do not treat
-  an uploaded subset of available history as fully synchronized or reconciled.
-- Collector SQLite, renewable credentials in Windows-protected storage, supervision,
+- Multi-page collection manifests and initial collector SQLite are now implemented
+  and tested in the later report. Do not treat complete staging as fully reconciled
+  canonical performance; publishing/onboarding remains pending.
+- Collector HTTP/broker adapters, renewable credentials in Windows-protected storage, supervision,
   startup/recovery, pause/resume/onboarding UI and operational monitoring are pending.
 - No terminal attached, no dedicated installation modified, no broker orders created.
   Dedicated multi-account demo pilot, Windows interruption testing and the required

@@ -18,7 +18,7 @@ export async function captureMt5Batch(context: IntegrationContext, input: unknow
   const data = captureInputSchema.parse(input);
   const result = await context.client.rpc("mt5_capture", { p_resource: context.actor.resource,p_connection_id: data.connectionId,
     p_worker_id: data.workerId,p_fencing_token: data.fencingToken,p_operation_id: data.operationId,
-    p_identity: data.identity,p_checkpoint: data.checkpoint,p_events: data.events });
+    p_identity: data.identity,p_checkpoint: data.checkpoint,p_events: data.events,p_collection: data.collection });
   if (result.error) throw integrationDatabaseError(result.error.code);
   return captureResultSchema.parse(result.data);
 }

@@ -38,6 +38,10 @@ client.on("error", () => {
 
 try {
   await client.connect();
+  // Share the OAuth/browser fixture lock: those checks temporarily configure the
+  // same local resource rows. The session lock survives each suite's rollback
+  // and is released on disconnect, including errors; never race these fixtures.
+  await client.query("select pg_advisory_lock(670051234)");
   for (const suite of suites) {
     const sql = await readFile(new URL(suite, directory), "utf8");
     if (!/^\s*begin\s*;/i.test(sql) || !/rollback\s*;\s*$/i.test(sql)) {

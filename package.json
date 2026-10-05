@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "node scripts/run-db-tests.mjs",
+    "test:mt5-python": "node scripts/run-mt5-python.mjs",
+    "check:mt5-python": "node scripts/run-mt5-python.mjs --check",
     "prepare:local-auth": "node scripts/prepare-local-auth.mjs",
     "prepare:local-db": "node scripts/prepare-local-database.mjs",
     "replay:local-db": "node scripts/replay-local-test-database.mjs",

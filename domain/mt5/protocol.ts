@@ -2,8 +2,10 @@ import { z } from "zod";
 import { mt5IdentitySchema, mt5SourceEventSchema, utcInstant } from "@/domain/mt5/source";
 
 export const leaseInputSchema = z.object({ connectionId: z.string().uuid(),workerId: z.string().uuid(),operationId: z.string().uuid() }).strict();
+export const collectionSchema = z.object({ id: z.string().uuid(),index: z.number().int().min(0),count: z.number().int().min(1).max(100_000) }).strict()
+  .refine(value => value.index < value.count,{ message: "Collection index must be below its batch count" });
 export const captureInputSchema = leaseInputSchema.extend({ fencingToken: z.string().regex(/^[1-9][0-9]*$/),
-  identity: mt5IdentitySchema,checkpoint: utcInstant,events: z.array(mt5SourceEventSchema).max(200) }).strict()
+  identity: mt5IdentitySchema,checkpoint: utcInstant,collection: collectionSchema,events: z.array(mt5SourceEventSchema).max(200) }).strict()
   .superRefine((batch,context) => {
     const keys = batch.events.map(event => `${event.kind}:${event.sourceId}`);
     if (new Set(keys).size !== keys.length) context.addIssue({ code: "custom",message: "Duplicate source keys in capture batch" });
@@ -12,7 +14,8 @@ export const registerConnectionSchema = z.object({ grantId: z.string().uuid(),op
 const responseInstant = z.iso.datetime({ offset: true }).transform(value => new Date(value).toISOString());
 export const leaseResultSchema = z.object({ connectionId: z.string().uuid(),fencingToken: z.string().regex(/^[1-9][0-9]*$/),leaseExpiresAt: responseInstant });
 export const captureResultSchema = z.discriminatedUnion("status",[
-  z.object({ connectionId: z.string().uuid(),status: z.literal("STAGED"),revisionCount: z.number().int().nonnegative(),checkpoint: responseInstant,reviewCount: z.number().int().nonnegative() }),
+  z.object({ connectionId: z.string().uuid(),status: z.literal("STAGED"),revisionCount: z.number().int().nonnegative(),checkpoint: responseInstant.nullable(),
+    collectionId: z.string().uuid(),collectionComplete: z.boolean(),receivedBatchCount: z.number().int().nonnegative(),reviewCount: z.number().int().nonnegative() }),
   z.object({ connectionId: z.string().uuid(),status: z.literal("ATTENTION"),code: z.literal("MT5_ACCOUNT_IDENTITY_MISMATCH") }),
 ]);
 export const registrationResultSchema = z.object({ connectionId: z.string().uuid(),version: z.string().regex(/^[1-9][0-9]*$/),status: z.literal("ONBOARDING") });

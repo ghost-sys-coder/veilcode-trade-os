@@ -22,7 +22,8 @@ select is(
      and p.oid not in ('private.authorize_integration(text,text)'::regprocedure,
        'private.integration_access_token_hook(jsonb)'::regprocedure,
        'private.mt5_acquire_lease(text,uuid,uuid,uuid)'::regprocedure,
-       'private.mt5_capture(text,uuid,uuid,text,uuid,jsonb,text,jsonb)'::regprocedure)),
+       'private.mt5_capture(text,uuid,uuid,text,uuid,jsonb,text,jsonb,jsonb)'::regprocedure,
+       'private.get_integration_operation(text,text,uuid)'::regprocedure)),
   0, 'non-trigger private security-definer workflows cannot bypass OAuth isolation'
 );
 

@@ -65,7 +65,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally: real provider, signed tokens and browser; hosted configuration/deployment unverified |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures pass; canonical commit/identity migrations pending |
-| MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | Not started |
+| MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: strict source boundaries and SQLite recovery tests pass; HTTP/broker adapter, credentials and Windows supervision pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | Not started |
 | MT5-5 | Operational readiness | Full checks plus 48-hour multi-account soak | Not started |
 | MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
@@ -141,3 +141,10 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   Local real-provider/Chrome verification now passes, including concurrent
   authenticated capture uploads. Source capture remains staging-only; no MT5
   terminal has been attached. See [current foundation report](MT5_FOUNDATION_VERIFICATION.md).
+- 2026-10-05: added frozen multi-batch manifests, immutable slots and authenticated
+  operation-status lookup. Server checkpoints cannot advance on incomplete collections,
+  even when the final index arrives first. Added the Python account-bound SQLite
+  outbox, exact durable upload envelopes and fenced uncertain-upload recovery.
+  Verified 282 application tests, 228 database assertions, 27 browser/API checks and
+  30 Python tests plus static checks; no broker terminal or hosted project changed.
+  See [capture/recovery report](MT5_CAPTURE_RECOVERY_VERIFICATION.md).

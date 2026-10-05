@@ -1,6 +1,8 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(37);
+create function pg_temp.capture(r text,c uuid,w uuid,f text,o uuid,i jsonb,t text,e jsonb) returns jsonb
+language sql security invoker as $$ select public.mt5_capture(r,c,w,f,o,i,t,e,jsonb_build_object('id',o,'index',0,'count',1)); $$;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
   'capture-fixture@example.test','fixture-only','{}','{}',now(),now());
@@ -44,19 +46,19 @@ select lives_ok($$select public.mt5_acquire_lease('https://trade.example/api/int
 select throws_ok($$select public.mt5_acquire_lease('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '44444444-4444-4444-8444-444444444444','00000000-0000-4000-8000-000000000004')$$,
   '55P03','Collector lease is held.','replacement worker cannot compete with an active collector');
-select throws_ok($$select public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select throws_ok($$select pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','0','00000000-0000-4000-8000-000000000005',current_setting('mt5.fixture_identity')::jsonb,'2026-01-01T00:00:01.000Z',current_setting('mt5.fixture_event')::jsonb)$$,
   '55000','Collector lease is stale.','stale fencing token cannot upload');
-select lives_ok($$select public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select lives_ok($$select pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','1','00000000-0000-4000-8000-000000000005',current_setting('mt5.fixture_identity')::jsonb,'2026-01-01T00:00:01.000Z',current_setting('mt5.fixture_event')::jsonb)$$,'source facts and checkpoint commit with a durable receipt');
-select lives_ok($$select public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select lives_ok($$select pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','1','00000000-0000-4000-8000-000000000005',current_setting('mt5.fixture_identity')::jsonb,'2026-01-01T00:00:01.000Z',current_setting('mt5.fixture_event')::jsonb)$$,'lost upload acknowledgement causes no duplicate effect');
 reset role;
 select is((select count(*)::integer from private.mt5_source_revisions),1,'replay preserves one source revision');
 select is((select capture_checkpoint from private.mt5_connections),'2026-01-01T00:00:01.000Z'::timestamptz,'checkpoint advances only with committed staging');
 select is((select count(*)::integer from public.trades),0,'staging never publishes premature canonical realized performance');
 set local role authenticated;
-select throws_ok($$select public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select throws_ok($$select pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','1','00000000-0000-4000-8000-000000000006',current_setting('mt5.fixture_identity')::jsonb,'2026-01-02T00:00:01.000Z',
   jsonb_set(jsonb_set(current_setting('mt5.fixture_event')::jsonb,'{0,sourceId}','"12"'),'{0,payload,ticket}','"12"')
   || '[{"kind":"DEAL","sourceId":"11","observedAt":"2026-01-01T00:00:01.000Z","payload":{}}]'::jsonb)$$,
@@ -66,7 +68,7 @@ select is((select count(*)::integer from private.integration_operations),3,'fail
 select is((select count(*)::integer from private.mt5_source_revisions),1,'invalid later event rolls back the previously inserted valid event');
 select is((select capture_checkpoint from private.mt5_connections),'2026-01-01T00:00:01.000Z'::timestamptz,'failed batch cannot advance the checkpoint');
 set local role authenticated;
-select lives_ok($$select public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select lives_ok($$select pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','1','00000000-0000-4000-8000-000000000006',current_setting('mt5.fixture_identity')::jsonb,'2026-01-02T00:00:01.000Z',
   jsonb_set(jsonb_set(current_setting('mt5.fixture_event')::jsonb,'{0,payload,commission}','"-3"'),'{0,observedAt}','"2026-01-02T00:00:01.000Z"'))$$,
   'corrected broker financial fact creates an audited revision');
@@ -79,10 +81,10 @@ update private.mt5_connections set lease_expires_at=clock_timestamp()-interval '
 set local role authenticated;
 select lives_ok($$select public.mt5_acquire_lease('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '44444444-4444-4444-8444-444444444444','00000000-0000-4000-8000-000000000007')$$,'replacement can take over only after lease expiry');
-select throws_ok($$select public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select throws_ok($$select pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','1','00000000-0000-4000-8000-000000000008',current_setting('mt5.fixture_identity')::jsonb,'2026-01-03T00:00:00.000Z','[]')$$,
   '55000','Collector lease is stale.','old laptop worker cannot write after replacement takeover');
-select is(public.mt5_capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
+select is(pg_temp.capture('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '44444444-4444-4444-8444-444444444444','2','00000000-0000-4000-8000-000000000009',
   jsonb_set(current_setting('mt5.fixture_identity')::jsonb,'{login}','"99999"'),'2026-01-03T00:00:00.000Z','[]')->>'status','ATTENTION',
   'unexpected account switching durably pauses instead of redirecting');
@@ -95,7 +97,7 @@ set local role authenticated;
 select throws_ok($$select public.mt5_acquire_lease('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,gen_random_uuid(),gen_random_uuid())$$,
   '42501','Integration access denied.','ordinary browser token cannot impersonate a collector');
 reset role;
-select ok(not has_function_privilege('anon','public.mt5_capture(text,uuid,uuid,text,uuid,jsonb,text,jsonb)','EXECUTE'),'anonymous source capture is forbidden');
+select ok(not has_function_privilege('anon','public.mt5_capture(text,uuid,uuid,text,uuid,jsonb,text,jsonb,jsonb)','EXECUTE'),'anonymous source capture is forbidden');
 select is(private.mt5_event_valid('{"kind":"POSITION","sourceId":"100","observedAt":"2026-01-01T00:00:00.000Z","payload":{"positionId":"100","ticket":"10","symbol":"EURUSD","direction":null,"volume":"1","entryPrice":"1.1","currentStop":null,"currentTarget":null,"unrealizedPnl":"0","observedAt":"2026-01-01T00:00:00.000Z"}}'::jsonb),false,
   'direct RPC source validation rejects a null position direction');
 insert into public.trading_accounts(user_id,name,account_type,currency_code,currency_precision,starting_balance)
@@ -112,6 +114,8 @@ set local role authenticated;
 select throws_ok($$select public.mt5_acquire_lease('https://trade.example/api/integrations/v1',current_setting('mt5.fixture_connection')::uuid,
   '33333333-3333-4333-8333-333333333333','00000000-0000-4000-8000-000000000003')$$,
   '42501','Operation scope denied.','rebound grants cannot retrieve old-account receipts');
+select throws_ok($$select public.get_integration_operation('https://trade.example/api/integrations/v1','MT5','00000000-0000-4000-8000-000000000005')$$,
+  '42501','Operation scope denied.','operation lookup cannot disclose a previous account after grant rebinding');
 reset role;
 select * from finish();
 rollback;

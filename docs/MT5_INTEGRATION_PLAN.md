@@ -118,6 +118,14 @@ Incomplete history or unresolved financial effects are never called reconciled.
 SQLite stores account-scoped captured events and pending uploads. Server
 checkpoints advance only after durable commit; unresolved rows must be
 durably staged before progression. Lost acknowledgements cause safe replay.
+The capture protocol now requires `collection: { id, index, count }` on every
+batch (zero-based index, count 1..100000, at most 200 events per batch). The
+collection checkpoint/count are frozen; an immutable slot is committed with
+its source facts, receipt and audit. Only all declared slots advance the
+server checkpoint. An original receipt is never rewritten after completion.
+Operation lookup returns COMMITTED with that original result, or UNKNOWN at
+the lookup's transactional observation. Unknown alone never authorizes a new
+operation: recovery first needs a new server fence preventing old writes.
 Reconnect, verify identity, replay uploads, retrieve overlapping history,
 reconcile positions, then resume polling.
 

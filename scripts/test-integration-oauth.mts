@@ -210,6 +210,7 @@ try {
     passed("the signed MT5 client obtains only its explicitly mapped connection lease");
     const observedAt = new Date().toISOString();
     const batch = { connectionId,workerId,operationId: randomUUID(),fencingToken: lease.fencingToken,identity,checkpoint: observedAt,
+      collection: { id: randomUUID(),index: 2,count: 3 },
       events: [{ kind: "DEAL",sourceId: "10",observedAt,payload: { ticket: "10",orderId: "10",positionId: "100",symbol: "EURUSD",type: "BUY",entry: "IN",
         occurredAt: "2026-01-01T00:00:00.000Z",volume: "1",price: "1.1",profit: "0",commission: "-2",swap: "0",fee: "0" } }] };
     async function capture(payload: unknown) {
@@ -219,10 +220,31 @@ try {
     const [first,concurrent] = await Promise.all([capture(batch),capture(batch)]);
     assert.equal(first.status,200); assert.deepEqual(concurrent,first);
     assert.equal(first.data.status,"STAGED"); assert.equal(first.data.revisionCount,1);
+    assert.equal(first.data.collectionComplete,false); assert.equal(first.data.checkpoint,null);
     const acknowledgementReplay = await capture(batch); assert.deepEqual(acknowledgementReplay,first);
     const durable = await database.query("select (select count(*)::integer from private.mt5_source_revisions where connection_id=$1) as revisions,(select count(*)::integer from private.integration_operations where owner_id=$2 and operation_kind='MT5_CAPTURE') as operations",[connectionId,fixtureUser]);
     assert.deepEqual(durable.rows[0],{ revisions: 1,operations: 1 });
     passed("concurrent HTTP uploads and lost acknowledgements have exactly one durable effect");
+    const newerCheckpoint = new Date(Date.parse(observedAt)+1).toISOString();
+    const newer = await capture({ ...batch,operationId: randomUUID(),checkpoint: newerCheckpoint,
+      collection: { id: randomUUID(),index: 0,count: 1 },events: [] });
+    assert.equal(newer.status,200); assert.equal(newer.data.collectionComplete,true); assert.equal(newer.data.checkpoint,null);
+    passed("a complete newer HTTP collection cannot advance across older missing batches");
+    const remaining = await Promise.all([0,1].map(index => capture({ ...batch,operationId: randomUUID(),collection: { ...batch.collection,index },events: [] })));
+    assert(remaining.every(response => response.status === 200));
+    assert.equal(remaining.filter(response => response.data.collectionComplete === true).length,1);
+    const checkpoint = await database.query("select capture_checkpoint,(select count(*)::integer from private.mt5_capture_batches where connection_id=$1) as batches from private.mt5_connections where id=$1",[connectionId]);
+    assert.equal(checkpoint.rows[0].capture_checkpoint.toISOString(),newerCheckpoint); assert.equal(checkpoint.rows[0].batches,4);
+    assert.deepEqual(await capture(batch),first);
+    passed("out-of-order concurrent collection uploads advance checkpoints only after every slot commits");
+    const operation = await fetch(`${uiOrigin}/api/integrations/v1/operations/${batch.operationId}`,{ headers,signal: AbortSignal.timeout(10_000) });
+    assert.equal(operation.status,200);
+    const receipt = await operation.json() as { status: string; result: unknown };
+    assert.equal(receipt.status,"COMMITTED"); assert.deepEqual(receipt.result,first.data);
+    assert.equal(operation.headers.get("Cache-Control"),"no-store");
+    const unknownOperation = await fetch(`${uiOrigin}/api/integrations/v1/operations/${randomUUID()}`,{ headers,signal: AbortSignal.timeout(10_000) });
+    assert.equal(unknownOperation.status,200); assert.equal((await unknownOperation.json() as { status: string }).status,"UNKNOWN");
+    passed("authenticated operation lookup distinguishes durable original receipts from unknown operations");
     const changed = await capture({ ...batch,checkpoint: "2026-01-01T00:00:00.000Z" });
     assert.equal(changed.status,409); assert.equal(changed.data.error,"OPERATION_CONFLICT");
     passed("changed HTTP payloads using an existing operation ID are rejected");
@@ -294,6 +316,9 @@ try {
       // This is never a normal application/audit deletion workflow.
       await database.query("begin");
       await database.query("set local session_replication_role = replica");
+      await database.query("delete from private.mt5_capture_progress where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_capture_batches where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.mt5_capture_collections where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_source_facts where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_source_revisions where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_connections where owner_id=$1",[fixtureUser]);

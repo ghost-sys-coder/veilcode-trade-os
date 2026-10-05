@@ -103,6 +103,13 @@ example.test user/client and removes only their local fixtures. It never saves
 browser credentials or prints provider tokens. Screenshots go to ignored
 `.artifacts/integration-tests`. Do not run parallel fixture runners: they share
 an advisory lock protecting temporary local resource configuration.
+The SQL-suite runner now shares that same session lock, held across rollback-isolated
+suites and released on disconnect. Migration replay still requires an empty database
+and must precede fixture execution, never run alongside a browser runner.
+
+Python foundations have separate `npm run test:mt5-python` and
+`npm run check:mt5-python` checks. See the
+[project-local tooling and outbox contract](../integrations/mt5/README.md).
 
 ## PostgreSQL permission-hint crash workaround
 
