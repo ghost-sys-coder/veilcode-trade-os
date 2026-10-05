@@ -16,12 +16,30 @@ from test_uploader import FakeApi
 from trade_os_mt5.broker import BrokerError, ReadOnlyTerminal, TerminalBinding
 from trade_os_mt5.oauth import OAuthConfiguration
 from trade_os_mt5.outbox import Binding, Outbox, OutboxError
-from trade_os_mt5.supervisor import SupervisorError, _run_process, supervised_capture, supervised_upload
+from trade_os_mt5.supervisor import (
+    SupervisorError,
+    _run_process,
+    _worker_command,
+    supervised_capture,
+    supervised_upload,
+)
 from trade_os_mt5.windows_process import ProcessProtectionError
 from trade_os_mt5.worker import perform
 
 
 class ProcessBoundaryTests(unittest.TestCase):
+    def test_hidden_coordinator_uses_sibling_console_worker_for_protocol(self):
+        interpreter = Path(sys.executable).resolve()
+        with patch("trade_os_mt5.supervisor.sys.executable", str(interpreter.with_name("pythonw.exe"))):
+            command = _worker_command()
+            result = _run_process(
+                command[:1] + ["-c", "import json,sys; print(json.dumps(json.load(sys.stdin)))"],
+                {"kind": "OK"},
+                timeout=5,
+            )
+        self.assertEqual(Path(command[0]).name.lower(), "python.exe")
+        self.assertEqual(result, {"kind": "OK"})
+
     def child(self, code, payload=None, timeout=5):
         return _run_process([sys.executable, "-c", code], payload or {}, timeout=timeout)
 
