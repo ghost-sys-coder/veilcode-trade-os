@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "node scripts/run-db-tests.mjs",
+    "check:integration-auth": "node --experimental-strip-types scripts/check-integration-auth.mts",
     "db:types": "node scripts/generate-database-types.mjs",
     "test:watch": "vitest"
   },

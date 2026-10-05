@@ -7,6 +7,12 @@ describe("safeInternalRedirect", () => {
     expect(safeInternalRedirect("/trades/new?from=position-calculator")).toBe("/trades/new?from=position-calculator");
   });
 
+  it("preserves an OAuth consent request across login without permitting an external destination", () => {
+    const consent = "/oauth/consent?authorization_id=fixture-id";
+    expect(safePostAuthRedirect(consent)).toBe(consent);
+    expect(safePostAuthRedirect("//attacker.example/oauth/consent")).toBe("/dashboard");
+  });
+
   it("rejects external and protocol-relative destinations", () => {
     expect(safeInternalRedirect("https://example.com/steal")).toBe("/dashboard");
     expect(safeInternalRedirect("//example.com/steal")).toBe("/dashboard");
