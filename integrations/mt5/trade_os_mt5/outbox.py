@@ -79,7 +79,7 @@ class Outbox:
             if self.db.execute("pragma quick_check").fetchone()[0] != "ok":
                 raise OutboxError("Outbox requires integrity recovery")
             version = self.db.execute("pragma user_version").fetchone()[0]
-            if version not in (0, 1):
+            if version not in (0, 1, 2):
                 raise OutboxError("Unsupported outbox version")
             with self._transaction():
                 self.db.execute("""create table if not exists binding (
@@ -99,6 +99,9 @@ class Outbox:
                     envelope_json text not null,envelope_hash text not null,
                     receipt_json text,superseded integer not null default 0 check(superseded in (0,1)),
                     foreign key(collection_id,batch_index) references pages(collection_id,batch_index))""")
+                self.db.execute("""create table if not exists lease_attempts (
+                    sequence integer primary key,operation_id text not null unique,worker_id text not null,
+                    envelope_json text not null,envelope_hash text not null,receipt_json text)""")
                 row = self.db.execute("select * from binding").fetchone()
                 values = (self.binding.owner_id, self.binding.account_id, self.binding.connection_id)
                 if row is None:
@@ -107,7 +110,7 @@ class Outbox:
                     )
                 elif tuple(row[key] for key in ("owner_id", "account_id", "connection_id")) != values:
                     raise OutboxError("Outbox account mapping mismatch")
-                self.db.execute("pragma user_version=1")
+                self.db.execute("pragma user_version=2")
         except BaseException:
             self.db.close()
             raise
@@ -218,6 +221,56 @@ class Outbox:
                 ),
             )
             return envelope
+
+    def uncertain_attempt(self) -> dict[str, Any] | None:
+        """Read the oldest pending page's existing envelope for authenticated lookup."""
+        attempt = self.db.execute("""select a.* from (
+            select p.collection_id,p.batch_index from pages p join collections c on c.id=p.collection_id
+            where p.acknowledged=0 order by c.sequence,p.batch_index limit 1
+            ) oldest join attempts a on a.collection_id=oldest.collection_id and a.batch_index=oldest.batch_index
+            where a.superseded=0 order by a.sequence desc limit 1""").fetchone()
+        if attempt is None:
+            return None
+        if sha256(attempt["envelope_json"].encode()).hexdigest() != attempt["envelope_hash"]:
+            raise OutboxError("Outbox attempt integrity mismatch")
+        return json.loads(attempt["envelope_json"])
+
+    def prepare_lease(self, worker_id: str) -> dict[str, Any]:
+        worker_id = _uuid(worker_id)
+        with self._transaction():
+            prior = self.db.execute(
+                "select * from lease_attempts where worker_id=? and receipt_json is null order by sequence limit 1",
+                (worker_id,),
+            ).fetchone()
+            if prior is not None:
+                if sha256(prior["envelope_json"].encode()).hexdigest() != prior["envelope_hash"]:
+                    raise OutboxError("Outbox lease integrity mismatch")
+                return json.loads(prior["envelope_json"])
+            request = {"connectionId": self.binding.connection_id, "workerId": worker_id, "operationId": str(uuid4())}
+            serialized = _json(request)
+            self.db.execute(
+                "insert into lease_attempts(operation_id,worker_id,envelope_json,envelope_hash) values(?,?,?,?)",
+                (request["operationId"], worker_id, serialized, sha256(serialized.encode()).hexdigest()),
+            )
+            return request
+
+    def acknowledge_lease(self, operation_id: str, result: dict[str, Any]) -> None:
+        operation_id = _uuid(operation_id)
+        if (
+            not isinstance(result, dict)
+            or set(result) != {"connectionId", "fencingToken", "leaseExpiresAt"}
+            or result["connectionId"] != self.binding.connection_id
+            or not isinstance(result["fencingToken"], str)
+            or not re.fullmatch(r"[1-9][0-9]*", result["fencingToken"])
+        ):
+            raise OutboxError("Invalid lease acknowledgement")
+        _instant(result["leaseExpiresAt"])
+        encoded = _json(result)
+        with self._transaction():
+            prior = self.db.execute("select * from lease_attempts where operation_id=?", (operation_id,)).fetchone()
+            if prior is None or (prior["receipt_json"] is not None and prior["receipt_json"] != encoded):
+                raise OutboxError("Conflicting lease acknowledgement")
+            self.db.execute("update lease_attempts set receipt_json=? where operation_id=?", (encoded, operation_id))
 
     def acknowledge(self, operation_id: str, result: dict[str, Any]) -> None:
         operation_id = _uuid(operation_id)

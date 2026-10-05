@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
@@ -23,6 +23,7 @@ let page: Page | undefined;
 const withBrowser = process.argv.includes("--browser");
 const uiOrigin = "http://127.0.0.1:3100";
 const artifactDirectory = fileURLToPath(new URL("../.artifacts/integration-tests/", import.meta.url));
+const pythonSpool = fileURLToPath(new URL(`../.artifacts/integration-tests/python-${randomUUID()}.sqlite3`, import.meta.url));
 let pageErrors = 0;
 function passed(message: string) { checks++; console.log(`PASS ${checks}: ${message}`); }
 try {
@@ -251,10 +252,52 @@ try {
     const stale = await capture({ ...batch,operationId: randomUUID(),fencingToken: "2" });
     assert.equal(stale.status,409); assert.equal(stale.data.error,"COLLECTOR_REQUIRES_ATTENTION");
     passed("stale HTTP fencing tokens cannot produce writes");
-    const switched = await capture({ ...batch,operationId: randomUUID(),identity: { ...identity,login: "98765" } });
+    stage = "real Python fenced upload recovery";
+    async function expireFixtureLease() {
+      const expired = await database!.query("update private.mt5_connections set lease_expires_at=clock_timestamp()-interval '1 second' where id=$1 and owner_id=$2",[connectionId,fixtureUser]);
+      assert.equal(expired.rowCount,1);
+    }
+    function pythonFixture(action: string, pythonWorker: string, ticket?: string) {
+      const input = { origin: uiOrigin,ownerId: fixtureUser,accountId: accountResult.data!.id,connectionId,identity,
+        spoolPath: pythonSpool,workerId: pythonWorker,accessToken: tokens.access_token,action,
+        checkpoint: new Date().toISOString(),event: ticket ? { ...batch.events[0],sourceId: ticket,
+          payload: { ...batch.events[0].payload,ticket,orderId: ticket,positionId: ticket+"0" } } : undefined };
+      const output = execFileSync("python",["-m","trade_os_mt5.verify_local_api"],{
+        cwd: fileURLToPath(new URL("..",import.meta.url)),
+        env: { ...process.env,PYTHONPATH: fileURLToPath(new URL("../integrations/mt5",import.meta.url)) },
+        input: JSON.stringify(input),encoding: "utf8",stdio: ["pipe","pipe","pipe"],timeout: 60_000,
+      });
+      return JSON.parse(output) as { pending: number; operationId: string; serverCheckpoint: string | null };
+    }
+    async function captureOperationCount(operationId: string) {
+      return (await database!.query("select count(*)::integer as count from private.integration_operations where owner_id=$1 and operation_id=$2 and operation_kind='MT5_CAPTURE'",[fixtureUser,operationId])).rows[0].count as number;
+    }
+    await expireFixtureLease();
+    const lostAck = pythonFixture("capture_lost_ack",randomUUID(),"20");
+    assert.equal(lostAck.pending,1); assert.equal(await captureOperationCount(lostAck.operationId),1);
+    await expireFixtureLease();
+    const replacementWorker = randomUUID();
+    const committedRecovery = pythonFixture("recover",replacementWorker);
+    assert.equal(committedRecovery.pending,0); assert.equal(await captureOperationCount(lostAck.operationId),1);
+    assert(committedRecovery.serverCheckpoint);
+    passed("real Python restart recovers a committed lost acknowledgement under a newer lease without another capture");
+    const uncommitted = pythonFixture("prepare_uncommitted",replacementWorker,"30");
+    assert.equal(uncommitted.pending,1); assert.equal(await captureOperationCount(uncommitted.operationId),0);
+    await expireFixtureLease();
+    const unknownRecovery = pythonFixture("recover",randomUUID());
+    assert.equal(unknownRecovery.pending,0); assert.equal(await captureOperationCount(uncommitted.operationId),0);
+    const pythonEffects = await database.query("select source_id,count(*)::integer as revisions from private.mt5_source_revisions where connection_id=$1 and source_id in ('20','30') group by source_id order by source_id",[connectionId]);
+    assert.deepEqual(pythonEffects.rows,[{ source_id: "20",revisions: 1 },{ source_id: "30",revisions: 1 }]);
+    passed("real Python recovery replaces an uncommitted request only after fenced UNKNOWN lookup and stages its source exactly once");
+    await expireFixtureLease();
+    const resumedLeaseResponse = await fetch(`${uiOrigin}/api/integrations/v1/mt5/lease`,{ method: "POST",headers,
+      body: JSON.stringify({ connectionId,workerId,operationId: randomUUID() }),signal: AbortSignal.timeout(10_000) });
+    assert.equal(resumedLeaseResponse.status,200);
+    const resumedLease = await resumedLeaseResponse.json() as { fencingToken: string };
+    const switched = await capture({ ...batch,operationId: randomUUID(),fencingToken: resumedLease.fencingToken,identity: { ...identity,login: "98765" } });
     assert.equal(switched.status,409); assert.equal(switched.data.status,"ATTENTION");
     const paused = await database.query("select status,(select count(*)::integer from private.mt5_source_revisions where connection_id=$1) as revisions from private.mt5_connections where id=$1",[connectionId]);
-    assert.deepEqual(paused.rows[0],{ status: "ATTENTION",revisions: 1 });
+    assert.deepEqual(paused.rows[0],{ status: "ATTENTION",revisions: 3 });
     passed("an unexpected account switch pauses the HTTP connection without importing wrong-account facts");
   }
   const forbidden = await integration.from("trading_accounts").select("id");
@@ -304,12 +347,15 @@ try {
     assert.equal(pageErrors,0);
     passed("browser logout protects the workspace and no uncaught client runtime errors occurred");
   }
-  console.log(`Local OAuth gate: ${checks} checks passed. ${withBrowser ? "Local browser consent/regression verified;" : "Browser coverage pending;"} real MT5/MCP clients verified separately.`);
+  console.log(`Local OAuth gate: ${checks} checks passed. ${withBrowser ? "Local browser consent/regression verified;" : "Browser coverage pending;"} actual MT5 terminal and MCP clients pending separate verification.`);
 } catch {
   console.error(`FAIL: local OAuth gate at ${stage}. Provider responses and credentials suppressed.`);
   process.exitCode = 1;
 } finally {
   await browserUi?.close();
+  // Only this runner's explicit UUID-named disposable spool, never a directory.
+  assert(pythonSpool.startsWith(artifactDirectory) && /^python-[0-9a-f-]+\.sqlite3$/.test(pythonSpool.slice(artifactDirectory.length)));
+  for (const suffix of ["","-wal","-shm"]) await rm(pythonSpool+suffix,{ force: true });
   try {
     if (database && fixtureUser) {
       // Disposable fixture cleanup is session-local and exact-owner scoped.

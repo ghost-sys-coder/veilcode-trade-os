@@ -2,6 +2,9 @@
 
 Date: 2026-10-05. Branch: `feature/mt5-sync`. Builds on foundation `e2b7347`.
 This is milestone progress, not MT5/MCP completion or permission to merge/enable.
+Later HTTP-uploader and terminal-reader verification is recorded in
+[the transport/reader report](MT5_TRANSPORT_READER_VERIFICATION.md); the pending
+items below describe this earlier checkpoint.
 
 ## Delivered
 
