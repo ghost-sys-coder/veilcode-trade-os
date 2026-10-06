@@ -151,3 +151,30 @@ readiness PASS. Existing grant/session authorization, private database isolation
 provider revocation and MFA behavior were not changed. Hosted rollout and restored
 pilot credentials still require separate evidence below. The user's mapped-screen
 reference remains local and is excluded from Vercel deployment uploads.
+
+### Hosted logout rollout
+
+Implementation commit `4682848` was pushed on `feature/mt5-sync`. The production
+candidate was built with unchanged production configuration using
+`vercel deploy --prod --skip-domain --yes --non-interactive --meta tradeOsRollout=browser-local-logout`.
+`vercel inspect https://trade-lebod7n06-ghostsyscoders-projects.vercel.app`
+confirmed READY deployment `dpl_5DDGBdDVhF8jWYjbKzfFBoyP9NKH` (Next.js 16.3.6).
+Eight bounded staged checks through `vercel curl` passed: public calculator,
+login, consent, protected settings redirect, public resource discovery, denied
+anonymous session/capture, and 404 for the user's local reference screenshot.
+Deployment protection was not disabled.
+
+`vercel promote https://trade-lebod7n06-ghostsyscoders-projects.vercel.app --yes --non-interactive`
+succeeded. The seven bounded live-domain checks and private-schema exposure check
+passed again (private schema HTTP 406 / PGRST106). A bounded error-only log scan
+using `vercel logs dpl_5DDGBdDVhF8jWYjbKzfFBoyP9NKH --no-follow --no-branch --level error --since 10m --limit 50 --json --non-interactive`
+succeeded with zero error records; private log bodies were suppressed.
+Rollback target is `dpl_Ej1pHWqGCaAfZCdEv2ntz1kF8gcQ`.
+
+The read-only hosted checkpoint still showed ACTIVE grant version 2, correct demo
+mapping, zero OAuth sessions and zero source facts. The old cached token and its
+refresh were both confirmed rejected, then only the local protected credential
+was marked REAUTH_REQUIRED. `authorize_pilot.py` opened genuine browser
+authorization again for the selected account. Approval/restored-session evidence
+is pending; this is not an additional mapping or publication approval. Collector
+stays PAUSED, existing baseline unchanged, and MCP disabled.
