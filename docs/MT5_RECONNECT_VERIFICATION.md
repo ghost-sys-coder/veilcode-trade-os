@@ -98,9 +98,66 @@ errors occurred. The existing Node module-type warning remains non-fatal.
 No issues found in the scoped automated review. Hosted reconnection remains a
 separate operational verification, not an inferred pass from unit fixtures.
 
+## Hosted rollout and real reconnect
+
+Source `d95be83` was pushed on `feature/mt5-sync`. The candidate built successfully
+using `vercel deploy --prod --skip-domain --yes --non-interactive --meta tradeOsRollout=verified-grant-reconnect`.
+`vercel inspect https://trade-opss3am8j-ghostsyscoders-projects.vercel.app`
+confirmed READY deployment `dpl_xeZLyn4cSf4wxdeRJxfiJotGKM7S` (Next.js 16.3.6).
+All eight staged checks through protected-deployment `vercel curl` passed;
+deployment protection was not disabled and the user's reference screenshot
+remained unavailable publicly (404).
+
+`vercel promote https://trade-opss3am8j-ghostsyscoders-projects.vercel.app --yes --non-interactive`
+succeeded. The seven live public/security checks and private-schema 406/PGRST106
+check passed again. A bounded error-only ten-minute log scan succeeded with zero
+error records; log bodies were suppressed. Rollback target is
+`dpl_5DDGBdDVhF8jWYjbKzfFBoyP9NKH`.
+
+The real `authorize_pilot.py` exited 0: existing browser/provider consent resumed
+the selected account, performed S256 exchange, verified live account/client/grant
+binding and saved READY credentials with Windows protection. No user revocation,
+new account selection, administrative consent mutation or fake token was used.
+
+Read-only before/after hosted evidence: ACTIVE grant version 2, five grant audit
+events and the original ONBOARDING mapping version 1 all remained unchanged.
+OAuth session count changed from 0 to 1. Source facts and published trades stayed
+0, and opening baseline stayed 100000.00. Actual hosted refresh/signature/resource/
+isolation checks (`run_hosted_auth_check.mjs refresh`) passed all seven again.
+
+Normal browser login/logout was previously confirmed by the user; post-fix logout
+isolation and refresh were tested against the real local provider/browser. A
+separate post-fix hosted browser logout was not performed or claimed. The collector
+still checks live authorization on every operation and remains stopped until the
+explicitly mapped, account-bound one-shot staging helper is invoked.
+
 ## Pending operational gates
 
-Hosted reconnection, available-history staging, source-backed financial review,
-publication approval, unattended startup and the full MT5 release gate are not
-completed by these automated tests. MCP remains disabled. No demo-soak or
-real-client coverage is claimed without corresponding evidence.
+Hosted reconnection and one-shot history staging are verified below. Source-backed
+financial review, publication approval, unattended startup and the full MT5
+release gate remain pending. MCP remains disabled. No demo-soak or real-client
+coverage is claimed without corresponding evidence.
+
+## Actual demo history staging
+
+After restored live authorization and the approved browser mapping were verified,
+`capture_pilot_once.py` exited 0. It verified binding and acquired a fenced server
+lease before reading the approved dedicated demo terminal. The actual supervised
+reader retrieved all broker-available history and current-position observations,
+froze one SQLite upload page, and committed that page durably through the API.
+
+Both local and server checkpoints are `2026-10-06T03:46:23.337Z`; pending uploads
+are 0. Local coordinator mode stayed PAUSED; no continuous collector or startup
+task was enabled. No broker order was placed, modified or canceled.
+
+The read-only hosted confirmation showed 86 source facts: 42 deals, 43 orders and
+one account observation. No position facts were present in this captured snapshot.
+The collection had 1 expected and 1 received batch. There were zero source
+revision flags requiring review, but that is not canonical publication,
+behavioral-review completion or proof of financial reconciliation.
+
+The existing opening baseline remained 100000.00, account adjustments remained
+0 and canonical trades remained 0. A second invocation returned alreadyStaged,
+the same checkpoint and PAUSED mode without another capture or publication.
+The next step is explicit source-backed preview, cash/symbol/conflict resolution
+where needed, and user approval—not automatic publication of these source facts.

@@ -178,3 +178,20 @@ was marked REAUTH_REQUIRED. `authorize_pilot.py` opened genuine browser
 authorization again for the selected account. Approval/restored-session evidence
 is pending; this is not an additional mapping or publication approval. Collector
 stays PAUSED, existing baseline unchanged, and MCP disabled.
+
+## Latest checkpoint: reconnect restored and history staged
+
+The user approved a same-grant reconnect fix. Source `d95be83` now validates
+already-consented redirects against the owned unexpired S256 request, active
+grant, enabled resource, existing account and registered callback. The real
+hosted pilot reconnected successfully without revocation or account reselection;
+grant version 2, mapping version 1 and five grant audit events were preserved.
+One OAuth session was restored and all seven hosted security/refresh checks passed.
+
+The approved one-shot demo capture then staged 86 broker source facts with zero
+pending uploads and matching durable checkpoints. No canonical trade or cash
+adjustment was published, the 100000.00 opening baseline remained unchanged,
+and the collector stayed PAUSED. Source-backed reconciliation/publication review,
+unattended startup, focused live interruption checks and MCP remain pending.
+Exact implementation, test, deployment and staging evidence is in
+[the reconnect verification report](MT5_RECONNECT_VERIFICATION.md).
