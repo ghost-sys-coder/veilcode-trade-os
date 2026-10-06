@@ -103,3 +103,32 @@ the final full unit/typecheck/lint/build run includes that addition.
 
 Provider guidance: [Supabase certificate verification](https://supabase.com/docs/guides/platform/ssl-enforcement#start-of-content),
 [node-postgres SSL configuration and URL override behavior](https://node-postgres.com/features/ssl).
+
+## Subsequent authorization-only deployment
+
+Source `ffef448` was pushed on `feature/mt5-sync`, preserving the externally merged
+master baseline `85253b9`. Deployment `dpl_Ej1pHWqGCaAfZCdEv2ntz1kF8gcQ`
+(`trade-bh2xn0v7t-ghostsyscoders-projects.vercel.app`) reached READY, passed seven
+staged checks via official Vercel deployment access, and was explicitly promoted
+to `https://tradeos.veilcode.studio`.
+
+The exact private MT5 resource was enabled for browser consent. MT5 authorization
+is enabled; MCP remains disabled. There were zero grants and connections before
+the consent attempt. No collector is running and no broker history is uploaded.
+
+`node .artifacts/mt5-pilot/verify_rollout_http.mjs https://tradeos.veilcode.studio`
+passed all seven anonymous production checks: public calculator/login/consent 200,
+integration settings redirect to login, pinned discovery metadata 200, session
+GET and capture POST 401. `node .artifacts/mt5-pilot/verify_private_schema.mjs`
+confirmed private schema rejection, HTTP 406 / PGRST106.
+
+`vercel logs dpl_Ej1pHWqGCaAfZCdEv2ntz1kF8gcQ --no-follow --no-branch --level error --since 10m --limit 50 --json --non-interactive`
+completed successfully with zero error records; log bodies were not displayed.
+A read-only hosted check after promotion confirmed zero grants, zero connections,
+zero pilot trades and the unchanged normalized 100000.00 opening baseline.
+
+The actual loopback consent helper opened the user's browser, using the existing
+PKCE client and Windows-protected credential store. Approval and the remaining
+hosted token/refresh/revocation gates are pending, not counted as passed.
+Rollback reference: prior promoted `dpl_AJb733ESsNZUjzz6Ci17gofdLJ1k`; disabling
+the exact MT5 resource stops authorization/API activity without deleting evidence.
