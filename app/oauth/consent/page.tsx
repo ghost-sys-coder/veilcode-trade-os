@@ -26,6 +26,7 @@ export default async function ConsentPage({ searchParams }: {
   const client = await createClient();
   const consent = id.success ? await loadGrantConsent(client, id.data) : { view: { status: "INVALID_REQUEST" as const }, eligibility: null };
   const { view, eligibility } = consent;
+  if (view.status === "RESUMED") redirect(view.redirectUrl);
   if (view.status === "SIGN_IN_REQUIRED" && id.success) {
     redirect(`/login?next=${encodeURIComponent(consentPath(id.data))}`);
   }

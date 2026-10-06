@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { createServer, type Server } from "node:http";
 import assert from "node:assert/strict";
 import { mkdir, readdir, rm, rmdir } from "node:fs/promises";
 import { chromium, type Browser, type Page } from "@playwright/test";
@@ -21,7 +22,10 @@ let admin: ReturnType<typeof createClient> | undefined;
 let checks = 0;
 let browserUi: Browser | undefined;
 let page: Page | undefined;
+let callbackServer: Server | undefined;
+let expectedCallbackState: string | null = null;
 const withBrowser = process.argv.includes("--browser");
+const authOnly = process.argv.includes("--auth-only");
 const uiOrigin = "http://127.0.0.1:3100";
 const artifactDirectory = fileURLToPath(new URL("../.artifacts/integration-tests/", import.meta.url));
 const pythonSpool = fileURLToPath(new URL(`../.artifacts/integration-tests/python-${randomUUID()}.sqlite3`, import.meta.url));
@@ -78,7 +82,32 @@ try {
     page = await browserUi.newPage({ viewport: { width: 1440, height: 1000 } });
     page.setDefaultTimeout(30_000);
     page.on("pageerror", () => { pageErrors++; });
-    await page.route(`${callback}**`, route => route.fulfill({ status: 200, contentType: "text/html", body: "<h1>Local callback fixture</h1>" }));
+    // Route interception only handles the first URL in an HTTP redirect chain.
+    // Use a genuine, exclusive loopback receiver for both action-driven consent
+    // and server-redirect reconnects. Never echo or log the received code/state.
+    callbackServer = createServer({maxHeaderSize:8192},(request,response) => {
+      let valid=false;
+      try {
+        const target=new URL(request.url!,callback);
+        valid=request.method==="GET" && request.socket.remoteAddress==="127.0.0.1"
+          && request.headers.host==="127.0.0.1:9876" && !request.headers.origin
+          && (request.url?.length??0)<=8192 && target.pathname==="/callback"
+          && expectedCallbackState!==null && target.searchParams.getAll("state").length===1
+          && target.searchParams.get("state")===expectedCallbackState
+          && target.searchParams.getAll("code").length===1 && Boolean(target.searchParams.get("code"))
+          && [...target.searchParams.keys()].every(key=>["code","state"].includes(key));
+      } catch { /* Invalid local requests never consume fixture authorization. */ }
+      response.writeHead(valid?200:400,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store",
+        "Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'"});
+      response.end(valid?"<h1>Local callback fixture</h1>":"Callback not accepted");
+    });
+    callbackServer.requestTimeout=2000;
+    callbackServer.headersTimeout=2000;
+    callbackServer.setTimeout(2000,socket=>socket.destroy());
+    await new Promise<void>((resolve,reject)=>{
+      callbackServer!.once("error",reject);
+      callbackServer!.listen({host:"127.0.0.1",port:9876,exclusive:true},resolve);
+    });
     await mkdir(artifactDirectory, { recursive: true });
     stage = "public browser calculator";
     const publicResponse = await page.goto(`${uiOrigin}/tools/position-size-calculator`);
@@ -157,6 +186,7 @@ try {
   stage = "grant approval";
   const pythonBegin = page ? pythonOAuth("begin",{ redirectUri: callback }) : undefined;
   const request = await requestAuthorization(resource,pythonBegin?.authorizationUrl);
+  expectedCallbackState=request.state;
   let approvedGrant: { id: string; version: string };
   let redirect: URL;
   if (page) {
@@ -222,7 +252,7 @@ try {
   assert(!actor.error && actor.data);
   assert.equal((actor.data as { account_id: string }).account_id, accountResult.data.id);
   passed("live database authorization binds the correct owner, client and account");
-  if (page) {
+  if (page && !authOnly) {
     const endpoint = await fetch(`${uiOrigin}/api/integrations/v1/session`, { headers: { Authorization: `Bearer ${tokens.access_token}` } });
     assert.equal(endpoint.status,200);
     assert.equal((await endpoint.json() as { actor: { account_id: string } }).actor.account_id,accountResult.data.id);
@@ -597,6 +627,37 @@ try {
   await verifyIntegrationToken(renewed.access_token, { issuer, resource, key: signingKey });
   passed("renewable credentials preserve signed resource/grant binding");
   if (page) {
+    stage = "actual browser existing-grant reconnect";
+    const beforeReconnect = await database!.query("select g.id,g.version::text,g.account_id,(select count(*)::integer from private.integration_grant_events e where e.grant_id=g.id) as event_count from private.integration_grants g where g.id=$1",[approvedGrant.id]);
+    const reconnect = pythonOAuth("begin",{redirectUri:callback,reconnect:true});
+    expectedCallbackState=new URL(reconnect.authorizationUrl).searchParams.get("state");
+    // Match the existing first-consent harness: perform the real provider's
+    // redirect leg with bounded HTTP, then visit its exact consent URL in Chrome.
+    // Do not read getAuthorizationDetails here: auto-consent can issue a one-use
+    // code which must be handled by the actual application, not the test runner.
+    stage = "actual browser reconnect provider redirect";
+    const reconnectResponse = await fetch(reconnect.authorizationUrl,{redirect:"manual",signal:AbortSignal.timeout(10_000)});
+    assert([302,303,307].includes(reconnectResponse.status));
+    const reconnectConsent = new URL(reconnectResponse.headers.get("location")!);
+    assert.equal(reconnectConsent.origin,uiOrigin);
+    assert.equal(reconnectConsent.pathname,"/oauth/consent");
+    assert(reconnectConsent.searchParams.has("authorization_id"));
+    stage = "actual browser existing-grant reconnect";
+    await page.goto(reconnectConsent.toString());
+    stage = "actual browser reconnect callback navigation";
+    await page.waitForURL(url => url.origin + url.pathname === callback && url.searchParams.has("code"));
+    stage = "actual browser reconnect PKCE exchange";
+    const reconnected = pythonOAuth("finish",{callbackUrl:page.url()});
+    assert.equal(reconnected.encrypted,true);
+    renewed = reconnected;
+    const reconnectedClaims = await verifyIntegrationToken(renewed.access_token,{issuer,resource,key:signingKey});
+    assert.equal(reconnectedClaims.trade_os_grant_id,approvedGrant.id);
+    stage = "actual browser reconnect preserved grant evidence";
+    const afterReconnect = await database!.query("select g.id,g.version::text,g.account_id,(select count(*)::integer from private.integration_grant_events e where e.grant_id=g.id) as event_count from private.integration_grants g where g.id=$1",[approvedGrant.id]);
+    assert.deepEqual(afterReconnect.rows,beforeReconnect.rows);
+    passed("real provider reconnect reuses the same account/grant/version without revocation, new consent or duplicate audit events");
+  }
+  if (page) {
     stage = "actual browser local sign-out isolation";
     await page.goto(`${uiOrigin}/settings/integrations`);
     await page.getByRole("button",{ name: "Sign out", exact: true }).first().click();
@@ -662,7 +723,16 @@ try {
     passed("browser logout protects the workspace and no uncaught client runtime errors occurred");
   }
   console.log(`Local OAuth gate: ${checks} checks passed. ${withBrowser ? "Local browser consent/regression verified;" : "Browser coverage pending;"} actual MT5 terminal and MCP clients pending separate verification.`);
-} catch {
+} catch (error) {
+  // Bounded diagnostics identify the failed leg without dumping URLs, codes,
+  // request headers, provider responses, browser credentials or assertion values.
+  const failure = error instanceof Error ? error.name : "UnknownError";
+  const networkCode = error instanceof Error ? error.message.match(/\b(?:ERR|E)_[A-Z_]+\b/)?.[0] : undefined;
+  if (page && stage.includes("reconnect")) {
+    const current = new URL(page.url());
+    console.error(JSON.stringify({stage,failure,networkCode:networkCode??null,origin:current.origin,path:current.pathname,
+      callbackCodePresent:current.searchParams.has("code")}));
+  }
   if (page && (stage.startsWith("browser mapping") || stage.startsWith("actual browser"))) {
     await page.screenshot({ path: `${artifactDirectory}/mt5-mapping-failure.png`,fullPage: true }).catch(() => {});
   }
@@ -670,6 +740,7 @@ try {
   process.exitCode = 1;
 } finally {
   await browserUi?.close();
+  if (callbackServer?.listening) await new Promise<void>(resolve=>callbackServer!.close(()=>resolve()));
   // Only this runner's explicit UUID-named disposable spool, never a directory.
   assert(pythonSpool.startsWith(artifactDirectory) && /^python-[0-9a-f-]+\.sqlite3$/.test(pythonSpool.slice(artifactDirectory.length)));
   for (const suffix of ["","-wal","-shm"]) await rm(pythonSpool+suffix,{ force: true });

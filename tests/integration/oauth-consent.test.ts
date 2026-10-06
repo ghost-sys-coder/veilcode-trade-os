@@ -57,10 +57,12 @@ describe("consent workflow with provider fixtures (not a live OAuth exchange)", 
     expect(await loadOAuthConsent(client, id)).toEqual({ status: "INVALID_REQUEST" });
   });
 
-  it("never forwards already-consented codes before application grant validation exists", async () => {
+  it("returns only an untrusted candidate for separate application grant validation", async () => {
     const client = provider();
     client.auth.oauth.getAuthorizationDetails.mockResolvedValue({ data: { redirect_url: "https://client.example/callback?code=secret" }, error: null });
-    expect(await loadOAuthConsent(client, id)).toEqual({ status: "BLOCKED" });
+    expect(await loadOAuthConsent(client, id)).toEqual({ status: "RESUME_CANDIDATE", authorizationId: id, redirectUrl: "https://client.example/callback?code=secret" });
+    expect(await decideOAuthConsent(client, id, "deny")).toEqual({ status: "BLOCKED" });
+    expect(client.auth.oauth.denyAuthorization).not.toHaveBeenCalled();
   });
 
   it.each(["approve", null, "anything"])("blocks forged decision %j without invoking approval", async (decision) => {

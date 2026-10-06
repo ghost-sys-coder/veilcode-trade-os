@@ -71,6 +71,7 @@ export function safeApprovalRedirect(value: unknown, registeredCallback: string)
   const base = callbackUrl(registeredCallback);
   if (!url || !base || url.origin !== base.origin || url.pathname !== base.pathname
     || url.searchParams.getAll("code").length !== 1 || !url.searchParams.get("code")) return null;
+  if (url.searchParams.getAll("state").length > 1) return null;
   const allowed = new Set([...base.searchParams.keys(), "code", "state"]);
   for (const name of url.searchParams.keys()) if (!allowed.has(name)) return null;
   for (const name of new Set(base.searchParams.keys())) {
