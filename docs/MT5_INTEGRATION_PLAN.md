@@ -4,6 +4,12 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
+Hosted pilot update (2026-10-06): strict pooler TLS, actual user consent,
+signed resource/account/grant checks, refresh rotation, wrong-PKCE rejection,
+immediate revocation and fresh consent restoration have passed. Normal browser
+login regression and terminal mapping are pending; broker history capture has
+not started. See [hosted authentication evidence](MT5_HOSTED_AUTH_VERIFICATION.md).
+
 ## Delivery checklist
 
 - [x] MT5-0: documentation/branches and local authentication compatibility.

@@ -44,10 +44,6 @@ are excluded. Credential IPC to the signature verifier is bounded and never prin
 
 ## Pending browser-assisted gates
 
-- Temporarily revoke only this selected grant through normal connected-client UI,
-  then verify immediate rejection of the cached access token and provider refresh.
-- Restore it through fresh browser consent, also verify rejection of an incorrect
-  PKCE verifier against a real authorization code before the valid exchange.
 - Verify normal direct browser login remains usable and logout still protects the
   workspace. Public calculator and anonymous authorization boundaries already
   passed the deployment report; this is not a substitute for the logged-in check.
@@ -58,6 +54,43 @@ Browser automation currently fails while loading its request-header policy.
 No cookies were extracted, security policy bypassed, browser profile copied,
 browser JWT fabricated, or administrative grant substituted. The user was asked
 to perform the specific revoke action while remaining checks are prepared.
+Browser inventory subsequently recovered, but the attached Chrome profile exposed
+only a Trade OS login page, not the user's signed-in settings session. The exact
+mapping values and normal sign-out/sign-in check were handed to the user rather
+than extracting or transferring authentication between browser profiles.
+
+## Completed real browser revocation
+
+The user clicked the selected MT5 client's normal Revoke access action and reported
+`Application access and provider consent revoked.` The subsequent exact command
+`node .artifacts/mt5-pilot/run_hosted_auth_check.mjs revoked` exited 0:
+
+- The same cached access token was rejected by the actual application session API.
+- The actual provider rejected that credential's refresh request.
+- The local protected vault was marked REAUTH_REQUIRED rather than silently
+  retrying or treating revoked credentials as usable.
+
+No administrative mutation was substituted for the browser workflow. Fresh consent
+was opened using `.artifacts/mt5-pilot/authorize_pilot_pkce_check.py`; its bounded
+loopback listener is waiting for user approval. That helper will submit one
+intentionally incorrect verifier, require provider rejection, then use the valid
+S256 verifier and repeat authoritative account/grant validation before restoring
+READY. These latter checks subsequently passed, as recorded below.
+
+## Restored consent and live PKCE rejection
+
+`.artifacts/mt5-runtime/Scripts/python.exe .artifacts/mt5-pilot/authorize_pilot_pkce_check.py`
+exited 0 after the user's new approval for the same account. The actual hosted
+provider rejected the intentionally wrong verifier and then accepted the correct
+S256 exchange. The credential was again accepted only after live signed-token,
+owner/account/client/resource/grant validation and Windows-protected persistence.
+The user independently reported the success callback.
+
+A read-only hosted check confirmed the same account/resource, ACTIVE grant version
+2 and preserved append-only event sequence: APPROVED, ACTIVATED, REVOKED, APPROVED,
+ACTIVATED. Normal browser sign-out/sign-in and dedicated terminal mapping were
+requested next. The hosted cryptographic/refresh/revocation checks are complete;
+the login regression and complete pilot remain pending. No broker capture occurred.
 
 The full hosted authentication gate is not yet complete. Collection/publication
 remain stopped; no broker history has been persisted, baseline changed, startup
