@@ -1,6 +1,7 @@
 import { describe,expect,it } from "vitest";
 import { buildMt5OnboardingPreview, mt5StoredSourceSchema, type Mt5ConnectionView, type Mt5StoredSource } from "@/domain/mt5/onboarding";
 import type { Mt5Deal, Mt5SourceEvent } from "@/domain/mt5/source";
+import { mt5OnboardingRequestSchema,prepareMt5OnboardingApproval } from "@/domain/mt5/onboarding-approval";
 
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const instrumentId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -107,5 +108,31 @@ describe("MT5 import onboarding preview", () => {
   it("rejects invalid durable payloads and binary financial numbers", () => {
     expect(() => mt5StoredSourceSchema.parse({ kind: "ACCOUNT",sourceId: "ACCOUNT",observedAt: checkpoint,revisionId: "1",requiresReview: false,
       payload: { balance: 1000,equity: "1000",unrealizedPnl: "0",observedAt: checkpoint } })).toThrow();
+  });
+  it("compares normalized balances, not a rounded raw difference",()=>{
+    const result=preview([observation("1000.005")],{ledgerBalance:"1000.004"});
+    expect(result.bridge).toMatchObject({brokerBalance:"1000.01",proposedBrokerBalanceBasis:"1000.00",unexplainedDifference:"0.01"});
+  });
+  it("only resolves cash against the current source revision",()=>{
+    const cash=dealSource(deal("3",{positionId:null,symbol:null,entry:null,type:"BALANCE",volume:"0",profit:"1000"}));
+    const cashDecision={sourceTicket:"3",sourceRevisionId:"1",disposition:"BASELINE_FUNDING" as const,amount:"1000.00",adjustmentId:null,reason:"Opening funding confirmed",createdAt:checkpoint};
+    expect(preview([...closed,cash],{cashDecisions:[cashDecision]}).unresolvedCash).toHaveLength(0);
+    expect(preview([...closed,{...cash,revisionId:"2"}],{cashDecisions:[cashDecision]}).unresolvedCash).toHaveLength(1);
+  });
+  it("requires canonical publication, matching bridge and explicit confirmation for onboarding",()=>{
+    const request=mt5OnboardingRequestSchema.parse({connectionId:id,operationId:id,version:"1",snapshotToken:"a".repeat(64),ledgerToken:"b".repeat(64),
+      reason:"Approve captured-history snapshot",openingBaseline:"1000",availableHistoryConfirmed:true});
+    const input={connection,sources:closed,instruments:[{id:instrumentId,symbol:"EURUSD"}],existingTrades:[],startingBalance:"1000",ledgerBalance:"1000",
+      snapshotToken:request.snapshotToken,ledgerToken:request.ledgerToken};
+    expect(()=>prepareMt5OnboardingApproval(input,request)).toThrow();
+    const published={...input,ledgerBalance:"1095",existingTrades:[{id,symbol:"EURUSD",direction:"BUY" as const,openedAt:"2026-10-01T10:00:01.000Z",
+      closedAt:"2026-10-01T10:00:02.000Z",canonicalIdentity:`${id}:100:1:BUY`,closedNetPnl:"95"}]};
+    expect(prepareMt5OnboardingApproval(published,request).episodes[0]).toMatchObject({finalNetPnl:"95.00",outcome:"WIN"});
+    for(const change of [{version:"2"},{ledgerToken:"c".repeat(64)},{openingBaseline:"999"}])
+      expect(()=>prepareMt5OnboardingApproval(published,{...request,...change})).toThrow();
+    expect(()=>prepareMt5OnboardingApproval({...published,ledgerBalance:"1094"},request)).toThrow();
+    expect(()=>prepareMt5OnboardingApproval({...published,sources:closed.slice(0,2)},request)).toThrow();
+    for(const change of [{availableHistoryConfirmed:false},{availableHistoryConfirmed:null},{openingBaseline:1000},{reason:""},{ownerId:id}])
+      expect(mt5OnboardingRequestSchema.safeParse({...request,...change}).success).toBe(false);
   });
 });

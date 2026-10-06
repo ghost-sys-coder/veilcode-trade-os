@@ -3,6 +3,7 @@ import { mt5IdentitySchema, mt5SourceEventSchema, type Mt5SourceEvent } from "@/
 import { reconstructMt5Deals, type Mt5Episode } from "@/domain/mt5/reconstruct";
 import { normalizeMoney, parseDecimal, sumDecimals } from "@/domain/money/decimal";
 import type { Mt5SymbolMapping } from "@/domain/mt5/symbol-mapping";
+import type { Mt5CashDecision } from "@/domain/mt5/cash";
 
 const timestamp = z.iso.datetime({ offset: true });
 const version = z.string().regex(/^[1-9][0-9]*$/);
@@ -41,6 +42,7 @@ export function buildMt5OnboardingPreview(input: {
   instruments: { id: string; symbol: string }[]; existingTrades: PreviewExistingTrade[];
   startingBalance: string; ledgerBalance: string;
   symbolMappings?: Mt5SymbolMapping[];
+  cashDecisions?: Mt5CashDecision[];
 }) {
   const precision = input.connection.identity.currencyPrecision;
   const events = input.sources.map(source => source.event);
@@ -106,11 +108,13 @@ export function buildMt5OnboardingPreview(input: {
   }));
   const openCash = sumDecimals(result.episodes.filter(episode => episode.status === "OPEN").map(episode => episode.recognizedCash));
   const proposedBrokerBasis = parseDecimal(input.ledgerBalance).plus(incrementalClosedPnl).plus(openCash);
-  if (result.cashMovements.length) problems.push({ code: "CASH_CLASSIFICATION_REQUIRED",positionId: null,
-    detail: `${result.cashMovements.length} broker cash movement(s) need baseline attribution or explicit adjustment classification. Credit facilities are not assumed to be deposits.` });
+  const unresolvedCash = result.cashMovements.filter(deal => !input.cashDecisions?.some(decision => decision.sourceTicket === deal.ticket
+    && input.sources.some(source => source.kind === "DEAL" && source.sourceId === deal.ticket && source.revisionId === decision.sourceRevisionId && !source.requiresReview)));
+  if (unresolvedCash.length) problems.push({ code: "CASH_CLASSIFICATION_REQUIRED",positionId: null,
+    detail: `${unresolvedCash.length} broker cash movement(s) need baseline attribution or explicit adjustment classification. Credit facilities are not assumed to be deposits.` });
   if (!observed) problems.push({ code: "BALANCE_OBSERVATION_REQUIRED",positionId: null,detail: "No broker account observation is available." });
   else if (checkpoint !== null && Date.parse(observed.observedAt) < checkpoint) problems.push({ code: "STALE_BALANCE_OBSERVATION",positionId: null,detail: "Broker balance observation predates the completed capture." });
-  return { episodes,problems,cashMovements: result.cashMovements,
+  return { episodes,problems,cashMovements: result.cashMovements,unresolvedCash,
     // This preview is never a reconciliation approval, even when the numbers match.
     reconciliationState: "NOT_APPROVED" as const,
     bridge: { currencyCode: input.connection.identity.currencyCode,
@@ -119,6 +123,6 @@ export function buildMt5OnboardingPreview(input: {
       proposedBrokerBalanceBasis: normalizeMoney(proposedBrokerBasis,precision),
       brokerBalance: observed ? normalizeMoney(observed.balance,precision) : null,
       brokerEquity: observed ? normalizeMoney(observed.equity,precision) : null,
-      unexplainedDifference: observed ? normalizeMoney(parseDecimal(observed.balance).minus(proposedBrokerBasis),precision) : null,
+      unexplainedDifference: observed ? normalizeMoney(parseDecimal(normalizeMoney(observed.balance,precision)).minus(normalizeMoney(proposedBrokerBasis,precision)),precision) : null,
     } };
 }

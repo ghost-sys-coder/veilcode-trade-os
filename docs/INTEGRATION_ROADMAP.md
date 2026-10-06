@@ -68,7 +68,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures and migrations pass locally; source-backed manual canonical publication verified; automatic publication and reviewed-source resolution pending |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
-| MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account and audited broker-symbol mapping, balance bridge, monitoring, fenced controls and selected-trade publication pass local browser checks; full onboarding approval, cash classifications and demo pilot pending |
+| MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account/symbol mapping, explicit cash attribution, captured-history snapshot approval, balance bridge, monitoring, fenced controls and publication pass local browser checks; source/manual financial-conflict resolution and real demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
 | MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | Parked |
@@ -81,6 +81,15 @@ beta: a failed gate requires a plan revision, not weaker authentication.
 Do not treat advertised capabilities as proof of an end-to-end flow.
 
 ## Verification policy
+
+Latest increment: source-backed cash attribution and captured-history approval
+are implemented with immutable evidence and transactional receipts/audits.
+Opening funding is provenance rather than a second deposit; an existing manual
+cash record can be explicitly linked. Unsupported credit facilities and revised
+financial facts remain held for reconciliation. Approval is bound to source,
+ledger and capture checkpoint, and becomes stale on changed evidence; it does
+not authorize unattended canonical updates. See
+[cash/onboarding verification](MT5_CASH_ONBOARDING_VERIFICATION.md).
 
 Use deterministic fixtures, disposable databases and controlled demo
 terminals. Never create broker orders or destructively test production
