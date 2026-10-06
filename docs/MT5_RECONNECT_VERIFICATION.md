@@ -161,3 +161,30 @@ The existing opening baseline remained 100000.00, account adjustments remained
 the same checkpoint and PAUSED mode without another capture or publication.
 The next step is explicit source-backed preview, cash/symbol/conflict resolution
 where needed, and user approval—not automatic publication of these source facts.
+
+## Confirmed pilot review decisions
+
+The user confirmed EURUSDm represents EURUSD and that USD 100000.00 was the
+initial demo funding. The signed-in workspace became accessible to the supported
+browser interface, so the existing audited forms were used—not privileged SQL
+mutations or the collector's restricted OAuth credential.
+
+The opening funding was recorded as BASELINE_FUNDING. The separate broker
+correction had exactly-zero profit, commission, swap and fee and was recorded
+as ZERO_EFFECT, preserving evidence without an adjustment. The confirmed
+EURUSDm-to-EURUSD mapping was saved at mapping version 1 with a meaningful reason.
+Read-only hosted verification confirmed both cash decisions, unchanged 100000.00
+baseline, zero account adjustments and zero canonical trades. No grant revocation,
+account reselection, publication or collector resumption occurred.
+
+Only the explicitly confirmed symbol was mapped. The other eleven aliases remain
+pending verification; AUDUSD, AUDJPY and EURAUD are not in this account's available
+catalog. The actual preview also exposed raw SDK volume strings such as
+2.7199999999999998. A correct volume-display boundary must be established separately
+from account-currency precision before publication; no source evidence was rounded
+away or monetary results changed to hide it. These are pending review/build items,
+not a claim of completed onboarding or MT5 readiness.
+
+Private visual proof is stored under the ignored `.artifacts/mt5-pilot` directory
+and excluded from Git and deployments. The live review tab is left open for the
+next approval stage.
