@@ -596,6 +596,32 @@ try {
   assert.notEqual(renewed.refresh_token, tokens.refresh_token);
   await verifyIntegrationToken(renewed.access_token, { issuer, resource, key: signingKey });
   passed("renewable credentials preserve signed resource/grant binding");
+  if (page) {
+    stage = "actual browser local sign-out isolation";
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.getByRole("button",{ name: "Sign out", exact: true }).first().click();
+    await page.waitForURL(`${uiOrigin}/login`);
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.waitForURL(url => url.pathname === "/login");
+    const retainedSession = await fetch(`${uiOrigin}/api/integrations/v1/session`, {
+      headers: { Authorization: `Bearer ${renewed.access_token}` }, signal: AbortSignal.timeout(10_000),
+    });
+    assert.equal(retainedSession.status,200);
+    assert.equal((await retainedSession.json() as { actor: { account_id: string } }).actor.account_id,accountResult.data.id);
+    const afterLogout = pythonOAuth("refresh");
+    assert.equal(afterLogout.encrypted,true);
+    assert.notEqual(afterLogout.refresh_token,renewed.refresh_token);
+    renewed = afterLogout;
+    await verifyIntegrationToken(renewed.access_token, { issuer, resource, key: signingKey });
+    passed("normal browser logout protects the workspace while the approved integration retains live access and renewable credentials");
+    await page.goto(`${uiOrigin}/login?next=${encodeURIComponent("/settings/integrations")}`);
+    await page.getByLabel("Email address",{ exact: true }).fill(email);
+    await page.getByLabel("Password",{ exact: true }).fill(password);
+    await page.getByRole("button",{ name: "Sign in", exact: true }).click();
+    await page.waitForURL(`${uiOrigin}/settings/integrations`);
+    await page.getByRole("heading",{ name: "Integrations & connected clients", exact: true }).waitFor();
+    passed("direct browser sign-in works again before explicit integration revocation");
+  }
   stage = "revocation";
   if (page) {
     stage = "actual browser revocation";

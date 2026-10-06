@@ -17,3 +17,4 @@ supabase/signing_keys.json
 coverage/
 playwright-report/
 test-results/
+public/snapshots/result-snapshot.png

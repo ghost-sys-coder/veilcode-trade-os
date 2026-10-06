@@ -107,3 +107,47 @@ terminated on timeout, never the terminal. No history/order/position read occurr
 Observed balance/equity were 102032.53 with zero observed unrealized profit.
 These are broker observations, not an approved canonical reconciliation. The
 Trade OS opening baseline remains 100000.00.
+
+## Browser-local logout correction
+
+The user confirmed normal sign-out/sign-in and supplied the mapped-account screen.
+A read-only database check verified the exact approved demo mapping and unchanged
+100000.00 opening baseline. The first bounded staging attempt failed at live
+authorization, before a lease or broker history read: INTEGRATION_ACCESS_DENIED.
+There remained zero source facts and zero published trades.
+
+The cause was normal workspace logout using Supabase's default global scope. It
+removed the separate OAuth session while leaving the application grant ACTIVE.
+The authorization guard correctly failed closed. The user explicitly chose
+browser-only logout, with integration revocation remaining a separate action.
+The server action now uses `signOut({ scope: "local" })`; no grant checks or
+revocation checks were relaxed. Unit coverage verifies the explicit scope and
+redirect ordering. The isolated real-browser suite also checks retained bearer
+access and actual provider refresh after logout, then browser sign-in and explicit
+integration revocation. Verification and deployment results are recorded next.
+
+The hosted gate is attention-required until this change is deployed, the removed
+OAuth session is restored through genuine authorization, and retained access is
+verified. The local outbox remains PAUSED; no startup task or publication occurred.
+
+### Scoped logout regression results
+
+- `npm test`: PASS, 418 tests across 33 files.
+- `npm run test:db`: PASS, all 10 existing suites against disposable local
+  Supabase. The initial sandbox attempt could not access Docker; rerunning with
+  approved Docker access passed. No hosted database was used.
+- `npm run test:integration-browser`: PASS, 45 checks with isolated Chrome
+  154.0.8037.93, including retained live OAuth access, real refresh after browser
+  logout, browser sign-in, then immediate application/provider revocation.
+- `npm run typecheck`: PASS.
+- `npm run lint`: PASS.
+- `npm run build`: PASS, Next.js 16.3.6 production build.
+- `npm run check:mt5-python`: PASS.
+- `npm run test:mt5-python`: PASS, 167 tests including native Windows credential
+  protection and owned-process recovery fixtures; no broker connection.
+
+Scoped review: plan alignment PASS; system integrity PASS; automated regression
+readiness PASS. Existing grant/session authorization, private database isolation,
+provider revocation and MFA behavior were not changed. Hosted rollout and restored
+pilot credentials still require separate evidence below. The user's mapped-screen
+reference remains local and is excluded from Vercel deployment uploads.
