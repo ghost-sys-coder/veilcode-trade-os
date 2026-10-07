@@ -203,6 +203,15 @@ inside a tick. Native broker reads stop during upload outages; recovery drains t
 outbox first, then retrieves overlapping history instead of accumulating unlimited
 new captures while offline.
 
+HTTPS TCP dialing tries each normally resolved address with at most three seconds
+per attempt (or the caller's shorter timeout), then restores the original timeout
+before TLS negotiation and response reads. Certificate/hostname verification, SNI,
+proxy exclusion, redirect rejection and whole-worker supervision are unchanged.
+No IPs are pinned and no HTTP mutation is automatically replayed by this transport.
+This improves fallback past an unreachable address; it cannot make an entirely
+unreachable provider available. An uncertain refresh/code exchange still requires
+fresh consent, never replay. See [failover verification](../../docs/MT5_FAILOVER_VERIFICATION.md).
+
 The browser verification runner now invokes actual Python subprocesses with the
 local signed token supplied on stdin, never command arguments or files. It checks
 both lost-acknowledgement and never-committed recovery against the real local API.
