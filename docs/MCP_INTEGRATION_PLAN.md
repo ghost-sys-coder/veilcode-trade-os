@@ -1,6 +1,9 @@
 # Trade OS MCP Access Implementation Plan
 
-Branch: `feature/mcp-access`. Status: queued after the shared MT5 checkpoint.
+Branch: `feature/mcp-access`. Status: updated from user-merged master `9e3a803`;
+workflow inventory prepared. MCP feature implementation/activation remains pending
+the final real MT5 automatic-publication check. See
+[capability inventory](MCP_CAPABILITY_INVENTORY.md).
 The user requested same-day MT5/MCP delivery on 2026-10-05 and removed the mandatory
 48-hour soak wait. MT5 correctness/security and focused demo checks remain required;
 extended soak is deferred rather than reported as passed.
@@ -8,7 +11,8 @@ Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
 ## Delivery checklist
 
-- [ ] Update branch from validated `master` after MT5 merge.
+- [x] Update branch from `master` after the user's MT5 merge; pending operational
+  evidence remains explicitly recorded.
 - [ ] Extend shared services across remaining user-facing workflows.
 - [ ] Versioned capability inventory, resources, schemas and tool tests.
 - [ ] Official TypeScript SDK, stateless HTTP and local stdio adapter.
