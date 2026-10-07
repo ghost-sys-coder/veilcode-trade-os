@@ -188,3 +188,69 @@ not a claim of completed onboarding or MT5 readiness.
 Private visual proof is stored under the ignored `.artifacts/mt5-pilot` directory
 and excluded from Git and deployments. The live review tab is left open for the
 next approval stage.
+
+## Catalog and volume-display follow-up — 2026-10-07
+
+Added standard shared AUDUSD, AUDJPY and EURAUD references through
+`20261006164120_mt5_catalog_completion.sql`, first verified transactionally in
+the disposable local database, then applied by migration to the hosted trade-os
+project. A hosted read confirmed currencies, pip sizes, price precision and
+active status. Existing references are preserved on conflict. Matching public
+calculator presets remain generic defaults, not verified broker specifications.
+No suffix mapping is inferred; the other eleven pilot aliases remain pending.
+
+The onboarding table now uses `domain/trading/volume-display.ts`. It rounds only
+presentation to at most eight fractional digits, independently of currency
+precision. For example, captured `2.7199999999999998` displays `≈2.72`, and
+`1.3900000000000001` displays `≈1.39`. Exact source text remains available in
+the title and accessible label. Nonzero amounts that would display as zero
+retain their exact value instead. Source facts, reconstruction, execution
+publication, money, outcome classification and closure rules are unchanged.
+This is not a broker volume-step rule or a near-zero tolerance.
+
+Verification commands and results:
+
+- `npm test`: PASS, 470 tests in 35 files.
+- `npm run test:db -- --pending-migrations`: PASS, 449 assertions in 11
+  rollback-isolated suites; eight new catalog assertions cover reference values,
+  replay preservation and RLS. Initial CLI status timed out; Docker was healthy,
+  privately captured local status worked, and the direct command subsequently
+  passed. The old eleven-instrument assertion was updated to explicitly verify
+  the fourteen required reference symbols.
+- `supabase migration up --local`: PASS, only the pending catalog migration.
+- `npm run typecheck`, `npm run lint`, `npm run build`: PASS.
+- `npm run check:mt5-python`: PASS.
+- `npm run test:mt5-python`: PASS, 167 tests.
+- `npm run test:integration-browser`: PASS, 47 checks using Chrome
+  154.0.8037.93 and disposable local provider/database fixtures. Exact-volume
+  access, rounding disclosure, both themes, publication, logout, reconnect,
+  revocation and public calculator regressions were checked. No uncaught client
+  runtime errors. Node emitted its existing typeless-module performance warning.
+- Hosted migration application and reference-data readback: PASS.
+- Security advisor: existing deny-by-default private-table informational notices
+  and existing leaked-password-protection warning; no new permissions or policies.
+- Performance advisor: existing unindexed foreign keys, per-row auth-policy
+  initialization warnings and unused-index notices. This seed-only migration
+  creates no keys, policies or indexes. Track these separately; do not remove
+  evidence-protecting indexes or broaden RLS to silence notices. References:
+  [foreign-key indexes](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys),
+  [RLS initialization](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan),
+  [password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+Current live verification is **pending**, not passed: the protected pilot vault
+is REAUTH_REQUIRED after an uncertain token exchange. Credential-free checks
+using the actual Python transport timed out against both public hosts. Curl over
+IPv4 reached Trade OS once, while Supabase discovery timed out; public DNS
+resolved. This does not establish a provider outage or an application auth bug.
+Do not replay uncertain refresh tokens/codes, revoke the active mapping to work
+around it, disable TLS verification, or resume capture until fresh authorization
+and live binding verification succeed. Local pilot metadata now marks the gate
+incomplete rather than retaining a stale success.
+
+Read-only hosted verification confirmed the grant remains ACTIVE/version 2,
+the opening baseline remains USD 100000, source facts remain 86 and canonical
+trades remain zero. No further broker reads, mapping approvals, canonical
+publication, collector resumption, startup task or MCP activation occurred.
+The display implementation is locally verified. Vercel target inspection confirmed
+`ghostsyscoders-projects/trade-os`, project `prj_J06NUbnHQj38DhAK4YX5poGV5ytz`.
+Hosted UI deployment is pending staged-deployment checks, not claimed live here.

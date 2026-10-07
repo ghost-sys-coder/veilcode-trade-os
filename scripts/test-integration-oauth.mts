@@ -394,6 +394,9 @@ try {
     await page.getByRole("link",{ name: "Review import preview & balance bridge",exact: true }).click();
     await page.getByText("Balance reconciliation bridge",{ exact: true }).waitFor();
     await page.getByText("No finalized PnL",{ exact: true }).first().waitFor();
+    assert.ok(await page.locator('[title="Exact captured volume: 1"]').count()>0);
+    await page.getByText(/Volume displays use up to eight fractional digits/).waitFor();
+    passed("preview exposes exact volume evidence and documents presentation-only rounding");
     assert.equal(await page.getByText("Awaiting explicit attribution",{ exact: true }).count(),0);
     assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1",[fixtureUser])).rows[0].count,0);
     if (!(await page.evaluate(() => document.documentElement.classList.contains("dark")))) {
