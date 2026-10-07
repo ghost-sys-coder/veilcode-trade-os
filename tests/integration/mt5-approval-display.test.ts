@@ -52,6 +52,9 @@ describe("MT5 snapshot approval display", () => {
     const html = await render(state);
     expect(html).toContain("Explicit onboarding approval is still required.");
     expect(html).toContain('aria-label="Approve current snapshot"');
+    expect(html.indexOf('aria-label="Approve current snapshot"')).toBeLessThan(html.indexOf("Unattended canonical publication"));
+    expect(html).toContain('id="mt5-onboarding-approval"');
+    expect(html).toContain("Required before enabling automatic publication.");
     expect(html).not.toContain("Captured-history onboarding is approved for this snapshot.");
     if (state === "STALE_APPROVAL") expect(html).toContain("Previous onboarding approval is stale.");
   });

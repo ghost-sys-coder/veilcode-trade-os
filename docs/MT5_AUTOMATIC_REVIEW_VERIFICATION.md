@@ -1,6 +1,28 @@
 # MT5 automatic publication, conflict review and Windows recovery
 
 Date: 2026-10-07. Branch: `feature/mt5-sync`.
+
+## Approval-prerequisite usability correction — 2026-10-08
+
+The user reported that entering a publication-policy reason left Enable automatic
+publication disabled. Hosted readback confirms the latest stored approval matches
+the ledger/checkpoint but predates the expanded source fingerprint, so it is stale.
+There are zero source holds/incomplete collections; the ledger remains twenty
+trades and USD +2032.53. The required fresh snapshot approval was buried at the
+bottom of the history page, while the dependent reason field accepted input.
+
+Move snapshot approval immediately above automatic publication, add an explicit
+prerequisite explanation and same-page link, and disable the dependent reason
+input until approval completes. Preserve the database requirement for explicit
+current-snapshot approval. Browser verification exercises the locked controls,
+link, snapshot approval and subsequent policy enablement.
+
+Verification: `npm test` passes 485 tests / 38 files; `npm run typecheck`,
+`npm run lint` and `npm run build` pass. `npm run test:integration-browser`
+passes all 53 actual local browser/provider/API checks, including the new
+prerequisite navigation and subsequent approval/policy enablement. Both themes
+and the narrow viewport render without horizontal overflow. No SQL, money,
+collector or authentication behavior changed in this usability correction.
 Status: implemented, locally verified, pushed as `690c3f7`, and deployed.
 The final bounded USD100K DEMO capture remains pending account-policy activation.
 MCP remains parked.

@@ -59,9 +59,9 @@ export function Mt5AutomaticPolicyForm(props:Snapshot&{enabled:boolean;ready:boo
   return <form action={action} className="space-y-4">{fields(props)}<input type="hidden" name="enabled" value={String(!props.enabled)}/>
     <p className="text-sm font-semibold">Automatic publication: {props.enabled?"Enabled":"Disabled"}</p>
     <p className="text-xs leading-5 text-muted-foreground">Only complete, unambiguous source executions are eligible. Revised broker facts, manual overlaps, unsupported events and uncertain symbols stay staged. Balance reconciliation is separate. Disabling preserves all imported evidence and does not pause collection.</p>
-    <Label htmlFor="mt5-policy-reason">Publication policy reason</Label><Input id="mt5-policy-reason" name="reason" required minLength={8} maxLength={1000} disabled={pending}/>
+    {!props.enabled&&!props.ready?<p id="mt5-policy-prerequisite" className="rounded-lg border border-border/70 bg-muted/25 p-4 text-sm leading-6">Automatic publication is locked until the current captured-history snapshot is approved. A publication policy reason alone cannot unlock it. <a href="#mt5-onboarding-approval" className="font-semibold text-primary hover:underline">Approve captured history above</a>.</p>:null}
+    <Label htmlFor="mt5-policy-reason">Publication policy reason</Label><Input id="mt5-policy-reason" name="reason" required minLength={8} maxLength={1000} disabled={pending||(!props.enabled&&!props.ready)} aria-describedby={!props.enabled&&!props.ready?"mt5-policy-prerequisite":undefined}/>
     <Button type="submit" disabled={pending||(!props.enabled&&!props.ready)}>{props.enabled?"Disable automatic publication":"Enable automatic publication"}</Button>
-    {!props.enabled&&!props.ready?<p className="text-sm text-muted-foreground">Approve the current captured-history snapshot before enabling.</p>:null}
     {state.message?<p role="alert" className="text-sm">{state.message}</p>:null}
   </form>;
 }
