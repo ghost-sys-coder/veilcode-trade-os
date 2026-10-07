@@ -23,6 +23,12 @@ passes all 53 actual local browser/provider/API checks, including the new
 prerequisite navigation and subsequent approval/policy enablement. Both themes
 and the narrow viewport render without horizontal overflow. No SQL, money,
 collector or authentication behavior changed in this usability correction.
+
+Fix commit `9c9f7bb` is pushed. Vercel deployment
+`dpl_CAhRvE7d1U94mCRr8BmRcrR7QLeP` built successfully, passed the public-calculator
+HTTP 200 check, and was promoted to `tradeos.veilcode.studio`; production-domain
+inspection confirms that READY deployment. The user's fresh snapshot approval
+and account-policy activation remain explicit browser actions.
 Status: implemented, locally verified, pushed as `690c3f7`, and deployed.
 The final bounded USD100K DEMO capture remains pending account-policy activation.
 MCP remains parked.
