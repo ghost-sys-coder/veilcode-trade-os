@@ -99,6 +99,12 @@ promoted to `tradeos.veilcode.studio` after staged discovery, public-calculator
 HTTP 200 and anonymous integration-session HTTP 401 checks. Production-domain
 inspection resolves to that READY deployment. The CLI's Node runtime is 24.x.
 
+Hosted security advisors reported informational no-policy notices for the 19
+private integration tables: this is intentional deny-by-default access through
+the checked private workflows. The existing Auth warning is leaked-password
+protection disabled; no Auth configuration was changed in this release. See
+[Supabase password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
 The browser-control service failed with “Unable to load browser request-header
 policy” on repeated inventory attempts and after a session reset. The user was
 given the exact existing-account page to approve its current snapshot and enable
