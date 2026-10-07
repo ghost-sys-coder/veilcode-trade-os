@@ -121,6 +121,14 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-07: commit `690c3f7` pushed; the automatic-publication/review migration
+  applied to the correct hosted project. The READY Vercel build was smoke-tested
+  and promoted to the production site. Hosted ledger remains 20 trades and
+  USD +2032.53; policy initially off. Browser-control infrastructure is unavailable,
+  so the user received the existing-account link for normal snapshot/policy
+  activation. Collector readback remains PAUSED with zero pending uploads. The
+  final bounded hosted capture is pending; no MT5 merge or MCP activation yet.
+
 - 2026-10-07: implemented explicit account-specific automatic publication with
   transactional capture/receipts, immutable broker-source review, manual
   distinct/link/withdrawal decisions and revised-cash delta reconciliation.

@@ -112,4 +112,3 @@ update private.integration_grants set status='REVOKED',revoked_at=clock_timestam
 select throws_ok($$select private.mt5_automatic_snapshot(pg_temp.auto_request())$$,'42501','Integration access denied.','revocation immediately denies unattended activity');
 select * from finish();
 rollback;
-

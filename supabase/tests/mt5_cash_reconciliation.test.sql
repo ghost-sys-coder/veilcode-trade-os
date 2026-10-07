@@ -135,4 +135,3 @@ select is((select sum(amount) from public.account_adjustments),260::numeric,'fai
 select is((select amount from private.mt5_current_cash_decisions where source_ticket='101'),260::numeric,'failed reconciliation leaves effective source interpretation unchanged');
 select * from finish();
 rollback;
-

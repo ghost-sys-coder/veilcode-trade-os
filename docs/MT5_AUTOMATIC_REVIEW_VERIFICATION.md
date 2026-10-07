@@ -1,8 +1,9 @@
 # MT5 automatic publication, conflict review and Windows recovery
 
 Date: 2026-10-07. Branch: `feature/mt5-sync`.
-Status: implemented and verified locally; hosted rollout and the final bounded
-USD100K DEMO capture remain pending. MCP remains parked.
+Status: implemented, locally verified, pushed as `690c3f7`, and deployed.
+The final bounded USD100K DEMO capture remains pending account-policy activation.
+MCP remains parked.
 
 ## Delivered behavior
 
@@ -89,7 +90,22 @@ append-only reviews, account-bound grants and central financial calculations are
 preserved. UI uses the existing themed review forms and alert patterns.
 
 Production readiness: local checks pass with the documented database-image
-workaround. Apply the migration and deploy, approve the current snapshot under its
-updated fingerprint, enable only USD100K DEMO's policy, and perform a bounded real
-capture with hosted ledger readback before reporting the hosted capability passed.
-Return collector intent to PAUSED after that test. No broker execution is included.
+workaround. The migration was applied to `nhwlxcrsivmawwmjiwck` under the correct
+VeilCode Studio connection. Before/after readback preserves 20 trades and USD
+2032.53 net PnL; automatic publication defaults off.
+
+Vercel deployment `dpl_6EqoaL8xJDcQpCNWUApY3pE97w4m` built successfully and was
+promoted to `tradeos.veilcode.studio` after staged discovery, public-calculator
+HTTP 200 and anonymous integration-session HTTP 401 checks. Production-domain
+inspection resolves to that READY deployment. The CLI's Node runtime is 24.x.
+
+The browser-control service failed with “Unable to load browser request-header
+policy” on repeated inventory attempts and after a session reset. The user was
+given the exact existing-account page to approve its current snapshot and enable
+the policy through the normal authenticated form. Do not bypass browser consent
+with administrative SQL. Read-only SQLite verification still shows PAUSED,
+no attention, zero pending pages and the preserved checkpoint.
+
+After policy activation, run a bounded capture with hosted ledger readback before
+reporting real automatic publication verified. Return collector intent to PAUSED
+after that test. No broker execution is included.
