@@ -267,3 +267,82 @@ Review: plan alignment and system integrity PASS for this scoped catalog/display
 fix; local browser readiness PASS. Hosted display readiness and real terminal
 metadata verification remain PENDING because of the network/authentication gate.
 No merge or MCP release gate is satisfied by these local checks alone.
+
+## Restored session, verified symbols and ready preview — 2026-10-07
+
+The user loaded public Supabase discovery successfully in their browser. The
+actual Python transport initially timed out while curl succeeded. Windows proxy
+presence checks were false. A credential-free per-address diagnostic then reached
+both Supabase addresses over strict hostname-verified TLS; one Trade OS address
+timed out at TCP while the other returned HTTP 200. These observations establish
+intermittent reachability, not a proven provider outage or an auth-configuration
+defect. No DNS, proxy, firewall, certificate or security setting was changed.
+
+A fresh same-grant PKCE reconnect opened the normal browser. The user confirmed
+the callback success message. The first subsequent account checks returned
+INTEGRATION_UNAVAILABLE; a sanitized, read-only READY-session check then exited
+0, returned HTTP 200 and verified the same owner/account/client and grant.
+The protected vault is READY and local gate metadata was restored. No uncertain
+refresh token or code was replayed. Hosted readback confirms ACTIVE grant version
+2 with the same five grant audit events, not a new grant or broader permission.
+
+The bounded dedicated-terminal probe verified the exact DEMO/HEDGING identity
+and all twelve symbols at 2026-10-07T09:38:21.712572+00:00. The final probe record
+reported verified=true, twelve specification rows, no broker execution and no
+source-fact modification; stderr was empty. The PowerShell parent returned 1
+despite that complete record, so that invocation is not claimed as a passed
+command. The diagnostic launcher was replaced with a bounded `spawnSync` wrapper
+that checks the actual child status, stderr, complete final record and exact
+symbol set. `node .artifacts/mt5-pilot/run_symbol_probe.mjs` then exited 0, reported
+childExitCode=0 and verified the same twelve specifications at
+2026-10-07T10:02:21.355890+00:00, without execution or source changes. This resolves
+the diagnostic reporting defect. Operational worker supervision is a separate
+already-tested implementation; this is not a startup-task test.
+
+Metadata confirms the forex base/profit currency pairs and 100000-unit contracts.
+XAUUSDm is Gold vs US Dollar with base XAU, profit USD, a 100-unit contract and
+three price digits. All observed volume steps are 0.01; observed maxima are 200
+lots except USDJPYm at 300. Generic calculator defaults are not substituted for
+these broker facts. Identity mapping does not normalize broker prices or volume.
+
+The existing EURUSDm mapping was preserved. The eleven other mappings were saved
+through the signed-in normal browser forms, each with metadata-backed reasons,
+not a privileged mutation or a forged browser context. Read-only hosted SQL
+confirmed twelve current mappings at version 1, unchanged 86 source facts, zero
+canonical trades, zero adjustments and the USD 100000 opening baseline. UI
+submissions were checked by newly visible mapping history before proceeding;
+the first inconclusive pointer activation was recovered using the same operation
+and payload through keyboard activation, without duplicate mapping events.
+
+Independent read-only SQL grouped the actual captured hedging facts by position:
+each of the twenty groups has exactly two deals, one IN and one OUT, with
+positive and exactly equal entered/exited volume. For this specific fixture,
+profit plus signed commission, swap and fee matches normalized net PnL for every
+group. All captured commission, swap and fee components are zero. This is a
+fixture cross-check, not a replacement for directional-episode reconstruction.
+The central TypeScript decimal utilities independently verified the source
+financial components and returned:
+
+- Twenty closed groups; ten wins, ten losses, zero break-even.
+- Primary decisive win rate 50%; no missing-R values fabricated.
+- Normalized net profit USD 2032.53.
+- Preserved baseline USD 100000.00 plus profit = USD 102032.53.
+
+The live browser preview corroborated that captured balance basis, observed
+balance/equity USD 102032.53, open-trade recognized cash USD 0.00, unexplained
+difference USD 0.00, zero reconstruction issues, zero unresolved cash and twenty
+eligible groups. This references the frozen 2026-10-06 captured snapshot, not a
+claim about the current broker balance or complete lifetime history.
+
+Commands: `verify_ready_pilot.py` PASS/exit 0;
+`verify_preview_fixture.mjs` PASS/exit 0. The direct-pooler financial-audit helper
+failed at CONNECTION; the independent hosted read-only connector query succeeded
+instead. No TLS downgrade or production test mutation was used. Private fixtures
+and visual evidence remain ignored and excluded from deployment. No application
+source changed during this continuation; prior local regression results above
+remain historical evidence rather than newly rerun checks.
+
+Next gate: explicit user approval of these twenty historical canonical trades
+and the unchanged baseline. No publication, reconciliation approval, collector
+resumption, startup installation, production promotion, branch merge or MCP
+activation occurred. The normal preview tab is left open for that decision.

@@ -238,3 +238,13 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   that final Docker/browser rerun is pending an approval-service usage-limit reset.
   No terminal, hosted migration, merge, deployment or MCP implementation occurred.
   See [credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
+- 2026-10-07: restored the existing pilot OAuth session without changing its
+  account/grant/version or five grant audit events. Verified dedicated demo
+  specifications and all twelve explicit symbol mappings through normal audited
+  browser forms. Independent source and central-decimal checks reconcile twenty
+  captured closed trades (ten wins, ten losses) to USD +2032.53 and the captured
+  USD 102032.53 balance basis, with zero unresolved source/cash problems. The
+  preserved baseline remains USD 100000; no canonical trades are published.
+  Explicit publication/approval, display-fix rollout and operational release
+  gates remain pending. MCP stays parked. See
+  [current pilot evidence](MT5_RECONNECT_VERIFICATION.md).
