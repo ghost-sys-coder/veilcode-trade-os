@@ -254,3 +254,16 @@ publication, collector resumption, startup task or MCP activation occurred.
 The display implementation is locally verified. Vercel target inspection confirmed
 `ghostsyscoders-projects/trade-os`, project `prj_J06NUbnHQj38DhAK4YX5poGV5ytz`.
 Hosted UI deployment is pending staged-deployment checks, not claimed live here.
+
+Implementation commit `8a09d1b` was pushed successfully to `feature/mt5-sync`.
+`vercel deploy --prod --skip-domain --yes --non-interactive --meta
+tradeOsRollout=mt5-catalog-volume-display` uploaded the reviewed source but exited
+1 on `connect ETIMEDOUT` to the Vercel deployment-creation API. No deployment ID
+or URL was returned and no promotion was performed. A read-only metadata lookup
+returned no candidate URL/state. Check that rollout metadata before retrying;
+do not claim a hosted build, post-deploy checks or an error-log scan passed.
+
+Review: plan alignment and system integrity PASS for this scoped catalog/display
+fix; local browser readiness PASS. Hosted display readiness and real terminal
+metadata verification remain PENDING because of the network/authentication gate.
+No merge or MCP release gate is satisfied by these local checks alone.
