@@ -35,7 +35,7 @@ def main():
     client = OAuthClient(configuration, store=store)
     action = data["action"]
     if action == "begin":
-        print(json.dumps({"authorizationUrl": client.begin(data["redirectUri"])}))
+        print(json.dumps({"authorizationUrl": client.begin(data["redirectUri"], reconnect=data.get("reconnect", False))}))
         return
     if action == "finish":
         client.finish(data["callbackUrl"])

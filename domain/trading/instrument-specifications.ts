@@ -39,6 +39,9 @@ export const INSTRUMENT_SPECIFICATIONS: readonly InstrumentSpecification[] = [
   fx("EURGBP", "EUR", "GBP"),
   fx("GBPCHF", "GBP", "CHF"),
   fx("CADJPY", "CAD", "JPY", "0.01", 3),
+  fx("AUDUSD", "AUD", "USD"),
+  fx("AUDJPY", "AUD", "JPY", "0.01", 3),
+  fx("EURAUD", "EUR", "AUD"),
   {
     symbol: "XAUUSD",
     displayName: "Gold / US Dollar",

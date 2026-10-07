@@ -64,7 +64,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 
 | ID | Deliverable | Gate | Initial status |
 | --- | --- | --- | --- |
-| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally: real provider, signed tokens and browser; hosted configuration/deployment unverified |
+| MT5-0 | Documentation, branches, authentication compatibility | PKCE, refresh, intended-resource binding, revocation and login compatibility | Passed locally and hosted: real S256, signed resource binding, refresh, revocation and same-grant reconnect; browser-only logout isolation verified with the real local provider |
 | MT5-1 | Shared services and transactional import storage | Owner isolation, RLS, atomicity, replay and concurrency tests | In progress: durable source capture, receipts, audits and fenced leases verified; canonical shared workflows pending |
 | MT5-2 | Broker reconstruction and financial attribution | Hand-calculated fixtures and migration compatibility | In progress: deterministic episodes/finance fixtures and migrations pass locally; source-backed manual canonical publication verified; automatic publication and reviewed-source resolution pending |
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
@@ -120,6 +120,18 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 - [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth)
 
 ## Progress log
+
+- 2026-10-06: same-grant reconnect fix `d95be83` pushed and deployed. The actual
+  USD100K DEMO credential reconnected without revocation or new account selection,
+  preserving grant version 2, mapping version 1 and five grant audit events.
+  Hosted security/refresh checks pass. Verified 453 application tests, all 10
+  database suites, 46 real local browser/provider checks and 167 Python tests,
+  plus typecheck, lint and build. First actual dedicated-terminal snapshot durably
+  staged 86 source facts with zero pending uploads and matching checkpoints.
+  Collector stays PAUSED; no canonical trades/adjustments published or opening
+  baseline changed. Source-backed preview/publication and operational interruption
+  gates remain pending; MCP stays parked. See
+  [reconnect verification](MT5_RECONNECT_VERIFICATION.md).
 
 - 2026-10-05: precision/runtime checkpoint `464b0d4` committed and pushed.
   Implemented explicit broker-symbol approval, typed current mappings, append-only
@@ -226,3 +238,13 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   that final Docker/browser rerun is pending an approval-service usage-limit reset.
   No terminal, hosted migration, merge, deployment or MCP implementation occurred.
   See [credentials/supervision report](MT5_CREDENTIALS_SUPERVISION_VERIFICATION.md).
+- 2026-10-07: restored the existing pilot OAuth session without changing its
+  account/grant/version or five grant audit events. Verified dedicated demo
+  specifications and all twelve explicit symbol mappings through normal audited
+  browser forms. Independent source and central-decimal checks reconcile twenty
+  captured closed trades (ten wins, ten losses) to USD +2032.53 and the captured
+  USD 102032.53 balance basis, with zero unresolved source/cash problems. The
+  preserved baseline remains USD 100000; no canonical trades are published.
+  Explicit publication/approval, display-fix rollout and operational release
+  gates remain pending. MCP stays parked. See
+  [current pilot evidence](MT5_RECONNECT_VERIFICATION.md).

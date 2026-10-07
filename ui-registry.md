@@ -329,6 +329,13 @@ compact semibold descriptions, muted captions and native `accent-primary`
 checkboxes. Baseline acknowledgement is separate from trade selection. No
 checkbox defaults to approval; pending submission disables the fieldset.
 
+Volume display update (2026-10-07): execution quantities use `font-mono tabular-nums`.
+Presentation uses a shared eight-fractional-digit volume formatter, independent
+of account money precision. Rounded displays carry `≈`; the exact captured
+quantity remains in the title and accessible label. Tiny nonzero quantities
+remain nonzero. No display rounding changes execution, closure, or financial
+calculations. Preserve the surrounding Card/Table typography and theme tokens.
+
 ### MT5 broker-symbol approval
 
 File: `features/integrations/mt5-symbol-mapping-form.tsx`

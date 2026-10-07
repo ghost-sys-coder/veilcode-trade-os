@@ -42,8 +42,9 @@ select is(
   'new user receives six inactive example rules'
 );
 select is(
-  (select count(*)::integer from public.instruments where user_id is null),
-  11,
+  (select count(*)::integer from public.instruments where user_id is null and symbol in
+    ('EURUSD','GBPUSD','USDJPY','USDCHF','USDCAD','EURJPY','GBPJPY','EURGBP','GBPCHF','CADJPY','XAUUSD','AUDUSD','AUDJPY','EURAUD')),
+  14,
   'required global instruments are available'
 );
 

@@ -4,6 +4,23 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
+Latest pilot update (2026-10-07): the user-confirmed browser discovery was followed
+by fresh same-grant consent and a live HTTP 200 account/client/grant check.
+Read-only dedicated demo metadata verified all twelve captured symbols; all
+twelve mappings are now saved through the audited browser workflow. Independent
+captured-deal financial checks and central decimal calculations reconcile twenty
+closed groups to USD +2032.53 and the captured balance basis of USD 102032.53,
+with zero unresolved cash or reconstruction problems. Canonical publication and
+captured-history approval still require the user's explicit approval; the
+collector remains paused. The display-fix deployment and operational gates remain
+pending. See [current pilot evidence](MT5_RECONNECT_VERIFICATION.md).
+
+Historical hosted pilot update (2026-10-06): strict pooler TLS, actual user consent,
+signed resource/account/grant checks, refresh rotation, wrong-PKCE rejection,
+immediate revocation and fresh consent restoration have passed. Normal browser
+login regression and terminal mapping are pending; broker history capture has
+not started. See [hosted authentication evidence](MT5_HOSTED_AUTH_VERIFICATION.md).
+
 ## Delivery checklist
 
 - [x] MT5-0: documentation/branches and local authentication compatibility.

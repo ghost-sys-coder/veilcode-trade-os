@@ -7,6 +7,14 @@ import { calculatePositionSize } from "@/domain/trading/position-sizing";
 const eurusd = getInstrumentSpecification("EURUSD")!;
 
 describe("position sizing", () => {
+  it.each([
+    ["AUDUSD", "AUD", "USD", "0.0001", 5],
+    ["AUDJPY", "AUD", "JPY", "0.01", 3],
+    ["EURAUD", "EUR", "AUD", "0.0001", 5],
+  ])("includes the canonical %s reference preset without inferring broker aliases", (symbol, baseCurrency, quoteCurrency, pipSize, pricePrecision) => {
+    expect(getInstrumentSpecification(symbol)).toMatchObject({ baseCurrency, quoteCurrency, pipSize, pricePrecision });
+    expect(getInstrumentSpecification(`${symbol}m`)).toBeUndefined();
+  });
   it("sizes quote-currency accounts and floors to the volume step", () => {
     const result = calculatePositionSize({ balance: "10000", currency: "USD", currencyPrecision: 2, riskMethod: "PERCENTAGE", riskValue: "1", instrument: eurusd, direction: "BUY", entryPrice: "1.10000", stopLossPrice: "1.09500", takeProfitPrice: "1.11000", leverage: "100" });
     expect(result.recommendedVolume).toBe("0.20");

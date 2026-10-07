@@ -16,6 +16,7 @@ interface ConsentProvider {
 type ConsentRequest = NonNullable<ReturnType<typeof parseConsentRequest>>;
 export type ConsentView =
   | { status: "SIGN_IN_REQUIRED" | "INVALID_REQUEST" | "UNAVAILABLE" | "BLOCKED" }
+  | { status: "RESUME_CANDIDATE"; authorizationId: string; redirectUrl: string }
   | { status: "REQUEST"; request: ConsentRequest };
 
 export async function loadOAuthConsent(provider: ConsentProvider, input: unknown): Promise<ConsentView> {
@@ -32,9 +33,14 @@ export async function loadOAuthConsent(provider: ConsentProvider, input: unknown
     if (!user.data.user || user.data.user.id !== claims.data.claims.sub) return { status: "SIGN_IN_REQUIRED" };
     const details = await provider.auth.oauth.getAuthorizationDetails(id.data);
     if (details.error || !details.data) return { status: "INVALID_REQUEST" };
-    // Already-consented redirects can carry codes without a new account selection.
-    // Never let Supabase auto-consent bypass application grant validation.
-    if (typeof details.data === "object" && "redirect_url" in details.data) return { status: "BLOCKED" };
+    // This is only a candidate, never permission to forward a code. The grant
+    // service must independently validate the owned request and existing scope.
+    if (typeof details.data === "object" && "redirect_url" in details.data) {
+      const url = details.data.redirect_url;
+      return typeof url === "string" && url.length > 0 && url.length <= 4096
+        ? { status: "RESUME_CANDIDATE", authorizationId: id.data, redirectUrl: url }
+        : { status: "BLOCKED" };
+    }
     const request = parseConsentRequest(details.data, id.data, user.data.user.id);
     return request ? { status: "REQUEST", request } : { status: "INVALID_REQUEST" };
   } catch {
@@ -49,6 +55,7 @@ export async function decideOAuthConsent(provider: ConsentProvider, input: unkno
   if (decision !== "deny") return { status: "BLOCKED" };
   // Re-read identity and provider request at action time; hidden fields aren't authority.
   const view = await loadOAuthConsent(provider, input);
+  if (view.status === "RESUME_CANDIDATE") return { status: "BLOCKED" };
   if (view.status !== "REQUEST") return view;
   try {
     const result = await provider.auth.oauth.denyAuthorization(view.request.authorizationId, { skipBrowserRedirect: true });
