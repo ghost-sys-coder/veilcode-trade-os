@@ -24,7 +24,7 @@ export async function readIntegrationJson(request: Request): Promise<unknown> {
   } catch { throw new IntegrationWorkflowError("INVALID_INTEGRATION_INPUT"); }
   finally { reader.releaseLock(); }
 }
-export function integrationErrorResponse(error: unknown) {
+export function integrationErrorResponse(error: unknown, purpose: "MT5" | "MCP" = "MT5") {
   const code = error instanceof IntegrationAuthorizationError ? "INTEGRATION_ACCESS_DENIED"
     : error instanceof IntegrationUnavailableError ? "INTEGRATION_UNAVAILABLE"
     : error instanceof IntegrationWorkflowError ? error.code : error instanceof ZodError ? "INVALID_INTEGRATION_INPUT" : "INTEGRATION_UNAVAILABLE";
@@ -34,8 +34,9 @@ export function integrationErrorResponse(error: unknown) {
   if (status === 401) {
     headers["WWW-Authenticate"] = 'Bearer error="invalid_token"';
     try {
-      const { resource } = getIntegrationConfig("MT5");
-      headers["WWW-Authenticate"] += `, resource_metadata="${new URL(resource).origin}/.well-known/oauth-protected-resource/api/integrations/v1", scope="email"`;
+      const { resource } = getIntegrationConfig(purpose);
+      const path=purpose==="MT5"?"api/integrations/v1":"mcp";
+      headers["WWW-Authenticate"] += `, resource_metadata="${new URL(resource).origin}/.well-known/oauth-protected-resource/${path}", scope="email"`;
     } catch { /* No host-header-derived resource or sensitive provider error. */ }
   }
   if (status === 503) headers["Retry-After"] = "15";

@@ -1,9 +1,11 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Status: implementation inventory only. No MCP endpoint or tools are enabled.
-The remaining actual MT5 automatic-publication check is pending browser policy
-activation; it is not represented as passed by the user's MT5 branch merge.
+Status: stateless HTTP foundation implemented on the MCP branch after the focused
+MT5 capture check passed. Hosted MCP remains disabled. Implemented tools are
+`tradeos_capabilities`, `tradeos_position_size` and `tradeos_operation_status`.
+The five contract resources are implemented. All remaining tool families below
+remain pending; local stdio and real-client verification are pending.
 
 ## Shared service boundary
 

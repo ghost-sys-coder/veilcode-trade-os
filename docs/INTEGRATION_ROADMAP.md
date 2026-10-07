@@ -121,6 +121,17 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-08: merged the latest verified MT5 fix/evidence to master `32306e5`
+  and updated the existing MCP branch. Added the official SDK2.3.1 stateless
+  HTTP foundation, MCP resource discovery/challenge, five contract resources,
+  capabilities/decimal position sizing/operation lookup. Legacy and current
+  protocol tests pass. Verified 493 application tests, 53 browser/provider/API
+  regressions, typecheck, lint and build; production dependency audit is clean
+  after compatible patches. Eight unpatched development glob-tool notices
+  remain documented. MCP stays disabled in production. Typed CRUD, local stdio,
+  actual MCP consent and the external client matrix remain pending. See
+  [MCP foundation evidence](MCP_FOUNDATION_VERIFICATION.md).
+
 - 2026-10-08: user approved the current snapshot and enabled automatic publication
   for USD100K DEMO. The bounded dedicated-terminal capture passed on the hosted
   path, advanced checkpoint to 2026-10-07T21:20:56.220Z, and preserved 20 unique
