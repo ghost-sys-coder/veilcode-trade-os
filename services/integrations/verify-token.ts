@@ -3,6 +3,7 @@ import { z } from "zod";
 import { IntegrationAuthorizationError } from "../../domain/integrations/actor.ts";
 
 const claimsSchema = z.object({
+  iss: z.string().url(), aud: z.union([z.string(),z.array(z.string())]),
   sub: z.string().uuid(), client_id: z.string().uuid(), session_id: z.string().uuid(),
   role: z.literal("authenticated"), exp: z.number().int(), iat: z.number().int(),
   trade_os_grant_id: z.string().uuid(), trade_os_grant_version: z.string().regex(/^[1-9][0-9]*$/),

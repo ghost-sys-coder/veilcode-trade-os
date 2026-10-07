@@ -32,6 +32,7 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(root.findtext("t:Settings/t:ExecutionTimeLimit", namespaces=ns), "PT0S")
         self.assertEqual(root.findtext("t:Settings/t:RestartOnFailure/t:Interval", namespaces=ns), "PT1M")
         self.assertIsNone(root.find("t:Triggers/t:BootTrigger", ns))
+        self.assertEqual(root.findtext("t:Triggers/t:TimeTrigger/t:Repetition/t:Interval", namespaces=ns), "PT1M")
         self.assertIn("-m trade_os_mt5.cli run --config", root.findtext("t:Actions/t:Exec/t:Arguments", namespaces=ns))
         self.assertEqual(
             root.findtext("t:Triggers/t:LogonTrigger/t:UserId", namespaces=ns),
@@ -90,3 +91,34 @@ class StartupTests(unittest.TestCase):
     def test_task_spec_cli_returns_no_credentials(self):
         result = perform("startup-spec", self.configuration)
         self.assertNotIn("refreshToken", json.dumps(result))
+
+    def test_repair_requires_exact_existing_action_and_current_user(self):
+        perform("init", self.configuration)
+        xml = specification(self.configuration).encode()
+        with patch("trade_os_mt5.startup.subprocess.run", side_effect=[Mock(returncode=0,stdout=xml),Mock(returncode=0)]) as run:
+            result = install(self.configuration, repair_owned=True)
+        self.assertTrue(result["repairedOwnedTask"])
+        self.assertIn("/F",run.call_args.args[0])
+        with patch("trade_os_mt5.startup.subprocess.run", return_value=Mock(returncode=0,stdout=xml.replace(b"InteractiveToken",b"Password"))) as run:
+            with self.assertRaisesRegex(CredentialError,"STARTUP_REPAIR_REJECTED"):
+                install(self.configuration,repair_owned=True)
+        self.assertEqual(run.call_count,1)
+
+    def test_repair_is_explicit_and_unreadable_task_is_not_overwritten(self):
+        with self.assertRaisesRegex(CredentialError,"CONTROL_REASON_REQUIRED"):
+            perform("repair-startup",self.configuration)
+        perform("init",self.configuration)
+        with patch("trade_os_mt5.startup.subprocess.run", return_value=Mock(returncode=1,stdout=b"")) as run:
+            with self.assertRaisesRegex(CredentialError,"STARTUP_REPAIR_REJECTED"):
+                install(self.configuration,repair_owned=True)
+        self.assertEqual(run.call_count,1)
+
+    def test_scheduler_utf16_declaration_and_omitted_least_privilege_are_normalized(self):
+        perform("init",self.configuration)
+        root=ET.fromstring(specification(self.configuration))
+        ns={"t":NAMESPACE}
+        principal=root.find("t:Principals/t:Principal",ns)
+        principal.remove(principal.find("t:RunLevel",ns))
+        xml=b'<?xml version="1.0" encoding="UTF-16"?>\r\n'+ET.tostring(root,encoding="utf-8")
+        with patch("trade_os_mt5.startup.subprocess.run",side_effect=[Mock(returncode=0,stdout=xml),Mock(returncode=0)]):
+            self.assertTrue(install(self.configuration,repair_owned=True)["repairedOwnedTask"])

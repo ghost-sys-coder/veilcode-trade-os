@@ -4,6 +4,7 @@ import { reconstructMt5Deals, type Mt5Episode } from "@/domain/mt5/reconstruct";
 import { normalizeMoney, parseDecimal, sumDecimals } from "@/domain/money/decimal";
 import type { Mt5SymbolMapping } from "@/domain/mt5/symbol-mapping";
 import type { Mt5CashDecision } from "@/domain/mt5/cash";
+import type { mt5ManualDecisionSchema } from "@/domain/mt5/review";
 
 const timestamp = z.iso.datetime({ offset: true });
 const version = z.string().regex(/^[1-9][0-9]*$/);
@@ -21,6 +22,7 @@ export type Mt5ConnectionView = z.infer<typeof mt5ConnectionViewSchema>;
 export const mt5StoredSourceSchema = z.object({
   kind: z.enum(["DEAL","ORDER","POSITION","ACCOUNT"]), sourceId: z.string(),
   revisionId: version, observedAt: timestamp, requiresReview: z.boolean(), payload: z.unknown(),
+  previousPayload: z.unknown().optional(),
 }).transform((row,context) => {
   const event = mt5SourceEventSchema.safeParse({ kind: row.kind, sourceId: row.sourceId,
     observedAt: new Date(row.observedAt).toISOString(), payload: row.payload });
@@ -32,6 +34,7 @@ export type Mt5StoredSource = z.infer<typeof mt5StoredSourceSchema>;
 export interface PreviewExistingTrade {
   id: string; symbol: string; direction: "BUY" | "SELL"; openedAt: string | null; closedAt: string | null;
   canonicalIdentity: string | null; closedNetPnl: string | null;
+  reviewToken?: string;
 }
 export interface PreviewProblem { code: string; positionId: string | null; detail: string }
 export interface PreviewEpisode { episode: Mt5Episode; instrumentId: string | null; matchingTradeIds: string[]; publishable: boolean }
@@ -43,6 +46,7 @@ export function buildMt5OnboardingPreview(input: {
   startingBalance: string; ledgerBalance: string;
   symbolMappings?: Mt5SymbolMapping[];
   cashDecisions?: Mt5CashDecision[];
+  manualDecisions?: z.infer<typeof mt5ManualDecisionSchema>[];
 }) {
   const precision = input.connection.identity.currencyPrecision;
   const events = input.sources.map(source => source.event);
@@ -88,6 +92,10 @@ export function buildMt5OnboardingPreview(input: {
     // Only the source's own canonical identity may update automatically. Every
     // plausible manual/other-source overlap is held for explicit reconciliation.
     const matches = input.existingTrades.filter(trade => trade.canonicalIdentity === null
+      && !(input.manualDecisions?.filter(decision => decision.canonicalIdentity === episode.canonicalIdentity
+        && decision.tradeId === trade.id).at(-1)?.decision === "DISTINCT"
+        && input.manualDecisions.filter(decision => decision.canonicalIdentity === episode.canonicalIdentity
+          && decision.tradeId === trade.id).at(-1)?.tradeToken === trade.reviewToken)
       && trade.symbol === (candidates[0]?.symbol ?? episode.symbol) && trade.direction === episode.direction && trade.openedAt !== null
       && (Date.parse(trade.openedAt) === Date.parse(episode.openedAt)
         || (Date.parse(trade.openedAt) <= Date.parse(episode.closedAt ?? "9999-12-31T00:00:00Z")

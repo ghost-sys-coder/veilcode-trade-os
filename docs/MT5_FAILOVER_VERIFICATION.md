@@ -129,3 +129,156 @@ The 48-hour soak remains deferred by the user, not passed. MCP stays parked/off.
 
 Sources: [Python 3.13 socket connections](https://docs.python.org/3.13/library/socket.html#socket.create_connection),
 [HTTPS connection behavior](https://docs.python.org/3.13/library/http.client.html#http.client.HTTPSConnection).
+
+## Resolved authentication and recovered upload — 2026-10-07
+
+The worktree had returned to consolidated `master` (`c9d2a35`), which did not
+contain the pushed failover implementation. Returned to the existing MT5 feature
+branch (`5cf295c`) without modifying master or the user's untracked screenshot.
+The operational Python modules load from this worktree: do not switch branches
+under a running collector. This observation does not prove that the earlier
+failed exchanges ran on the wrong branch; their recorded failures remain valid.
+
+Added ignored, credential-safe diagnostic helpers. A Python request reached
+discovery with verified TLS and HTTP 200, but later requests to application
+metadata and the synthetic token endpoint failed during DNS/TCP dialing, before
+TLS or HTTP transmission. Direct curl with proxies explicitly excluded showed
+the same variability: discovery timed out, while a subsequent deliberately
+invalid-code POST returned the expected HTTP 400 in 0.99 seconds with certificate
+verification enabled. No real code/token was used or provider body logged by
+these probes. This corroborates intermittent direct reachability, not a proven
+PKCE, credential or grant rejection; it does not explain every prior failure.
+
+One fresh traced PKCE attempt then completed successfully. Diagnostics recorded
+only fixed endpoint labels, phases, HTTP status, duration, byte count and vault
+state. They recorded no URLs with query parameters, request/response bodies,
+codes, verifiers, tokens or provider error text. The unchanged production
+validation and protected credential store were used:
+
+- Discovery: verified TLS, HTTP 200, bounded JSON response read.
+- Token POST: verified TLS, HTTP 200 in 0.55 seconds, JSON response read.
+- Application session: authoritative signed/live-grant check HTTP 200.
+- Protected vault: EXCHANGING followed by durably persisted READY.
+- Independent second application session check: HTTP 200, exact same grant.
+
+`authorize_traced_pilot.py` exited 0; the listener closed. No old code or refresh
+token was replayed and no broader permission, new mapping or broker execution
+was introduced. The previously blocking reauthorization gate is now passed for
+this observed session, not a guarantee of future network availability.
+
+The separately user-approved bounded coordinator check then exited 0. It started
+PAUSED with one pending page, recovered it under a newer server fence, staged a
+fresh observation and ended PAUSED with no attention code and pendingPages=0.
+Both captured and server-confirmed checkpoints are 2026-10-07T14:51:30.826Z.
+The last contact in that run was 2026-10-07T14:51:38.805Z. No automatic canonical
+publication, orders or startup installation occurred.
+
+`audit_recovered_outbox.py` opened SQLite in explicit read-only/query-only mode
+and exited 0. Integrity is `ok`. The uncertain fence-3 attempt remains present,
+superseded rather than deleted; the fence-5 replacement has a durable receipt.
+The old page is acknowledged. Comparing the complete frozen envelopes after
+excluding only operation ID, worker ID and fencing metadata proves identical
+source facts. This is the fenced UNKNOWN/replacement recovery path, not a claim
+that the original attempt was already COMMITTED.
+
+Independent hosted readback confirms server fence 5 and the same checkpoint,
+ACTIVE grant/version 2, eighty-six source-fact identities, twenty canonical trades
+and twenty distinct canonical identities, USD 2032.53 net PnL, zero adjustments,
+one publication approval and the preserved USD 100000 baseline/start date
+21 September. The signed-in, freshly loaded browser preview corroborates
+USD 102032.53 ledger/observed broker balance, proposed closed PnL change zero,
+open-trade recognized cash zero, unexplained difference zero and no unresolved
+cash/reconstruction issues. The old approval remains correctly stale after the
+new checkpoint; no fresh onboarding approval was submitted automatically.
+
+Private screenshots/diagnostics remain ignored and excluded from deployment.
+This continuation changed documentation/preparation metadata only; no application
+source or schema changed, and the earlier full regression results above were
+not rerun or relabeled as newly passed. `git diff --check` passes for this update.
+
+Next gate: explicit review/approval of the recovered current snapshot, followed
+by the remaining implementation/operational gates listed above. This single
+dedicated demo recovery does not complete real startup, additional-account,
+unattended publication or full MT5 release verification. MCP remains parked/off.
+
+## Recovered snapshot approved — 2026-10-07
+
+The user's explicit approval was submitted through the existing signed-in browser
+form, not a direct privileged SQL write. The application recorded a fresh,
+append-only captured-history proof at 2026-10-07T15:20:40.495176+00:00 for the
+recovered checkpoint 2026-10-07T14:51:30.826Z. The refreshed browser shows
+`Captured-history snapshot approved` and the connection monitor shows
+`Onboarding approved`. A private screenshot records that result; screenshots and
+pilot preparation metadata remain ignored and excluded from deployment.
+
+Independent, connection/account-scoped hosted SQL readback confirms:
+
+- Latest approval source fingerprint equals the current source fingerprint.
+- Latest approval ledger fingerprint equals the current account ledger fingerprint.
+- Approval and completed capture checkpoints match.
+- Two onboarding proofs exist: the old proof is retained, not overwritten.
+- Connection version is 18; the mapped server status remains ACTIVE.
+- Twenty canonical trades, USD +2032.53 closed net PnL and zero adjustments remain.
+
+The local intent is independently PAUSED, not inferred from the server's ACTIVE
+mapping/grant. `audit_recovered_outbox.py` opened SQLite read-only/query-only and
+exited 0: integrity ok, no attention code, pendingPages=0, matching local/server
+checkpoints and unchanged frozen recovery evidence. Its initial sandboxed attempt
+could not validate operator configuration; the authorized read-only rerun passed.
+No new collection, refresh exchange, order, automatic publication, startup
+installation, production migration or deployment was performed by this approval.
+
+The browser inspection exposed contradictory presentation: an approved snapshot
+still said onboarding approval was required and offered the same approval form.
+Corrected the preview page to show recorded approval and omit that duplicate form
+only for `APPROVED_SNAPSHOT`. Stale and absent approvals still require explicit
+review even when their balance bridge is zero. Three render-level regression
+tests cover those states without weakening transactional approval checks. This
+presentation change is verified locally; it is not yet deployed to production.
+
+### Commands in this continuation
+
+| Command | Result |
+| --- | --- |
+| `npm test -- tests/integration/mt5-approval-display.test.ts` | PASS: 3 tests |
+| `npm test` | PASS after display fix: 473 tests, 36 files |
+| `npm run test:db` | PASS: 449 assertions, eleven disposable rollback-isolated suites |
+| `npm run typecheck` | PASS after display fix |
+| `npm run lint` | PASS after display fix |
+| `npm run build` | PASS after display fix: Next.js 16.3.6 |
+| `npm run test:mt5-python` | PASS: 173 tests; Python source unchanged |
+| `npm run check:mt5-python` | PASS: Ruff/compileall; Python source unchanged |
+| `npm run test:integration-browser` | PASS after display fix: 47 local provider/browser/API checks, Chrome 154.0.8037.93 |
+| `audit_recovered_outbox.py` | PASS: read-only PAUSED/empty-outbox/checkpoint proof |
+| `git diff --check` | PASS |
+
+The isolated browser suite exercised captured-history approval through the actual
+local form after the display change, retained one proof and a PAUSED connection,
+and reported no uncaught client errors. It also verified current account-switch
+isolation, concurrent uploads, fenced restart recovery, provider refresh/reconnect,
+browser-only logout, revocation, both themes and a narrow monitoring viewport.
+Those local fixtures are not additional real broker accounts or an actual Windows
+sign-in/startup test; the dedicated hosted collector was not resumed by the suite.
+
+The initial unprivileged database invocation could not access local Docker and
+exited 1. Authorized reruns used only the healthy disposable local stack and
+passed; the hosted project was not used for regression fixtures. A stale browser
+tab temporarily lost its control attachment after submission; a fresh tab in the
+same browser recovered the approved result and screenshot. Approval was not
+replayed merely because browser control failed.
+
+### Scoped review
+
+Plan alignment: PASS for approving the exact recovered snapshot and correcting
+its presentation. Approval remains evidence for one source/ledger checkpoint,
+not broker-lifetime completeness, automatic publication or a resume command.
+
+System integrity: PASS. Existing owner/session checks, transactional private RPC,
+append-only proofs, decimal finance and snapshot fingerprints are unchanged.
+The display uses existing design tokens and components, without new UI patterns.
+
+Production readiness: PENDING for the overall integration. Current snapshot
+approval is no longer pending. Unattended canonical publication, reviewed
+source/manual conflicts, local backlog reporting, actual startup invocation and
+additional-account/real interruption verification remain release requirements.
+The extended soak remains deferred, not passed. MCP remains parked/off.

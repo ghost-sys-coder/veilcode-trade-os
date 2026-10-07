@@ -597,6 +597,109 @@ try {
     assert.equal(approval.rows[0].status,"PAUSED");assert.equal(approval.rows[0].count,1);
     assert.equal(pageErrors,0);
     passed("browser approval records one source/ledger proof for an exact 1281.87 bridge while leaving the collector paused");
+    stage="automatic publication and conflict review";
+    assert.equal(await page.getByRole("button",{name:"Approve captured-history onboarding",exact:true}).count(),0);
+    await page.getByLabel("Publication policy reason",{exact:true}).fill("Enable explicit demo-only automatic publication after verified onboarding");
+    await page.getByRole("button",{name:"Enable automatic publication",exact:true}).click();
+    await page.getByRole("button",{name:"Disable automatic publication",exact:true}).waitFor();
+    assert.equal((await database.query("select automatic_publication_baseline::text as baseline from private.mt5_connections where id=$1",[connectionId])).rows[0].baseline,"1000.00000000");
+    passed("actual browser enables unattended publication only after current onboarding approval without resuming collection");
+    await page.goto(`${uiOrigin}/settings/integrations`);
+    await page.getByText("Worker controls",{exact:true}).click();
+    await page.getByLabel("Resume reason").fill("Resume isolated local collector fixture to verify automatic publication");
+    await page.getByRole("button",{name:"Resume server capture",exact:true}).click();
+    await page.getByText("Server capture enabled. If the local collector is paused or requires attention, explicitly resume it locally after resolving the cause.",{exact:true}).waitFor();
+    const autoWorker=randomUUID();
+    const autoLease=async()=>{
+      const response=await fetch(`${uiOrigin}/api/integrations/v1/mt5/lease`,{method:"POST",headers,
+        body:JSON.stringify({connectionId,workerId:autoWorker,operationId:randomUUID()})});
+      assert(response.ok);return await response.json() as {fencingToken:string};
+    };
+    const autoCollect=async(events:unknown[],at:string)=>{
+      const lease=await autoLease(),operationId=randomUUID();
+      const body={connectionId,workerId:autoWorker,operationId,fencingToken:lease.fencingToken,identity,
+        checkpoint:at,collection:{id:randomUUID(),index:0,count:1},events};
+      const response=await fetch(`${uiOrigin}/api/integrations/v1/mt5/capture`,{method:"POST",headers,body:JSON.stringify(body)});
+      assert(response.ok);return body;
+    };
+    const autoPositions=(at:string)=>{
+      const alias=positionObservation("90",at);alias.payload.symbol="EURUSD.m";
+      return [alias,...["20","30","40"].map(ticket=>positionObservation(ticket,at))];
+    };
+    const autoAccount=(balance:string,at:string)=>({kind:"ACCOUNT",sourceId:"ACCOUNT",observedAt:at,
+      payload:{balance,equity:balance,unrealizedPnl:"0",observedAt:at}});
+    const autoDeals=(position:string,first:string,last:string,profit:string,at:string,day:string)=>[
+      {kind:"DEAL",sourceId:first,observedAt:at,payload:{ticket:first,orderId:first,positionId:position,symbol:"EURUSD",type:"BUY",entry:"IN",volume:"1",price:"1.1",profit:"0",commission:"0",swap:"0",fee:"0",occurredAt:`2026-04-${day}T10:00:00.000Z`}},
+      {kind:"DEAL",sourceId:last,observedAt:at,payload:{ticket:last,orderId:last,positionId:position,symbol:"EURUSD",type:"SELL",entry:"OUT",volume:"1",price:"1.2",profit,commission:"0",swap:"0",fee:"0",occurredAt:`2026-04-${day}T11:00:00.000Z`}},
+    ];
+    const eur=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
+    stage="actual browser automatic manual match capture";
+    const manualInsert=await browser.from("trades").insert({account_id:accountResult.data.id,user_id:fixtureUser,instrument_id:eur,
+      status:"OPEN",direction:"BUY",opened_at:"2026-04-04T10:00:00Z",actual_entry:"1.1",actual_lot_size:"1",planned_risk_amount:"10",thesis:"Preserve this manual decision record"}).select("id").single();
+    assert(!manualInsert.error&&manualInsert.data);const manualId=manualInsert.data.id;
+    const beforeAuto=(await database.query("select count(*)::integer as count from public.trades where mt5_connection_id=$1",[connectionId])).rows[0].count;
+    const firstAutoAt=new Date().toISOString();
+    await autoCollect([...autoDeals("600","6001","6002","20",firstAutoAt,"04"),...autoPositions(firstAutoAt),autoAccount("1301.87",firstAutoAt)],firstAutoAt);
+    assert.equal((await database.query("select count(*)::integer as count from public.trades where mt5_connection_id=$1",[connectionId])).rows[0].count,beforeAuto);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    const manualCard=page.locator("section").filter({has:page.getByRole("heading",{name:"EURUSD · opening deal 6001",exact:true})});
+    await manualCard.getByLabel("Manual match decision",{exact:true}).selectOption("DISTINCT");
+    await manualCard.getByLabel("Manual match reason",{exact:true}).fill("Initially marked separate positions; explicit audited local decision");
+    await manualCard.getByRole("button",{name:"Record manual match decision",exact:true}).click();
+    await manualCard.waitFor({state:"detached"});
+    stage="actual browser automatic match withdrawal";
+    const withdrawal=page.locator("form").filter({has:page.locator('select[name="review_kind"] option[value="REOPEN"]')});
+    await withdrawal.getByLabel("Manual match decision",{exact:true}).selectOption("REOPEN");
+    await withdrawal.getByLabel("Manual match reason",{exact:true}).fill("Correct the earlier separate-position decision by appending a review hold");
+    await withdrawal.getByRole("button",{name:"Record manual match decision",exact:true}).click();
+    await manualCard.waitFor({state:"visible"});
+    stage="actual browser automatic manual link";
+    await manualCard.getByLabel("Manual match decision",{exact:true}).selectOption("LINK");
+    await manualCard.getByLabel("Manual match reason",{exact:true}).fill("Verified same position: retain the manual trade ID, plan and thesis while linking broker execution");
+    await manualCard.getByRole("button",{name:"Record manual match decision",exact:true}).click();
+    await manualCard.waitFor({state:"detached"});
+    const linked=(await database.query("select id,net_pnl::text,planned_risk_amount::text,thesis from public.trades where external_trade_id=$1",[`${connectionId}:600:6001:BUY`])).rows[0];
+    assert.equal(linked.id,manualId);assert.equal(linked.net_pnl,"20.00");assert.equal(linked.thesis,"Preserve this manual decision record");
+    assert.equal(Number(linked.planned_risk_amount),10);
+    passed("actual browser distinct/withdraw/link decisions preserve one manual trade ID and its original plan without automatic duplication");
+    stage="actual browser automatic complete capture";
+    const secondAutoAt=new Date().toISOString();
+    const autoBody=await autoCollect([...autoDeals("700","7001","7002","25",secondAutoAt,"05"),...autoPositions(secondAutoAt),autoAccount("1326.87",secondAutoAt)],secondAutoAt);
+    const replay=await fetch(`${uiOrigin}/api/integrations/v1/mt5/capture`,{method:"POST",headers,body:JSON.stringify(autoBody)});assert(replay.ok);
+    const automatic=(await database.query("select net_pnl::text,mt5_execution_version::text from public.trades where external_trade_id=$1",[`${connectionId}:700:7001:BUY`])).rows[0];
+    assert.equal(automatic.net_pnl,"25.00");assert.equal(automatic.mt5_execution_version,"1");
+    assert.equal((await database.query("select mt5_execution_version::text as version from public.trades where id=$1",[manualId])).rows[0].version,"1");
+    passed("real authenticated complete capture automatically publishes exactly25 once; replay and unchanged linked executions add no revision");
+    stage="actual browser automatic source correction";
+    const correctedAt=new Date().toISOString();
+    await autoCollect([...autoDeals("700","7001","7002","30",correctedAt,"05"),...autoPositions(correctedAt),autoAccount("1331.87",correctedAt)],correctedAt);
+    assert.equal((await database.query("select net_pnl::text from public.trades where external_trade_id=$1",[`${connectionId}:700:7001:BUY`])).rows[0].net_pnl,"25.00");
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    await page.getByLabel("Source review reason",{exact:true}).fill("Broker correction reviewed: complete source exit profit30 replaces25; do not silently change history");
+    await page.getByRole("button",{name:"Accept reviewed source revision",exact:true}).click();
+    await page.getByRole("button",{name:"Accept reviewed source revision",exact:true}).waitFor({state:"detached"});
+    const afterReviewAt=new Date().toISOString();await autoCollect([...autoPositions(afterReviewAt),autoAccount("1331.87",afterReviewAt)],afterReviewAt);
+    assert.equal((await database.query("select net_pnl::text from public.trades where external_trade_id=$1",[`${connectionId}:700:7001:BUY`])).rows[0].net_pnl,"30.00");
+    passed("revised broker profit remains held until actual browser review; later automatic capture updates the same canonical trade to30");
+    stage="actual browser automatic cash reconciliation";
+    const correctedCashAt=new Date().toISOString();
+    const originalDeposit=cashEvents.find(event=>event.sourceId==="101")!;
+    await autoCollect([{...originalDeposit,observedAt:correctedCashAt,payload:{...originalDeposit.payload,profit:"255"}},...autoPositions(correctedCashAt),autoAccount("1336.87",correctedCashAt)],correctedCashAt);
+    await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    await page.getByLabel("Source review reason",{exact:true}).fill("Review revised original deposit255 against previously attributed250; explicit delta reconciliation follows");
+    await page.getByRole("button",{name:"Accept reviewed source revision",exact:true}).click();
+    await page.getByRole("button",{name:"Reconcile revised cash evidence",exact:true}).waitFor();
+    await page.getByLabel("Reconciliation delta performance classification",{exact:true}).selectOption("true");
+    await page.getByLabel("Cash reconciliation reason",{exact:true}).fill("Confirmed funding correction delta plus5 is cash-only; preserve original250 deposit and provenance");
+    await page.getByRole("button",{name:"Reconcile revised cash evidence",exact:true}).click();
+    await page.getByRole("button",{name:"Reconcile revised cash evidence",exact:true}).waitFor({state:"detached"});
+    assert.equal((await database.query("select sum(amount)::text as total from public.account_adjustments where account_id=$1",[accountResult.data.id])).rows[0].total,"199.87");
+    await page.screenshot({path:`${artifactDirectory}/mt5-automatic-review-dark.png`,fullPage:true});
+    passed("actual browser cash reconciliation appends only plus5, preserving the original deposit and zero-difference1336.87 ledger bridge");
+    await page.goto(`${uiOrigin}/settings/integrations`);await page.getByText("Worker controls",{exact:true}).click();
+    await page.getByLabel("Pause reason").fill("Return the isolated fixture collector to paused after automatic publication checks");
+    await page.getByRole("button",{name:"Pause server uploads",exact:true}).click();
+    await page.getByText("Server uploads paused; the previous worker lease is invalidated.",{exact:true}).waitFor();
     await page.goto(`${uiOrigin}/settings/integrations`);
     await page.setViewportSize({ width: 390,height: 844 });
     await page.reload();
@@ -731,6 +834,7 @@ try {
   // request headers, provider responses, browser credentials or assertion values.
   const failure = error instanceof Error ? error.name : "UnknownError";
   const networkCode = error instanceof Error ? error.message.match(/\b(?:ERR|E)_[A-Z_]+\b/)?.[0] : undefined;
+  console.error(JSON.stringify({stage,failure,networkCode:networkCode??null}));
   if (page && stage.includes("reconnect")) {
     const current = new URL(page.url());
     console.error(JSON.stringify({stage,failure,networkCode:networkCode??null,origin:current.origin,path:current.pathname,
@@ -783,6 +887,7 @@ try {
       // This is never a normal application/audit deletion workflow.
       await database.query("begin");
       await database.query("set local session_replication_role = replica");
+      await database.query("delete from private.mt5_review_events where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_cash_decisions where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_onboarding_approvals where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from public.account_adjustment_classifications where adjustment_id in (select id from public.account_adjustments where user_id=$1)",[fixtureUser]);

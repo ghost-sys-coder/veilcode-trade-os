@@ -4,7 +4,29 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
-Latest operational checkpoint (2026-10-07): twenty reviewed trades are published,
+Latest implementation (2026-10-07): account-specific unattended publication and
+immutable source/manual/cash conflict review are implemented. All 52 local
+browser checks, 501 database assertions (using the documented local Supabase
+diagnostic-hint workaround), 485 application tests and 176 Python tests pass.
+The dedicated Windows task is installed; real coordinator crash recovery passed.
+Hosted rollout/final bounded capture are pending. Actual logout/reboot and
+multi-terminal checks are not claimed. See
+[automatic-publication/review verification](MT5_AUTOMATIC_REVIEW_VERIFICATION.md).
+
+Latest recovery checkpoint (2026-10-07): credential-safe phase diagnostics
+corroborated intermittent direct TCP reachability. A fresh same-grant PKCE flow
+and signed/live account checks then passed; the vault is READY. The approved
+bounded demo restart recovered the preserved page under a newer fence and staged
+a fresh snapshot, ending PAUSED with zero pending uploads and matching local/server
+checkpoints. Hosted ledger/provenance are unchanged, and the current bridge is zero
+difference. The user-approved recovered snapshot was recorded through the normal
+browser workflow at 2026-10-07T15:20:40.495176+00:00. Independent database readback
+confirms matching source/ledger tokens and the recovered checkpoint. The remaining
+implementation/operational release gates are still pending; no automatic
+publication, orders or startup installation occurred. Collector remains PAUSED.
+See [recovery evidence](MT5_FAILOVER_VERIFICATION.md).
+
+Historical operational checkpoint (2026-10-07): twenty reviewed trades are published,
 the start date is reconciled to 21 September, and captured-history onboarding was
 approved through the normal audited browser workflow. User-approved bounded demo
 collection/restart checks exposed intermittent connectivity and preserved a pending

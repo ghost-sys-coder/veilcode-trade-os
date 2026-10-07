@@ -6,6 +6,7 @@ import type { Mt5PublicationRequest } from "@/domain/mt5/publication";
 import type { Mt5SymbolMappingRequest } from "@/domain/mt5/symbol-mapping";
 import type { Mt5CashRequest } from "@/domain/mt5/cash";
 import type { Mt5OnboardingRequest } from "@/domain/mt5/onboarding-approval";
+import type { Mt5ReviewRequest, Mt5PolicyRequest } from "@/domain/mt5/review";
 
 // Fixed private calls only. No submitted SQL, roles, owner IDs or function names.
 export async function mt5PublicationTransaction(context: VerifiedBrowserContext, request: Mt5PublicationRequest, proposal?: object): Promise<unknown> {
@@ -20,11 +21,15 @@ export async function mt5CashTransaction(context:VerifiedBrowserContext,request:
 export async function mt5OnboardingTransaction(context:VerifiedBrowserContext,request:Mt5OnboardingRequest,proposal?:object):Promise<unknown> {
   return browserIntegrationTransaction(context,{kind:"ONBOARDING",request,proposal});
 }
+export async function mt5ReviewTransaction(context:VerifiedBrowserContext,request:Mt5ReviewRequest | (Mt5PolicyRequest & {reviewKind:"POLICY"}),proposal?:object):Promise<unknown> {
+  return browserIntegrationTransaction(context,{kind:"REVIEW",request,proposal});
+}
 async function browserIntegrationTransaction(context:VerifiedBrowserContext,operation:
   | {kind:"PUBLICATION";request:Mt5PublicationRequest;proposal?:object}
   | {kind:"SYMBOL_MAPPING";request:Mt5SymbolMappingRequest}
   | {kind:"CASH";request:Mt5CashRequest;proposal?:object}
-  | {kind:"ONBOARDING";request:Mt5OnboardingRequest;proposal?:object}):Promise<unknown> {
+  | {kind:"ONBOARDING";request:Mt5OnboardingRequest;proposal?:object}
+  | {kind:"REVIEW";request:Mt5ReviewRequest | (Mt5PolicyRequest & {reviewKind:"POLICY"});proposal?:object}):Promise<unknown> {
   const {request}=operation;
   const claims = verifiedBrowserClaims(context);
   const database = new Client(publicationDatabaseConfig(process.env));
@@ -32,7 +37,9 @@ async function browserIntegrationTransaction(context:VerifiedBrowserContext,oper
     await database.connect();
     await database.query("begin");
     await database.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify(claims)]);
-    const result = operation.kind==="CASH"
+    const result = operation.kind==="REVIEW"
+      ? await database.query("select private.mt5_review_request($1::jsonb,$2::jsonb) as result",[JSON.stringify(request),operation.proposal?JSON.stringify(operation.proposal):null])
+      : operation.kind==="CASH"
       ? await database.query("select private.mt5_classify_cash($1::jsonb,$2::jsonb) as result",[JSON.stringify(request),operation.proposal?JSON.stringify(operation.proposal):null])
       : operation.kind==="ONBOARDING"
       ? await database.query("select private.mt5_approve_onboarding($1::jsonb,$2::jsonb) as result",[JSON.stringify(request),operation.proposal?JSON.stringify(operation.proposal):null])

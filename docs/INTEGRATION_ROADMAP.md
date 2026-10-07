@@ -121,6 +121,26 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-07: commit `690c3f7` pushed; the automatic-publication/review migration
+  applied to the correct hosted project. The READY Vercel build was smoke-tested
+  and promoted to the production site. Hosted ledger remains 20 trades and
+  USD +2032.53; policy initially off. Browser-control infrastructure is unavailable,
+  so the user received the existing-account link for normal snapshot/policy
+  activation. Collector readback remains PAUSED with zero pending uploads. The
+  final bounded hosted capture is pending; no MT5 merge or MCP activation yet.
+
+- 2026-10-07: implemented explicit account-specific automatic publication with
+  transactional capture/receipts, immutable broker-source review, manual
+  distinct/link/withdrawal decisions and revised-cash delta reconciliation.
+  Verified 485 application tests, 501 database assertions, 52 browser/provider/API
+  checks and 176 Python tests, plus typecheck, lint and production build. The local
+  Supabase permission-error hint extension crashes; unchanged security assertions
+  pass with diagnostic hints temporarily disabled and restored. Installed the
+  dedicated demo Windows startup task and verified automatic recovery after
+  coordinator termination; PAUSED intent and zero pending uploads survived.
+  Hosted rollout/final capture and broader operational limitations remain pending.
+  See [verification](MT5_AUTOMATIC_REVIEW_VERIFICATION.md). MCP remains parked.
+
 - 2026-10-06: same-grant reconnect fix `d95be83` pushed and deployed. The actual
   USD100K DEMO credential reconnected without revocation or new account selection,
   preserving grant version 2, mapping version 1 and five grant audit events.
@@ -259,3 +279,22 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   RPC; its approval/evidence are documented explicitly in the pilot report.
   Collector remains PAUSED, pending uploads zero. Final onboarding approval,
   operational verification and display-fix rollout remain pending; MCP disabled.
+- 2026-10-07: returned to the existing MT5 branch containing the failover fix;
+  credential-safe diagnostics distinguished intermittent TCP failures from OAuth
+  rejection. Fresh same-grant PKCE/token/session checks passed and saved READY
+  credentials. The approved bounded dedicated-demo restart recovered the preserved
+  uncertain upload under fence 5, retained identical frozen facts and ended PAUSED
+  with no pending pages. Local/server checkpoint 2026-10-07T14:51:30.826Z matches
+  hosted readback. Twenty canonical identities, USD +2032.53 profit, baseline/date
+  and the zero-difference bridge are unchanged. Current snapshot approval and other
+  implementation/operational gates remain pending; no startup or MCP activation.
+  See [failover and recovery evidence](MT5_FAILOVER_VERIFICATION.md).
+- 2026-10-07: the user explicitly approved the recovered snapshot. The normal
+  browser workflow recorded a second append-only onboarding proof at
+  2026-10-07T15:20:40.495176+00:00 for checkpoint 2026-10-07T14:51:30.826Z.
+  Independent readback confirms source and ledger fingerprints match; twenty
+  trades, USD +2032.53 profit and zero adjustments are unchanged. Read-only
+  SQLite inspection confirms PAUSED, no attention and no pending uploads.
+  Corrected contradictory approval-page guidance and hid the duplicate approval
+  form only when the current snapshot is approved; stale/unapproved snapshots
+  still require explicit approval. Remaining release gates and MCP stay pending.

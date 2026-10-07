@@ -4,18 +4,48 @@ No passwords, boot trigger, SYSTEM execution, account switching or shell.
 Registration does not start a collector or change its durable PAUSED intent.
 """
 
+import ctypes
 import os
 import re
 import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+from ctypes import wintypes
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .windows_security import CredentialError, _current_sid, _windows_dlls, restrict_access
 
 NAMESPACE = "http://schemas.microsoft.com/windows/2004/02/mit/task"
 ET.register_namespace("", NAMESPACE)
+
+
+def _principal_sid(account):
+    if isinstance(account,str) and re.fullmatch(r"S-1-5-21-(?:[0-9]+-){2}[0-9]+-[0-9]+",account):
+        return account
+    if not isinstance(account,str) or not 1<=len(account)<=256 or any(ord(c)<32 for c in account):
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    kernel,_,advapi=_windows_dlls()
+    advapi.LookupAccountNameW.argtypes=[wintypes.LPCWSTR,wintypes.LPCWSTR,ctypes.c_void_p,ctypes.POINTER(wintypes.DWORD),
+        wintypes.LPWSTR,ctypes.POINTER(wintypes.DWORD),ctypes.POINTER(wintypes.DWORD)]
+    advapi.LookupAccountNameW.restype=wintypes.BOOL
+    size,domain_size,use=wintypes.DWORD(),wintypes.DWORD(),wintypes.DWORD()
+    advapi.LookupAccountNameW(None,account,None,ctypes.byref(size),None,ctypes.byref(domain_size),ctypes.byref(use))
+    if not 0<size.value<=65536 or not 0<domain_size.value<=4096:
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    sid,domain=ctypes.create_string_buffer(size.value),ctypes.create_unicode_buffer(domain_size.value)
+    if not advapi.LookupAccountNameW(None,account,sid,ctypes.byref(size),domain,ctypes.byref(domain_size),ctypes.byref(use)):
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    string=ctypes.c_void_p()
+    advapi.ConvertSidToStringSidW.argtypes=[ctypes.c_void_p,ctypes.POINTER(ctypes.c_void_p)]
+    advapi.ConvertSidToStringSidW.restype=wintypes.BOOL
+    if not advapi.ConvertSidToStringSidW(sid,ctypes.byref(string)):
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    try:
+        return ctypes.wstring_at(string)
+    finally:
+        kernel.LocalFree(string)
 
 
 def task_xml(configuration, *, user_sid: str, python_executable: Path, working_directory: Path) -> str:
@@ -42,6 +72,15 @@ def task_xml(configuration, *, user_sid: str, python_executable: Path, working_d
     element(trigger, "Enabled", "true")
     element(trigger, "UserId", user_sid)
     element(trigger, "Delay", "PT15S")
+    # Observed Windows builds may not retry a force-terminated action. A timed
+    # watchdog also recovers coordinator death; IgnoreNew + the native lock
+    # prevent competing collectors. InteractiveToken still requires user sign-in.
+    watchdog = element(triggers, "TimeTrigger")
+    repetition = element(watchdog, "Repetition")
+    element(repetition, "Interval", "PT1M")
+    element(repetition, "StopAtDurationEnd", "false")
+    element(watchdog, "StartBoundary", (datetime.now(UTC) + timedelta(seconds=30)).isoformat(timespec="seconds"))
+    element(watchdog, "Enabled", "true")
     principals = element(task, "Principals")
     principal = element(principals, "Principal", id="TradeOSUser")
     element(principal, "UserId", user_sid)
@@ -98,7 +137,7 @@ def specification(configuration) -> str:
     )
 
 
-def install(configuration) -> dict:
+def install(configuration, *, repair_owned=False) -> dict:
     if os.name != "nt":
         raise CredentialError("WINDOWS_PROTECTION_REQUIRED")
     if not configuration.spool.is_file():
@@ -110,6 +149,35 @@ def install(configuration) -> dict:
     executable = system_root / "System32" / "schtasks.exe"
     if not system_root.is_absolute() or not executable.is_file():
         raise CredentialError("STARTUP_SERVICE_UNAVAILABLE")
+    if repair_owned:
+        # A repair is explicit and restricted to our exact account/action/user.
+        try:
+            current = subprocess.run([str(executable), "/Query", "/TN", task_name, "/XML"],
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                timeout=15, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
+            if current.returncode != 0 or len(current.stdout) > 65536:
+                raise CredentialError("STARTUP_REPAIR_REJECTED")
+            raw = current.stdout
+            existing_xml = raw.decode("utf-16" if raw.startswith((b"\xff\xfe",b"\xfe\xff")) else "utf-8-sig")
+            # schtasks can emit UTF-8 bytes with a UTF-16 declaration. Parse the
+            # verified Unicode document without that contradictory declaration.
+            existing_xml = re.sub(r"^\s*<\?xml[^?]*\?>", "", existing_xml)
+            old, new = ET.fromstring(existing_xml), ET.fromstring(xml)
+            namespace = {"t": NAMESPACE}
+            if _principal_sid(old.findtext("t:Principals/t:Principal/t:UserId",namespaces=namespace)) != new.findtext("t:Principals/t:Principal/t:UserId",namespaces=namespace):
+                raise CredentialError("STARTUP_REPAIR_REJECTED")
+            for field in ("t:Principals/t:Principal/t:LogonType",
+                "t:Principals/t:Principal/t:RunLevel", "t:Actions/t:Exec/t:Command",
+                "t:Actions/t:Exec/t:Arguments", "t:Actions/t:Exec/t:WorkingDirectory"):
+                previous = old.findtext(field, namespaces=namespace)
+                if field.endswith(":RunLevel") and previous is None:
+                    previous = "LeastPrivilege"  # Scheduler's omitted default.
+                if previous != new.findtext(field, namespaces=namespace):
+                    raise CredentialError("STARTUP_REPAIR_REJECTED")
+            if len(old.findall("t:Actions/t:Exec", namespace)) != 1 or len(old.findall("t:Actions/*", namespace)) != 1:
+                raise CredentialError("STARTUP_REPAIR_REJECTED")
+        except (OSError, subprocess.TimeoutExpired, ET.ParseError, UnicodeError):
+            raise CredentialError("STARTUP_REPAIR_REQUIRES_INSPECTION") from None
     temporary = None
     try:
         descriptor, name = tempfile.mkstemp(prefix=".startup-", suffix=".xml", dir=configuration.path.parent)
@@ -120,7 +188,7 @@ def install(configuration) -> dict:
             handle.flush()
             os.fsync(handle.fileno())
         result = subprocess.run(
-            [str(executable), "/Create", "/TN", task_name, "/XML", str(temporary)],
+            [str(executable), "/Create", "/TN", task_name, "/XML", str(temporary)] + (["/F"] if repair_owned else []),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -128,7 +196,7 @@ def install(configuration) -> dict:
             check=False,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        # Deliberately no /F: existing task names are not silently replaced.
+        # /F is used only by explicit repair after exact action/user inspection.
         if result.returncode != 0:
             raise CredentialError("STARTUP_REGISTRATION_REJECTED")
     except (OSError, subprocess.TimeoutExpired):
@@ -144,4 +212,6 @@ def install(configuration) -> dict:
         "installed": True,
         "startsAt": "USER_SIGN_IN",
         "startedNow": False,
+        "watchdogSeconds": 60,
+        "repairedOwnedTask": repair_owned,
     }

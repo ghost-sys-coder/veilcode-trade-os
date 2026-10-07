@@ -381,3 +381,27 @@ meaning or performance classification defaults to approval. Show readable
 account-adjustment amounts and dates rather than UUID labels. Disable pending
 fieldsets, announce failures through alerts, and keep explicit snapshot approval
 separate from source publication. Never present stale evidence as reconciled.
+
+### MT5 revision review and publication policy
+
+File: `features/integrations/mt5-review-forms.tsx`
+Last updated: 2026-10-07
+
+| Property | Class |
+| --- | --- |
+| Background | inherited `bg-card`; evidence `bg-muted/25` where used |
+| Border | controls `border-input`; sections `border-border/70` |
+| Radius | controls and evidence sections `rounded-lg` |
+| Text primary | Label primitive; `text-sm font-semibold` |
+| Text secondary | `text-xs leading-5 text-muted-foreground` |
+| Spacing | `space-y-4`; evidence `p-4` |
+| Interaction | Button primitive; `focus-visible:ring-ring/25` |
+| Shadow | inherited Card/Button primitives |
+| Accent | `text-primary` review links; no profit implication |
+
+**Pattern notes:** Never default a relationship or performance answer. Each
+decision needs a reason, identifies the exact revision/trade fingerprint and
+announces failure via `role=alert`. Pending inputs are disabled. Prior/current
+broker JSON is explicitly expandable, wrapped and scroll-bounded. A withdrawal
+of a match decision appends evidence; it does not delete history. Policy,
+collection intent and snapshot reconciliation remain visibly separate.
