@@ -1,9 +1,64 @@
 # MT5 automatic publication, conflict review and Windows recovery
 
 Date: 2026-10-07. Branch: `feature/mt5-sync`.
+
+## Approval-prerequisite usability correction — 2026-10-08
+
+The user reported that entering a publication-policy reason left Enable automatic
+publication disabled. Hosted readback confirms the latest stored approval matches
+the ledger/checkpoint but predates the expanded source fingerprint, so it is stale.
+There are zero source holds/incomplete collections; the ledger remains twenty
+trades and USD +2032.53. The required fresh snapshot approval was buried at the
+bottom of the history page, while the dependent reason field accepted input.
+
+Move snapshot approval immediately above automatic publication, add an explicit
+prerequisite explanation and same-page link, and disable the dependent reason
+input until approval completes. Preserve the database requirement for explicit
+current-snapshot approval. Browser verification exercises the locked controls,
+link, snapshot approval and subsequent policy enablement.
+
+Verification: `npm test` passes 485 tests / 38 files; `npm run typecheck`,
+`npm run lint` and `npm run build` pass. `npm run test:integration-browser`
+passes all 53 actual local browser/provider/API checks, including the new
+prerequisite navigation and subsequent approval/policy enablement. Both themes
+and the narrow viewport render without horizontal overflow. No SQL, money,
+collector or authentication behavior changed in this usability correction.
+
+Fix commit `9c9f7bb` is pushed. Vercel deployment
+`dpl_CAhRvE7d1U94mCRr8BmRcrR7QLeP` built successfully, passed the public-calculator
+HTTP 200 check, and was promoted to `tradeos.veilcode.studio`; production-domain
+inspection confirms that READY deployment. The user's fresh snapshot approval
+and account-policy activation remain explicit browser actions.
 Status: implemented, locally verified, pushed as `690c3f7`, and deployed.
-The final bounded USD100K DEMO capture remains pending account-policy activation.
-MCP remains parked.
+The user activated the account policy and the final bounded USD100K DEMO capture
+passed on 2026-10-08 (Africa/Kampala). The three requested final capabilities are
+verified within the single-demo rollout; broader operational limitations below
+remain explicit. MCP may proceed from the merged shared foundation.
+
+## Final real-demo readback — 2026-10-08
+
+The user approved the refreshed snapshot at 2026-10-07T21:16:16.983449Z and enabled
+the account-specific automatic baseline of USD 100000 (connection version 20).
+Temporarily disabled/stopped only the verified dedicated scheduler task, ran the
+bounded coordinator helper, then restored the enabled task in finally. The helper
+always returns local collection intent to PAUSED.
+
+Actual read-only capture advanced local/server checkpoints to
+`2026-10-07T21:20:56.220Z` and durable hosted sync to
+`2026-10-07T21:21:02.304376Z`. With the automatic policy enabled, repeated unchanged
+executions preserved 20 unique canonical trades and 20 execution versions;
+normalized net PnL remains USD 2032.53. Baseline stays USD 100000, adjustments zero,
+source review holds zero and incomplete collections zero. Spool integrity is ok,
+pending pages zero, attention absent and collector intent PAUSED. The restored
+scheduled coordinator is running idle under new worker identity
+`39fa5b34-f85d-4410-97ba-dcdbbc47cace`; the collection lease used fence 6.
+
+This actual pilot proves the authenticated capture/publication path safely handles
+unchanged broker history. Changed/closed trade automatic publication and explicit
+conflict review were exercised by deterministic database fixtures and the real
+local browser/API suite; no broker orders were created to manufacture a change.
+Fresh captures can stale snapshot reconciliation while retaining the separately
+approved publication policy. No sign-in/reboot/extra-terminal test is claimed.
 
 ## Delivered behavior
 

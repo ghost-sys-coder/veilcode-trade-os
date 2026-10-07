@@ -4,6 +4,15 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
+Current focused-demo gate (2026-10-08): user-enabled policy and bounded hosted
+capture passed, preserving 20 unique trades / 20 execution versions / USD +2032.53.
+Collector ended PAUSED with zero pending pages and startup task restored. The
+requested automatic-publication, conflict-review and startup-recovery objectives
+are cleared within this single-account rollout. Reboot, additional terminals,
+extended soak and local backlog telemetry limitations remain explicitly unverified
+or incomplete; this does not authorize wider/live-account rollout. See the final
+readback in [verification](MT5_AUTOMATIC_REVIEW_VERIFICATION.md).
+
 Latest implementation (2026-10-07): account-specific unattended publication and
 immutable source/manual/cash conflict review are implemented. All 52 local
 browser checks, 501 database assertions (using the documented local Supabase

@@ -405,3 +405,10 @@ announces failure via `role=alert`. Pending inputs are disabled. Prior/current
 broker JSON is explicitly expandable, wrapped and scroll-bounded. A withdrawal
 of a match decision appends evidence; it does not delete history. Policy,
 collection intent and snapshot reconciliation remain visibly separate.
+
+Approval prerequisites appear immediately before the dependent publication card.
+A locked control uses `border-border/70 bg-muted/25 p-4 text-sm leading-6` guidance
+and a `font-semibold text-primary hover:underline` anchor to the prerequisite.
+Disable dependent inputs alongside the button and connect the reason input to
+that guidance with `aria-describedby`; do not leave a distant prerequisite as
+the only explanation for an inactive action.

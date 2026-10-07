@@ -589,6 +589,15 @@ try {
     assert(BigInt(pausedControl.rows[0].fencing_token)>BigInt(resumedLease.fencingToken));
     passed("actual browser controls require reasons, preserve onboarding and fence the old collector on pause/resume");
     await page.goto(`${uiOrigin}/settings/integrations/mt5/${connectionId}`);
+    assert(await page.getByRole("button",{name:"Enable automatic publication",exact:true}).isDisabled());
+    assert(await page.getByLabel("Publication policy reason",{exact:true}).isDisabled());
+    const approvalPanel=page.locator('#mt5-onboarding-approval');
+    const policyPanel=page.locator('[data-slot="card"]').filter({has:page.getByText("Unattended canonical publication",{exact:true})});
+    const approvalBounds=await approvalPanel.boundingBox(),policyBounds=await policyPanel.boundingBox();
+    assert(approvalBounds&&policyBounds&&approvalBounds.y<policyBounds.y);
+    await page.getByRole("link",{name:"Approve captured history above",exact:true}).click();
+    await page.getByRole("checkbox",{name:/I reviewed all captured available history/}).waitFor();
+    passed("blocked automatic-publication controls explain and link to the preceding snapshot approval step");
     await page.getByRole("checkbox",{name:/I reviewed all captured available history/}).check();
     await page.getByLabel("Onboarding approval reason",{exact:true}).fill("Review current source snapshot: 1000 +95 +250 -50 -5.13 -8 =1281.87");
     await page.getByRole("button",{name:"Approve captured-history onboarding",exact:true}).click();
