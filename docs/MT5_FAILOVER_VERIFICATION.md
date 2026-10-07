@@ -96,6 +96,20 @@ The local browser suite briefly owned callback port 9876, so a concurrent operat
 attempt correctly rejected before credential changes. Future operator reconnects
 must run after the fixture listener has closed, never by stealing its port.
 
+After that fixture listener closed, another fresh same-grant attempt opened the
+normal browser but its code exchange again ended OAUTH_REQUEST_UNCERTAIN. The
+operator listener closed and credentials remained REAUTH_REQUIRED; those callback
+tabs cannot be reused. Do not repeat uncertain code/refresh exchanges. Before a
+further consent attempt, use credential-safe endpoint/status/exception-phase
+diagnostics (never request bodies, tokens or provider response bodies) to isolate
+the remaining exchange failure. Public HTTP 200 is not proof that the token POST
+or its response succeeded. The collector remains PAUSED with one preserved page.
+
+Implementation/report checkpoint `63d9191` was pushed to `feature/mt5-sync`.
+No master merge, application deployment, startup registration or MCP activation
+was performed by this checkpoint. A private screenshot records the actual stale
+approval warning after capture; it is excluded from Git and deployment.
+
 ## Review and remaining gates
 
 Plan alignment: PASS for this scoped failure diagnosis/transport increment.
