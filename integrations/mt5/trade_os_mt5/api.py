@@ -9,8 +9,9 @@ from datetime import UTC, datetime
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
+from .https_transport import FailoverHTTPSHandler
 from .json_boundary import reject_constant as _reject_constant
 from .json_boundary import unique_object as _unique_object
 from .outbox import Binding, OutboxError, _uuid
@@ -125,7 +126,9 @@ class IntegrationApi:
         self.timeout = timeout
         # TLS verification remains enabled; no environment/registry proxy or
         # redirect can route an Authorization header to an unapproved destination.
-        self._opener = build_opener(ProxyHandler({}), _NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
+        self._opener = build_opener(
+            ProxyHandler({}), _NoRedirect(), FailoverHTTPSHandler(context=ssl.create_default_context())
+        )
 
     def _request(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         try:

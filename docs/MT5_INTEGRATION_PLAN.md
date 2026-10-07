@@ -4,7 +4,17 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
-Latest pilot update (2026-10-07): the user-confirmed browser discovery was followed
+Latest operational checkpoint (2026-10-07): twenty reviewed trades are published,
+the start date is reconciled to 21 September, and captured-history onboarding was
+approved through the normal audited browser workflow. User-approved bounded demo
+collection/restart checks exposed intermittent connectivity and preserved a pending
+upload; newer checkpoints correctly make that snapshot approval stale. Added strict
+HTTPS TCP-address failover, verified 173 Python tests and 47 local browser/provider
+checks. Live reauthorization/backlog recovery, unattended publication, operational
+startup and other release gates remain pending; collector remains paused. See
+[operational evidence](MT5_FAILOVER_VERIFICATION.md).
+
+Historical preparation update (2026-10-07): the user-confirmed browser discovery was followed
 by fresh same-grant consent and a live HTTP 200 account/client/grant check.
 Read-only dedicated demo metadata verified all twelve captured symbols; all
 twelve mappings are now saved through the audited browser workflow. Independent
