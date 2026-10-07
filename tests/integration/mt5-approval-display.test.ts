@@ -13,6 +13,9 @@ vi.mock("@/features/integrations/mt5-cash-onboarding-forms", () => ({
   Mt5CashClassificationForm: () => null,
   Mt5OnboardingApprovalForm: () => createElement("form", { "aria-label": "Approve current snapshot" }),
 }));
+vi.mock("@/features/integrations/mt5-review-forms", () => ({
+  Mt5SourceReviewForm:()=>null,Mt5ManualReviewForm:()=>null,Mt5AutomaticPolicyForm:()=>null,Mt5CashReconciliationForm:()=>null,
+}));
 
 const connectionId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const createdAt = "2026-10-07T15:20:40.495176+00:00";
@@ -25,7 +28,7 @@ async function render(state: "APPROVED_SNAPSHOT" | "STALE_APPROVAL" | null) {
       identity: { server: "Broker-Demo", login: "123", currencyPrecision: 2 } },
     snapshotToken: "a".repeat(64), ledgerToken: "b".repeat(64), onboardingReady: true,
     onboardingApproval: state ? { state, createdAt } : null,
-    symbolMappings: [], instruments: [], cashDecisions: [], adjustments: [], sources: [],
+    symbolMappings: [], instruments: [], cashDecisions: [], adjustments: [], sources: [],manualDecisions:[],existingTrades:[],automaticPublicationEnabled:false,
     preview: { episodes: [], problems: [], unresolvedCash: [], cashMovements: [],
       bridge: { currencyCode: "USD", openingBaseline: "100000.00", ledgerBalance: "102032.53",
         proposedClosedPnlChange: "0.00", openTradeRecognizedCash: "0.00", proposedBrokerBalanceBasis: "102032.53",

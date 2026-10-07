@@ -6,6 +6,7 @@ import { integrationSigningKeys, verifyIntegrationToken } from "@/services/integ
 import type { IntegrationDatabase } from "@/types/integration-database";
 
 const verifiedContext = Symbol("verified-integration-context");
+const verifiedClaims = new WeakMap<object, Awaited<ReturnType<typeof verifyIntegrationToken>>>();
 export type IntegrationContext = {
   actor: IntegrationActor;
   client: SupabaseClient<IntegrationDatabase>;
@@ -38,7 +39,10 @@ export async function getIntegrationContext(request: Request, purpose: Integrati
       || actor.grant_version !== claims.trade_os_grant_version || actor.purpose !== purpose || actor.resource !== configuration.resource) {
       throw new IntegrationAuthorizationError();
     }
-    return { actor, client, [verifiedContext]: true };
+    if (Array.isArray(claims.aud)) Object.freeze(claims.aud);
+    const context: IntegrationContext = Object.freeze({ actor:Object.freeze(actor), client, [verifiedContext]: true as const });
+    verifiedClaims.set(context, Object.freeze(claims));
+    return context;
   } catch (error) {
     if (error instanceof IntegrationUnavailableError || error instanceof TypeError
       || (error instanceof Error && ["TimeoutError","AbortError"].includes(error.name))
@@ -47,4 +51,11 @@ export async function getIntegrationContext(request: Request, purpose: Integrati
     }
     throw new IntegrationAuthorizationError();
   }
+}
+
+/** Only the exact context produced by signature/live-grant verification is usable. */
+export function verifiedIntegrationClaims(context: IntegrationContext) {
+  const claims = verifiedClaims.get(context);
+  if (!claims || !claims.exp || claims.exp <= Math.floor(Date.now() / 1000)) throw new IntegrationAuthorizationError();
+  return claims;
 }

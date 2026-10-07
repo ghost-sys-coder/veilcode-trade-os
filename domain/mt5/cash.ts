@@ -27,7 +27,7 @@ export const mt5CashRequestSchema = z.object({
 export type Mt5CashRequest = z.infer<typeof mt5CashRequestSchema>;
 export const mt5CashDecisionSchema = z.object({
   sourceTicket: brokerIdentifier, sourceRevisionId: version,
-  disposition: z.enum(["BASELINE_FUNDING", "ADJUSTMENT", "LINK_EXISTING", "ZERO_EFFECT"]),
+  disposition: z.enum(["BASELINE_FUNDING", "ADJUSTMENT", "LINK_EXISTING", "ZERO_EFFECT", "RECONCILED"]),
   amount: z.string(), adjustmentId: z.string().uuid().nullable(), reason: z.string(), createdAt: z.iso.datetime({ offset: true }),
 });
 export type Mt5CashDecision = z.infer<typeof mt5CashDecisionSchema>;

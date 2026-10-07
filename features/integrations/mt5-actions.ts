@@ -7,8 +7,35 @@ import { controlMt5Connection, registerMt5Connection, Mt5OnboardingError } from 
 import { publishMt5Trades } from "@/services/mt5/publication";
 import { saveMt5SymbolMapping } from "@/services/mt5/symbol-mapping";
 import { classifyMt5Cash,approveMt5Onboarding } from "@/services/mt5/cash-onboarding";
+import { reviewMt5Conflict,setMt5PublicationPolicy } from "@/services/mt5/review";
 
 type ActionState = { message: string; success: boolean };
+export async function submitMt5Review(_previous:ActionState,form:FormData):Promise<ActionState> {
+  let connectionId:string;
+  try {
+    const reviewKind=form.get("review_kind");
+    if(reviewKind==="CASH"&&!["true","false"].includes(String(form.get("performance_classification"))))throw new Error();
+    const result=await reviewMt5Conflict(await createClient(),{connectionId:form.get("connection_id"),operationId:form.get("operation_id"),
+      version:form.get("version"),snapshotToken:form.get("snapshot_token"),ledgerToken:form.get("ledger_token"),reason:form.get("reason"),reviewKind,
+      ...(reviewKind==="SOURCE"?{sourceKind:form.get("source_kind"),sourceId:form.get("source_id"),sourceRevisionId:form.get("source_revision_id")}:
+        reviewKind==="CASH"?{sourceId:form.get("source_id"),sourceRevisionId:form.get("source_revision_id"),isPerformanceNeutral:form.get("performance_classification")==="true"}:
+        {canonicalIdentity:form.get("canonical_identity"),tradeId:form.get("trade_id"),tradeToken:form.get("trade_token")})});
+    connectionId=result.connectionId;
+  }catch{return {success:false,message:"Review was not confirmed. Reload changed evidence, verify the selected revision or manual trade, and supply a reason. Unsupported history remains staged. Retry the same submission after an uncertain response."};}
+  for(const path of ["/settings/integrations",`/settings/integrations/mt5/${connectionId}`,"/trades","/accounts","/analytics","/calendar","/dashboard"])revalidatePath(path);
+  redirect(`/settings/integrations/mt5/${connectionId}?status=review-recorded`);
+}
+export async function changeMt5PublicationPolicy(_previous:ActionState,form:FormData):Promise<ActionState> {
+  let connectionId:string;
+  try {
+    const enabled=form.get("enabled");if(enabled!=="true"&&enabled!=="false")throw new Error();
+    const result=await setMt5PublicationPolicy(await createClient(),{connectionId:form.get("connection_id"),operationId:form.get("operation_id"),
+      version:form.get("version"),snapshotToken:form.get("snapshot_token"),ledgerToken:form.get("ledger_token"),reason:form.get("reason"),enabled:enabled==="true"});
+    connectionId=result.connectionId;
+  }catch{return {success:false,message:"Policy change was not confirmed. Enabling requires an approved current snapshot and an active account grant. Reload changed evidence and retry the same submission after an uncertain response."};}
+  revalidatePath("/settings/integrations");revalidatePath(`/settings/integrations/mt5/${connectionId}`);
+  redirect(`/settings/integrations/mt5/${connectionId}?status=policy-recorded`);
+}
 export async function classifyMt5CashMovement(_previous:ActionState,form:FormData):Promise<ActionState> {
   let connectionId:string;
   try {

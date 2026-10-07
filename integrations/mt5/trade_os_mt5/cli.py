@@ -151,6 +151,10 @@ def perform(command: str, configuration: OperatorConfiguration, *, reason=None, 
         return {"connectionId": configuration.binding.connection_id, "xml": startup_specification(configuration)}
     if command == "install-startup":
         return install_startup(configuration)
+    if command == "repair-startup":
+        if not isinstance(reason, str) or not 8 <= len(reason.strip()) <= 1000:
+            raise CredentialError("CONTROL_REASON_REQUIRED")
+        return install_startup(configuration, repair_owned=True)
     if command == "status":
         return status(configuration)
     if command == "init":
@@ -204,14 +208,14 @@ def perform(command: str, configuration: OperatorConfiguration, *, reason=None, 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Trade OS read-only demo MT5 collector")
     parser.add_argument(
-        "command", choices=("init", "consent", "run", "status", "pause", "resume", "startup-spec", "install-startup")
+        "command", choices=("init", "consent", "run", "status", "pause", "resume", "startup-spec", "install-startup", "repair-startup")
     )
     parser.add_argument("--config", required=True, type=Path, help="Absolute connection.json path (no credentials)")
     parser.add_argument("--reason", help="Required for pause/resume")
     parser.add_argument("--reconnect", action="store_true", help="Explicitly replace existing consent")
     args = parser.parse_args(argv)
     try:
-        if (args.reason is not None and args.command not in ("pause", "resume")) or (
+        if (args.reason is not None and args.command not in ("pause", "resume", "repair-startup")) or (
             args.reconnect and args.command != "consent"
         ):
             raise CredentialError("INVALID_OPERATOR_COMMAND")

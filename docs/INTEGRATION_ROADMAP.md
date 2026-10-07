@@ -121,6 +121,18 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-07: implemented explicit account-specific automatic publication with
+  transactional capture/receipts, immutable broker-source review, manual
+  distinct/link/withdrawal decisions and revised-cash delta reconciliation.
+  Verified 485 application tests, 501 database assertions, 52 browser/provider/API
+  checks and 176 Python tests, plus typecheck, lint and production build. The local
+  Supabase permission-error hint extension crashes; unchanged security assertions
+  pass with diagnostic hints temporarily disabled and restored. Installed the
+  dedicated demo Windows startup task and verified automatic recovery after
+  coordinator termination; PAUSED intent and zero pending uploads survived.
+  Hosted rollout/final capture and broader operational limitations remain pending.
+  See [verification](MT5_AUTOMATIC_REVIEW_VERIFICATION.md). MCP remains parked.
+
 - 2026-10-06: same-grant reconnect fix `d95be83` pushed and deployed. The actual
   USD100K DEMO credential reconnected without revocation or new account selection,
   preserving grant version 2, mapping version 1 and five grant audit events.

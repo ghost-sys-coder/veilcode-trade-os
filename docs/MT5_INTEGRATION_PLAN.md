@@ -4,6 +4,15 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
+Latest implementation (2026-10-07): account-specific unattended publication and
+immutable source/manual/cash conflict review are implemented. All 52 local
+browser checks, 501 database assertions (using the documented local Supabase
+diagnostic-hint workaround), 485 application tests and 176 Python tests pass.
+The dedicated Windows task is installed; real coordinator crash recovery passed.
+Hosted rollout/final bounded capture are pending. Actual logout/reboot and
+multi-terminal checks are not claimed. See
+[automatic-publication/review verification](MT5_AUTOMATIC_REVIEW_VERIFICATION.md).
+
 Latest recovery checkpoint (2026-10-07): credential-safe phase diagnostics
 corroborated intermittent direct TCP reachability. A fresh same-grant PKCE flow
 and signed/live account checks then passed; the vault is READY. The approved
