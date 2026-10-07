@@ -200,3 +200,85 @@ Next gate: explicit review/approval of the recovered current snapshot, followed
 by the remaining implementation/operational gates listed above. This single
 dedicated demo recovery does not complete real startup, additional-account,
 unattended publication or full MT5 release verification. MCP remains parked/off.
+
+## Recovered snapshot approved — 2026-10-07
+
+The user's explicit approval was submitted through the existing signed-in browser
+form, not a direct privileged SQL write. The application recorded a fresh,
+append-only captured-history proof at 2026-10-07T15:20:40.495176+00:00 for the
+recovered checkpoint 2026-10-07T14:51:30.826Z. The refreshed browser shows
+`Captured-history snapshot approved` and the connection monitor shows
+`Onboarding approved`. A private screenshot records that result; screenshots and
+pilot preparation metadata remain ignored and excluded from deployment.
+
+Independent, connection/account-scoped hosted SQL readback confirms:
+
+- Latest approval source fingerprint equals the current source fingerprint.
+- Latest approval ledger fingerprint equals the current account ledger fingerprint.
+- Approval and completed capture checkpoints match.
+- Two onboarding proofs exist: the old proof is retained, not overwritten.
+- Connection version is 18; the mapped server status remains ACTIVE.
+- Twenty canonical trades, USD +2032.53 closed net PnL and zero adjustments remain.
+
+The local intent is independently PAUSED, not inferred from the server's ACTIVE
+mapping/grant. `audit_recovered_outbox.py` opened SQLite read-only/query-only and
+exited 0: integrity ok, no attention code, pendingPages=0, matching local/server
+checkpoints and unchanged frozen recovery evidence. Its initial sandboxed attempt
+could not validate operator configuration; the authorized read-only rerun passed.
+No new collection, refresh exchange, order, automatic publication, startup
+installation, production migration or deployment was performed by this approval.
+
+The browser inspection exposed contradictory presentation: an approved snapshot
+still said onboarding approval was required and offered the same approval form.
+Corrected the preview page to show recorded approval and omit that duplicate form
+only for `APPROVED_SNAPSHOT`. Stale and absent approvals still require explicit
+review even when their balance bridge is zero. Three render-level regression
+tests cover those states without weakening transactional approval checks. This
+presentation change is verified locally; it is not yet deployed to production.
+
+### Commands in this continuation
+
+| Command | Result |
+| --- | --- |
+| `npm test -- tests/integration/mt5-approval-display.test.ts` | PASS: 3 tests |
+| `npm test` | PASS after display fix: 473 tests, 36 files |
+| `npm run test:db` | PASS: 449 assertions, eleven disposable rollback-isolated suites |
+| `npm run typecheck` | PASS after display fix |
+| `npm run lint` | PASS after display fix |
+| `npm run build` | PASS after display fix: Next.js 16.3.6 |
+| `npm run test:mt5-python` | PASS: 173 tests; Python source unchanged |
+| `npm run check:mt5-python` | PASS: Ruff/compileall; Python source unchanged |
+| `npm run test:integration-browser` | PASS after display fix: 47 local provider/browser/API checks, Chrome 154.0.8037.93 |
+| `audit_recovered_outbox.py` | PASS: read-only PAUSED/empty-outbox/checkpoint proof |
+| `git diff --check` | PASS |
+
+The isolated browser suite exercised captured-history approval through the actual
+local form after the display change, retained one proof and a PAUSED connection,
+and reported no uncaught client errors. It also verified current account-switch
+isolation, concurrent uploads, fenced restart recovery, provider refresh/reconnect,
+browser-only logout, revocation, both themes and a narrow monitoring viewport.
+Those local fixtures are not additional real broker accounts or an actual Windows
+sign-in/startup test; the dedicated hosted collector was not resumed by the suite.
+
+The initial unprivileged database invocation could not access local Docker and
+exited 1. Authorized reruns used only the healthy disposable local stack and
+passed; the hosted project was not used for regression fixtures. A stale browser
+tab temporarily lost its control attachment after submission; a fresh tab in the
+same browser recovered the approved result and screenshot. Approval was not
+replayed merely because browser control failed.
+
+### Scoped review
+
+Plan alignment: PASS for approving the exact recovered snapshot and correcting
+its presentation. Approval remains evidence for one source/ledger checkpoint,
+not broker-lifetime completeness, automatic publication or a resume command.
+
+System integrity: PASS. Existing owner/session checks, transactional private RPC,
+append-only proofs, decimal finance and snapshot fingerprints are unchanged.
+The display uses existing design tokens and components, without new UI patterns.
+
+Production readiness: PENDING for the overall integration. Current snapshot
+approval is no longer pending. Unattended canonical publication, reviewed
+source/manual conflicts, local backlog reporting, actual startup invocation and
+additional-account/real interruption verification remain release requirements.
+The extended soak remains deferred, not passed. MCP remains parked/off.

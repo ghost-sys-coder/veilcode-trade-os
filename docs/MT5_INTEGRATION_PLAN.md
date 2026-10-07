@@ -10,8 +10,11 @@ and signed/live account checks then passed; the vault is READY. The approved
 bounded demo restart recovered the preserved page under a newer fence and staged
 a fresh snapshot, ending PAUSED with zero pending uploads and matching local/server
 checkpoints. Hosted ledger/provenance are unchanged, and the current bridge is zero
-difference. Fresh snapshot approval and the remaining release gates are still
-pending; no automatic publication, orders or startup installation occurred.
+difference. The user-approved recovered snapshot was recorded through the normal
+browser workflow at 2026-10-07T15:20:40.495176+00:00. Independent database readback
+confirms matching source/ledger tokens and the recovered checkpoint. The remaining
+implementation/operational release gates are still pending; no automatic
+publication, orders or startup installation occurred. Collector remains PAUSED.
 See [recovery evidence](MT5_FAILOVER_VERIFICATION.md).
 
 Historical operational checkpoint (2026-10-07): twenty reviewed trades are published,

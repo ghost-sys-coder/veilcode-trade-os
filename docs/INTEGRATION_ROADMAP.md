@@ -269,3 +269,12 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   and the zero-difference bridge are unchanged. Current snapshot approval and other
   implementation/operational gates remain pending; no startup or MCP activation.
   See [failover and recovery evidence](MT5_FAILOVER_VERIFICATION.md).
+- 2026-10-07: the user explicitly approved the recovered snapshot. The normal
+  browser workflow recorded a second append-only onboarding proof at
+  2026-10-07T15:20:40.495176+00:00 for checkpoint 2026-10-07T14:51:30.826Z.
+  Independent readback confirms source and ledger fingerprints match; twenty
+  trades, USD +2032.53 profit and zero adjustments are unchanged. Read-only
+  SQLite inspection confirms PAUSED, no attention and no pending uploads.
+  Corrected contradictory approval-page guidance and hid the duplicate approval
+  form only when the current snapshot is approved; stale/unapproved snapshots
+  still require explicit approval. Remaining release gates and MCP stay pending.
