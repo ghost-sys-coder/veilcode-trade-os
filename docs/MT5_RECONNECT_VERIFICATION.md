@@ -346,3 +346,71 @@ Next gate: explicit user approval of these twenty historical canonical trades
 and the unchanged baseline. No publication, reconciliation approval, collector
 resumption, startup installation, production promotion, branch merge or MCP
 activation occurred. The normal preview tab is left open for that decision.
+
+## Approved publication and account-date correction — 2026-10-07
+
+After explicit user approval, the signed-in normal publication form recorded
+the twenty selected closed canonical trades with a meaningful approval reason.
+The transactional publication workflow preserved the USD 100000 opening baseline.
+Independent read-only hosted SQL confirmed twenty distinct canonical identities,
+twenty closed trades, ten WIN, ten LOSS, normalized net PnL USD 2032.53,
+twenty execution versions, forty execution-source links and one publication
+approval. There are no account adjustments, invented original plans or valid
+actual-R values. The journal's NOT_REVIEWED filter returns all twenty records;
+unknown risk/R and behavioral evidence remain unknown rather than fabricated.
+
+The post-publication browser bridge shows ledger/broker basis USD 102032.53,
+remaining proposed closed PnL USD 0.00 and unexplained difference USD 0.00 for
+the frozen captured snapshot. This does not assert the current broker balance
+or complete lifetime history. Publication did not approve reconciliation.
+
+The account's configured start date was initially 5 October 2026, later than
+eighteen of the captured closures. Original funding provenance records
+21 September 2026 at 14:28:01.626Z, before the first trade opening. The user
+explicitly approved correcting the account date to 21 September 2026.
+The existing signed-in account edit form changed only `startedAt`; name,
+broker, platform, currency/precision, starting balance, leverage, status and
+notes were preserved. The form returned "Account updated." A newly loaded
+account ledger then showed START on 21 September, all twenty trades on their
+final closure dates, twenty-one chronologically ordered timeline rows, net
+trading PnL USD 2032.53 and derived balance USD 102032.53. No equity snapshot
+or cash adjustment was created.
+
+Two hosted read-only connector attempts during the date correction failed at
+the connector transport. The date correction's persistence is verified by the
+fresh server-rendered ledger, not claimed as a successful independent SQL
+readback. The existing account settings edit has no append-only database
+mutation audit; this report records the explicit approval, old/new dates and
+source evidence. It is not presented as an audited integration RPC or a trade
+plan correction, and no browser actor claims were forged.
+
+`python -m trade_os_mt5.cli status --config <pilot connection manifest>`
+returned exit 0, mode PAUSED, pendingPages 0, identical local/server checkpoint
+2026-10-06T03:46:23.337Z and stale=true, expected for the paused one-shot collector.
+No resume, scheduled startup, additional capture, automatic publication,
+reconciliation approval, production promotion, branch merge or MCP activation
+occurred. Application code/schema did not change; the full regression suite
+was not rerun for these user-approved data changes. Private screenshots remain
+ignored and excluded from deployment, including
+`corrected-start-date-20261007.jpg` showing the persisted date and closure ledger.
+
+Focused checks rerun after the correction:
+
+- `npm test -- tests/domain/journal.test.ts tests/domain/analytics.test.ts`:
+  PASS, twenty-seven tests in two files, exit 0.
+- `node --experimental-strip-types .artifacts/mt5-pilot/verify_preview_fixture.mjs`:
+  PASS, exit 0, all twenty source financial components checked, USD 2032.53
+  net profit, USD 102032.53 balance basis and 50% decisive win rate. This
+  read-only helper does not perform publication; its output flag describes
+  the check itself rather than the account's publication state.
+- `git diff --check`: PASS. No new application implementation or migration
+  requires a new production build for the date correction.
+
+Next gate: explicit onboarding/reconciliation approval against a freshly loaded
+preview. Continuous collection and real Windows interruption/startup checks
+remain separate operational gates; MCP remains parked and disabled.
+
+The verification report was committed locally on `feature/mt5-sync`.
+`git push origin feature/mt5-sync` exited 1 because the desktop could not
+connect to github.com:443. The report is not claimed pushed; no merge or
+deployment occurred. Retry the scoped push once network access is restored.

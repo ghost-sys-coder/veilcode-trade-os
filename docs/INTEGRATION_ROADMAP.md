@@ -248,3 +248,14 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   Explicit publication/approval, display-fix rollout and operational release
   gates remain pending. MCP stays parked. See
   [current pilot evidence](MT5_RECONNECT_VERIFICATION.md).
+- 2026-10-07: the user approved publication of the twenty reviewed historical
+  closed trades. The normal transactional browser workflow published them once;
+  hosted readback confirmed twenty unique identities, forty provenance links,
+  ten wins/ten losses and USD +2032.53 net PnL. The user also approved correcting
+  the account start date from 5 October to the verified original-funding date,
+  21 September 2026. The normal account edit and fresh ledger confirm the
+  correction, chronological closure placement and unchanged USD 102032.53
+  derived balance. The existing settings edit is not an append-only integration
+  RPC; its approval/evidence are documented explicitly in the pilot report.
+  Collector remains PAUSED, pending uploads zero. Final onboarding approval,
+  operational verification and display-fix rollout remain pending; MCP disabled.
