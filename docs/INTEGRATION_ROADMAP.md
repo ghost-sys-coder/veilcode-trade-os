@@ -121,6 +121,18 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-08: user approved the current snapshot and enabled automatic publication
+  for USD100K DEMO. The bounded dedicated-terminal capture passed on the hosted
+  path, advanced checkpoint to 2026-10-07T21:20:56.220Z, and preserved 20 unique
+  trades / 20 execution versions / USD +2032.53 with zero adjustments, holds or
+  incomplete collections. Collector ended PAUSED with no attention and zero
+  pending uploads; its verified scheduler task was restored. Automatic changed
+  execution and conflict review pass local fixture/browser checks; actual unchanged
+  history was verified without creating orders. The three requested final MT5
+  capabilities are cleared for this focused demo rollout. Remaining native reboot,
+  extra-terminal and monitoring limitations are documented rather than passed.
+  MCP continues from the merged foundation.
+
 - 2026-10-07: commit `690c3f7` pushed; the automatic-publication/review migration
   applied to the correct hosted project. The READY Vercel build was smoke-tested
   and promoted to the production site. Hosted ledger remains 20 trades and
