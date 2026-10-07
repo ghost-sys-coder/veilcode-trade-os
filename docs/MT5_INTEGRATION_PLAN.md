@@ -4,7 +4,17 @@ Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
 not operationally ready. Hosted rollout and actual terminal verification pending.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
-Latest operational checkpoint (2026-10-07): twenty reviewed trades are published,
+Latest recovery checkpoint (2026-10-07): credential-safe phase diagnostics
+corroborated intermittent direct TCP reachability. A fresh same-grant PKCE flow
+and signed/live account checks then passed; the vault is READY. The approved
+bounded demo restart recovered the preserved page under a newer fence and staged
+a fresh snapshot, ending PAUSED with zero pending uploads and matching local/server
+checkpoints. Hosted ledger/provenance are unchanged, and the current bridge is zero
+difference. Fresh snapshot approval and the remaining release gates are still
+pending; no automatic publication, orders or startup installation occurred.
+See [recovery evidence](MT5_FAILOVER_VERIFICATION.md).
+
+Historical operational checkpoint (2026-10-07): twenty reviewed trades are published,
 the start date is reconciled to 21 September, and captured-history onboarding was
 approved through the normal audited browser workflow. User-approved bounded demo
 collection/restart checks exposed intermittent connectivity and preserved a pending

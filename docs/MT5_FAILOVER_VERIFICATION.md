@@ -129,3 +129,74 @@ The 48-hour soak remains deferred by the user, not passed. MCP stays parked/off.
 
 Sources: [Python 3.13 socket connections](https://docs.python.org/3.13/library/socket.html#socket.create_connection),
 [HTTPS connection behavior](https://docs.python.org/3.13/library/http.client.html#http.client.HTTPSConnection).
+
+## Resolved authentication and recovered upload — 2026-10-07
+
+The worktree had returned to consolidated `master` (`c9d2a35`), which did not
+contain the pushed failover implementation. Returned to the existing MT5 feature
+branch (`5cf295c`) without modifying master or the user's untracked screenshot.
+The operational Python modules load from this worktree: do not switch branches
+under a running collector. This observation does not prove that the earlier
+failed exchanges ran on the wrong branch; their recorded failures remain valid.
+
+Added ignored, credential-safe diagnostic helpers. A Python request reached
+discovery with verified TLS and HTTP 200, but later requests to application
+metadata and the synthetic token endpoint failed during DNS/TCP dialing, before
+TLS or HTTP transmission. Direct curl with proxies explicitly excluded showed
+the same variability: discovery timed out, while a subsequent deliberately
+invalid-code POST returned the expected HTTP 400 in 0.99 seconds with certificate
+verification enabled. No real code/token was used or provider body logged by
+these probes. This corroborates intermittent direct reachability, not a proven
+PKCE, credential or grant rejection; it does not explain every prior failure.
+
+One fresh traced PKCE attempt then completed successfully. Diagnostics recorded
+only fixed endpoint labels, phases, HTTP status, duration, byte count and vault
+state. They recorded no URLs with query parameters, request/response bodies,
+codes, verifiers, tokens or provider error text. The unchanged production
+validation and protected credential store were used:
+
+- Discovery: verified TLS, HTTP 200, bounded JSON response read.
+- Token POST: verified TLS, HTTP 200 in 0.55 seconds, JSON response read.
+- Application session: authoritative signed/live-grant check HTTP 200.
+- Protected vault: EXCHANGING followed by durably persisted READY.
+- Independent second application session check: HTTP 200, exact same grant.
+
+`authorize_traced_pilot.py` exited 0; the listener closed. No old code or refresh
+token was replayed and no broader permission, new mapping or broker execution
+was introduced. The previously blocking reauthorization gate is now passed for
+this observed session, not a guarantee of future network availability.
+
+The separately user-approved bounded coordinator check then exited 0. It started
+PAUSED with one pending page, recovered it under a newer server fence, staged a
+fresh observation and ended PAUSED with no attention code and pendingPages=0.
+Both captured and server-confirmed checkpoints are 2026-10-07T14:51:30.826Z.
+The last contact in that run was 2026-10-07T14:51:38.805Z. No automatic canonical
+publication, orders or startup installation occurred.
+
+`audit_recovered_outbox.py` opened SQLite in explicit read-only/query-only mode
+and exited 0. Integrity is `ok`. The uncertain fence-3 attempt remains present,
+superseded rather than deleted; the fence-5 replacement has a durable receipt.
+The old page is acknowledged. Comparing the complete frozen envelopes after
+excluding only operation ID, worker ID and fencing metadata proves identical
+source facts. This is the fenced UNKNOWN/replacement recovery path, not a claim
+that the original attempt was already COMMITTED.
+
+Independent hosted readback confirms server fence 5 and the same checkpoint,
+ACTIVE grant/version 2, eighty-six source-fact identities, twenty canonical trades
+and twenty distinct canonical identities, USD 2032.53 net PnL, zero adjustments,
+one publication approval and the preserved USD 100000 baseline/start date
+21 September. The signed-in, freshly loaded browser preview corroborates
+USD 102032.53 ledger/observed broker balance, proposed closed PnL change zero,
+open-trade recognized cash zero, unexplained difference zero and no unresolved
+cash/reconstruction issues. The old approval remains correctly stale after the
+new checkpoint; no fresh onboarding approval was submitted automatically.
+
+Private screenshots/diagnostics remain ignored and excluded from deployment.
+This continuation changed documentation/preparation metadata only; no application
+source or schema changed, and the earlier full regression results above were
+not rerun or relabeled as newly passed. `git diff --check` passes for this update.
+
+Next gate: explicit review/approval of the recovered current snapshot, followed
+by the remaining implementation/operational gates listed above. This single
+dedicated demo recovery does not complete real startup, additional-account,
+unattended publication or full MT5 release verification. MCP remains parked/off.

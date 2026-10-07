@@ -259,3 +259,13 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   RPC; its approval/evidence are documented explicitly in the pilot report.
   Collector remains PAUSED, pending uploads zero. Final onboarding approval,
   operational verification and display-fix rollout remain pending; MCP disabled.
+- 2026-10-07: returned to the existing MT5 branch containing the failover fix;
+  credential-safe diagnostics distinguished intermittent TCP failures from OAuth
+  rejection. Fresh same-grant PKCE/token/session checks passed and saved READY
+  credentials. The approved bounded dedicated-demo restart recovered the preserved
+  uncertain upload under fence 5, retained identical frozen facts and ended PAUSED
+  with no pending pages. Local/server checkpoint 2026-10-07T14:51:30.826Z matches
+  hosted readback. Twenty canonical identities, USD +2032.53 profit, baseline/date
+  and the zero-difference bridge are unchanged. Current snapshot approval and other
+  implementation/operational gates remain pending; no startup or MCP activation.
+  See [failover and recovery evidence](MT5_FAILOVER_VERIFICATION.md).
