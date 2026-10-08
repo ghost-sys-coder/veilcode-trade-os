@@ -4,6 +4,7 @@ import { z } from "zod";
 import { calculatePositionSize } from "@/domain/trading/position-sizing";
 import { getInstrumentSpecification, SUPPORTED_ACCOUNT_CURRENCIES } from "@/domain/trading/instrument-specifications";
 import { parseDecimal } from "@/domain/money/decimal";
+import { journalGetSchema,journalListSchema,journalSaveSchema,journalResultSchema,journalPageSchema } from "@/domain/journal/commands";
 import { TRADE_OUTCOMES, TRADE_STATUSES, TRADE_GRADES, RULE_TYPES } from "@/types/domain";
 import { configurationArchiveSchema, configurationCreateSchema, configurationGetSchema, configurationListSchema,
   configurationPageSchema, configurationPatchSchema, configurationRecordSchema, configurationResultSchema } from "@/domain/configuration/commands";
@@ -37,12 +38,12 @@ const toolNames = ["tradeos_capabilities", "tradeos_position_size", "tradeos_ope
   "tradeos_accounts_list","tradeos_accounts_get","tradeos_accounts_create","tradeos_accounts_patch",
   "tradeos_account_events_list","tradeos_adjustment_create","tradeos_adjustment_classify","tradeos_snapshot_record",
   "tradeos_account_transition","tradeos_account_link_funded","tradeos_trades_list","tradeos_trades_get","tradeos_trades_create",
-  "tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments"] as const;
+  "tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments","tradeos_journals_get","tradeos_journals_list","tradeos_journals_save"] as const;
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const catalog = {
   version:"1", tools:toolNames, resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration permanent deletion","instruments","tags","goals","prop","journals","analytics","exports","screenshots upload/download","mt5"],
-  status:"HTTP plus accounts/events/lifecycle, canonical trades/targets/management/plan corrections/reviews and strategies/setups/rules. Other workflows, permanent deletion and local stdio are pending.",
+  pendingFamilies:["configuration permanent deletion","instruments","tags","goals","prop","computed journal summaries","analytics","exports","screenshots upload/download","mt5"],
+  status:"HTTP plus accounts/events/lifecycle, canonical trades/targets/management/plan corrections/reviews and strategies/setups/rules. Daily/weekly/monthly persisted reflections are available; computed journal summaries, other workflows, permanent deletion and local stdio are pending.",
 };
 const resources = {
   catalog,
@@ -87,6 +88,9 @@ export type McpApplicationServices = {
   tradesGet:(input:unknown)=>Promise<Record<string,unknown>>;
   tradesWrite:(action:TradeAction,input:unknown)=>Promise<ReturnType<typeof tradeResultSchema.parse>>;
   tradeInstruments:(input:unknown)=>Promise<ReturnType<typeof tradePageSchema.parse>>;
+  journalsGet:(input:unknown)=>Promise<ReturnType<typeof journalResultSchema.parse>>;
+  journalsList:(input:unknown)=>Promise<ReturnType<typeof journalPageSchema.parse>>;
+  journalsSave:(input:unknown)=>Promise<ReturnType<typeof journalResultSchema.parse>>;
 };
 export function createTradeOsMcpServer(services:McpApplicationServices) {
   const server = new McpServer({name:"trade-os",version:"1.0.0"});
@@ -157,5 +161,8 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_trade_management",{description:"Append an actual stop/target/scale/note event to an opened manual trade. STOP_MOVED records current execution stop without changing planned stop. SCALE_OUT records partial management, not early canonical realized PnL. Requires UTC event time and meaningful notes; broker facts are read-only.",inputSchema:tradeManagementSchema,outputSchema:tradeResultSchema,annotations:mutation},async input=>guarded(()=>services.tradesWrite("MANAGEMENT",input)));
   server.registerTool("tradeos_trade_review",{description:"Patch nullable behavioral answers or explicitly complete execution, psychology, rule or post-trade review. Rules complied:null clears an uncompleted draft answer only; prior answers remain audited. Omitted notes stay unchanged. Placeholder answers do not count as reviewed. Completion requires CLOSED and explicit results for every applicable rule, which are immutably snapshotted. Completed rule snapshots cannot be rewritten.",inputSchema:tradeReviewCommandSchema,outputSchema:tradeResultSchema,annotations:mutation},async input=>guarded(()=>services.tradesWrite("REVIEW",input)));
   server.registerTool("tradeos_trade_instruments",{description:"Discover active reference and owned instruments, including exact pip sizes and IDs required for trade entry. Cursor-paginated read-only catalog; this does not alter broker symbol mappings.",inputSchema:z.object({afterId:z.string().uuid().optional(),limit:z.number().int().min(1).max(100).default(50)}).strict(),outputSchema:tradePageSchema,annotations:readOnly},async input=>guarded(()=>services.tradeInstruments(input)));
+  server.registerTool("tradeos_journals_get",{description:"Read the persisted DAILY, WEEKLY or MONTHLY reflection for an owned account and calendar period. Weekly starts Monday; monthly starts on day one. Missing record is null, not reviewed evidence. Does not compute performance summaries or change journal-date/closed-at conventions.",inputSchema:journalGetSchema,outputSchema:journalResultSchema,annotations:readOnly},async input=>guarded(()=>services.journalsGet(input)));
+  server.registerTool("tradeos_journals_list",{description:"List persisted account reflections by kind in stable cursor order. Exhaust nextCursor for all records. Monetary observations remain strings, not authoritative ledger balances; no computed analytics are returned.",inputSchema:journalListSchema,outputSchema:journalPageSchema,annotations:readOnly},async input=>guarded(()=>services.journalsList(input)));
+  server.registerTool("tradeos_journals_save",{description:"Create or patch a persisted reflection using durable operationId. expectedVersion is 0 only for a missing period, otherwise use record_version. Omitted fields stay unchanged; null clears a nullable field. False is deliberate, not missing data. Monetary/derived summaries cannot be edited here. Saving does not complete trade reviews.",inputSchema:journalSaveSchema,outputSchema:journalResultSchema,annotations:mutation},async input=>guarded(()=>services.journalsSave(input)));
   return server;
 }

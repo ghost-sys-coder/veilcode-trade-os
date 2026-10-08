@@ -4,15 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { writeAccountEvent } from "@/services/application/account-events";
+import { saveJournal } from "@/services/application/journals";
 import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
 import { ApplicationWorkflowError } from "@/services/application/transaction";
 import {
   adjustmentClassificationSchema,
   accountAdjustmentSchema,
-  dailyLogSchema,
-  monthlyReviewSchema,
   tagSchema,
-  weeklyReviewSchema,
 } from "@/domain/validation/schemas";
 import { firstValidationError } from "@/lib/action-errors";
 import { requireUserId } from "@/lib/auth";
@@ -47,103 +45,35 @@ function finish(path: string, kind: "error" | "message", message: string): never
   redirect(`${path}${separator}${kind}=${encodeURIComponent(message)}`);
 }
 
+async function saveReflection(formData:FormData,kind:"DAILY"|"WEEKLY"|"MONTHLY",path:string,period:string,values:object,message:string) {
+  await requireUserId();
+  try {await saveJournal(await getVerifiedBrowserContext(await createClient()),{kind,accountId:text(formData,"accountId"),period,
+    operationId:text(formData,"operationId"),expectedVersion:text(formData,"expectedVersion"),values});}
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid journal values or period. Reload before retrying.");}
+  revalidatePath(path.split("?")[0]);
+  if(kind==="DAILY")revalidatePath("/calendar");
+  finish(path,"message",message);
+}
 export async function saveDailyLog(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const path = returnPath(formData, "/journal/daily");
-  const result = dailyLogSchema.safeParse({
-    accountId: text(formData, "accountId"),
-    tradingDate: text(formData, "tradingDate"),
-    marketConditions: optional(formData, "marketConditions"),
-    mentalState: optional(formData, "mentalState"),
-    followedDailyPlan: booleanValue(formData, "followedDailyPlan"),
-    hitDailyLossThreshold: booleanValue(formData, "hitDailyLossThreshold"),
-    stoppedWhenRequired: booleanValue(formData, "stoppedWhenRequired"),
-    dailyRating: integerValue(formData, "dailyRating"),
-    lessons: optional(formData, "lessons"),
-    notes: optional(formData, "notes"),
-  });
-  if (!result.success) finish(path, "error", firstValidationError(result.error));
-  const value = result.data;
-  const { error } = await supabase.from("daily_logs").upsert({
-    user_id: userId,
-    account_id: value.accountId,
-    trading_date: value.tradingDate,
-    market_conditions: value.marketConditions ?? null,
-    mental_state: value.mentalState ?? null,
-    followed_daily_plan: value.followedDailyPlan ?? null,
-    hit_daily_loss_threshold: value.hitDailyLossThreshold ?? null,
-    stopped_when_required: value.stoppedWhenRequired ?? null,
-    daily_rating: value.dailyRating ?? null,
-    lessons: value.lessons ?? null,
-    notes: value.notes ?? null,
-  }, { onConflict: "account_id,trading_date" });
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/journal/daily");
-  revalidatePath("/calendar");
-  finish(path, "message", "Daily journal saved.");
+  await saveReflection(formData,"DAILY",returnPath(formData,"/journal/daily"),text(formData,"tradingDate"),{
+    market_conditions:optional(formData,"marketConditions")??null,mental_state:optional(formData,"mentalState")??null,
+    followed_daily_plan:booleanValue(formData,"followedDailyPlan")??null,hit_daily_loss_threshold:booleanValue(formData,"hitDailyLossThreshold")??null,
+    stopped_when_required:booleanValue(formData,"stoppedWhenRequired")??null,daily_rating:integerValue(formData,"dailyRating")??null,
+    lessons:optional(formData,"lessons")??null,notes:optional(formData,"notes")??null,
+  },"Daily journal saved.");
 }
-
 export async function saveWeeklyReview(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const path = returnPath(formData, "/journal/weekly");
-  const result = weeklyReviewSchema.safeParse({
-    accountId: text(formData, "accountId"),
-    weekStart: text(formData, "weekStart"),
-    whatWorked: optional(formData, "whatWorked"),
-    whatDidNot: optional(formData, "whatDidNot"),
-    changeNextWeek: optional(formData, "changeNextWeek"),
-    behaviorToStop: optional(formData, "behaviorToStop"),
-    behaviorToContinue: optional(formData, "behaviorToContinue"),
-    notes: optional(formData, "notes"),
-  });
-  if (!result.success) finish(path, "error", firstValidationError(result.error));
-  const value = result.data;
-  const { error } = await supabase.from("weekly_reviews").upsert({
-    user_id: userId,
-    account_id: value.accountId,
-    week_start: value.weekStart,
-    what_worked: value.whatWorked ?? null,
-    what_did_not: value.whatDidNot ?? null,
-    change_next_week: value.changeNextWeek ?? null,
-    behavior_to_stop: value.behaviorToStop ?? null,
-    behavior_to_continue: value.behaviorToContinue ?? null,
-    notes: value.notes ?? null,
-  }, { onConflict: "account_id,week_start" });
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/journal/weekly");
-  finish(path, "message", "Weekly review saved.");
+  await saveReflection(formData,"WEEKLY",returnPath(formData,"/journal/weekly"),text(formData,"weekStart"),{
+    what_worked:optional(formData,"whatWorked")??null,what_did_not:optional(formData,"whatDidNot")??null,
+    change_next_week:optional(formData,"changeNextWeek")??null,behavior_to_stop:optional(formData,"behaviorToStop")??null,
+    behavior_to_continue:optional(formData,"behaviorToContinue")??null,notes:optional(formData,"notes")??null,
+  },"Weekly review saved.");
 }
-
 export async function saveMonthlyReview(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const path = returnPath(formData, "/journal/monthly");
-  const result = monthlyReviewSchema.safeParse({
-    accountId: text(formData, "accountId"),
-    month: text(formData, "month"),
-    whatWorked: optional(formData, "whatWorked"),
-    whatDidNot: optional(formData, "whatDidNot"),
-    lessons: optional(formData, "lessons"),
-    focusNextMonth: optional(formData, "focusNextMonth"),
-    notes: optional(formData, "notes"),
-  });
-  if (!result.success) finish(path, "error", firstValidationError(result.error));
-  const value = result.data;
-  const { error } = await supabase.from("monthly_reviews").upsert({
-    user_id: userId,
-    account_id: value.accountId,
-    month: value.month,
-    what_worked: value.whatWorked ?? null,
-    what_did_not: value.whatDidNot ?? null,
-    lessons: value.lessons ?? null,
-    focus_next_month: value.focusNextMonth ?? null,
-    notes: value.notes ?? null,
-  }, { onConflict: "account_id,month" });
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/journal/monthly");
-  finish(path, "message", "Monthly review saved.");
+  await saveReflection(formData,"MONTHLY",returnPath(formData,"/journal/monthly"),text(formData,"month"),{
+    what_worked:optional(formData,"whatWorked")??null,what_did_not:optional(formData,"whatDidNot")??null,
+    lessons:optional(formData,"lessons")??null,focus_next_month:optional(formData,"focusNextMonth")??null,notes:optional(formData,"notes")??null,
+  },"Monthly review saved.");
 }
 
 export async function createAccountAdjustment(formData: FormData): Promise<void> {

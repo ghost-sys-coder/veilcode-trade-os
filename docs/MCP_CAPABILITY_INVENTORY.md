@@ -1,14 +1,14 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and 27 tools are
-implemented. Account adjustments/classification, snapshots/lifecycle, canonical
+Updated 2026-10-08: stateless HTTP, five contract resources and 30 tools are
+implemented. Persisted daily/weekly/monthly journal reflection get/list/save now share audited services with the browser. Computed journal summaries remain pending. Account adjustments/classification, snapshots/lifecycle, canonical
 trades/targets/management/corrections/reviews and read-only trade instruments now
 join account metadata/balances and strategy/setup/rule workflows. Browser actions
 use the same typed services and private transactions. See
 [account-event and trade verification](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md).
 
-Hosted MCP stays disabled. Goals, prop configuration, journals, analytics/exports,
+Hosted MCP stays disabled. Goals, prop configuration, computed journal summaries, analytics/exports,
 tags, remaining instrument CRUD, screenshots/file access, MT5/import reads,
 profile settings, permanent deletion, local stdio and external clients remain
 pending. The completed workflow family is not full MCP readiness.

@@ -130,12 +130,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,27);assert.equal((await legacy.listTools()).tools.length,27);
+  assert.equal((await modern.listTools()).tools.length,30);assert.equal((await legacy.listTools()).tools.length,30);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 27 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 30 tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -359,6 +359,38 @@ try {
   assert.equal((draftAggregate.trade as Record<string,unknown>).net_pnl,null);
   assert.equal((draftAggregate.executionReview as Record<string,unknown>).reviewed_at,null);
   passed("browser creates an incomplete draft atomically without manufacturing realized or reviewed evidence");
+
+  stage="journal reflections across SDK and browser";
+  for(const [kind,period,segment,queryKey] of [["DAILY","2026-10-08","daily","date"],["WEEKLY","2026-10-05","weekly","week"],["MONTHLY","2026-10-01","monthly","month"]]) {
+    stage=`journal ${kind}: missing read`;
+    const key={kind,accountId:account.id,period};
+    assert.equal(content(await modern.callTool({name:"tradeos_journals_get",arguments:key})).record,null);
+    const journalInput={...key,operationId:randomUUID(),expectedVersion:"0",values:{notes:`MCP ${kind} reflection`,...(kind==="DAILY"?{followed_daily_plan:false}:{})}};
+    stage=`journal ${kind}: SDK creation`;
+    const created=await modern.callTool({name:"tradeos_journals_save",arguments:journalInput});
+    assert.equal(record(created).record_version,"1");
+    assert.deepEqual(content(await legacy.callTool({name:"tradeos_journals_save",arguments:journalInput})),content(created));
+    const listing=content(await modern.callTool({name:"tradeos_journals_list",arguments:{kind,accountId:account.id,limit:1}}));
+    assert.equal((listing.records as unknown[]).length,1);
+    stage=`journal ${kind}: browser load`;
+    const queryPeriod=kind==="MONTHLY"?period.slice(0,7):period;
+    await page.goto(`${origin}/journal/${segment}?account=${account.id}&${queryKey}=${queryPeriod}`);
+    const reflection=page.locator('form').filter({has:page.locator('input[name="operationId"]')});
+    await reflection.locator('fieldset[data-journal-ready="true"]').waitFor();
+    assert.equal(await reflection.locator('input[name="expectedVersion"]').inputValue(),"1");
+    stage=`journal ${kind}: browser save`;
+    await reflection.locator('textarea[name="notes"]').fill(`Browser ${kind} reflection`);
+    assert.equal(await reflection.locator('textarea[name="notes"]').inputValue(),`Browser ${kind} reflection`);
+    await reflection.getByRole("button",{name:kind==="DAILY"?"Save daily journal":kind==="WEEKLY"?"Save weekly review":"Save monthly review",exact:true}).click();
+    await page.getByText(kind==="DAILY"?"Daily journal saved.":kind==="WEEKLY"?"Weekly review saved.":"Monthly review saved.",{exact:true}).waitFor();
+    stage=`journal ${kind}: read after browser save`;
+    const saved=content(await modern.callTool({name:"tradeos_journals_get",arguments:key})).record as Record<string,unknown>;
+    assert.equal(saved.notes,`Browser ${kind} reflection`);assert.equal(saved.record_version,"2");
+    if(kind==="DAILY") {assert.equal(saved.followed_daily_plan,false);assert.equal(saved.stopped_when_required,null);}
+    const stale=await modern.callTool({name:"tradeos_journals_save",arguments:{...journalInput,operationId:randomUUID(),expectedVersion:"1"}});
+    assert(stale.isError && JSON.stringify(stale.content).includes("VERSION_CONFLICT"));
+  }
+  passed("all three journal kinds share audited SDK/browser writers, nullable answers, durable retries and stale-version rejection");
 
   stage="archival and preserved references";
   const archived=record(await modern.callTool({name:"tradeos_configuration_archive",arguments:{entity:"STRATEGY",operationId:randomUUID(),id:strategy.id,expectedVersion:"3",reason:"Retire referenced methodology"}}));

@@ -1,0 +1,23 @@
+import {describe,it,expect,vi,afterEach} from "vitest";
+import {journalGetSchema,journalSaveSchema,journalRecordSchema} from "@/domain/journal/commands";
+import {getJournal,listJournals,saveJournal} from "@/services/application/journals";
+import type {ApplicationContext} from "@/services/application/transaction";
+const {transaction}=vi.hoisted(()=>({transaction:vi.fn()}));
+vi.mock("@/services/application/transaction",()=>({applicationTransaction:transaction}));
+const id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const base={kind:"DAILY",accountId:id,period:"2026-10-08",operationId:id,expectedVersion:"0",values:{notes:"Reflection"}};
+const context={userId:id} as ApplicationContext;
+afterEach(()=>vi.resetAllMocks());
+describe("journal contract",()=>{
+  it.each([["DAILY","2026-02-30"],["WEEKLY","2026-10-08"],["MONTHLY","2026-10-08"]])("rejects invalid %s period %s",(kind,period)=>expect(journalGetSchema.safeParse({kind,period,accountId:id}).success).toBe(false));
+  it.each([["WEEKLY","2026-10-05"],["MONTHLY","2026-10-01"],["DAILY","2028-02-29"]])("accepts canonical %s date",(kind,period)=>expect(journalGetSchema.safeParse({kind,period,accountId:id}).success).toBe(true));
+  it("preserves omitted/null/false answers distinctly",()=>expect(journalSaveSchema.parse({...base,values:{notes:null,followed_daily_plan:false}}).values).toEqual({notes:null,followed_daily_plan:false}));
+  it.each([{user_id:id},{starting_balance:"100"},{net_pnl:"5"},{reviewed_at:"2026-10-08T00:00:00Z"},{daily_rating:0},{followed_daily_plan:"false"},{}])("rejects protected or invalid values %j",values=>expect(journalSaveSchema.safeParse({...base,values}).success).toBe(false));
+  it("rejects fields belonging to another journal kind",()=>expect(journalSaveSchema.safeParse({...base,kind:"WEEKLY",period:"2026-10-05",values:{mental_state:"Calm"}}).success).toBe(false));
+  it("returns an honest missing-period result",async()=>{transaction.mockResolvedValue({kind:"DAILY",record:null});expect(await getJournal(context,{kind:"DAILY",accountId:id,period:"2026-10-08"})).toEqual({kind:"DAILY",record:null});});
+  it("validates before invoking the privileged writer",async()=>{await expect(saveJournal(context,{...base,owner_id:id})).rejects.toThrow();expect(transaction).not.toHaveBeenCalled();});
+  it("uses exact version strings and the shared writer",async()=>{transaction.mockResolvedValue({kind:"DAILY",record:null});await saveJournal(context,{...base,expectedVersion:"9007199254740993"});expect(transaction).toHaveBeenCalledWith(context,"JOURNAL_WRITE",{...base,expectedVersion:"9007199254740993"});});
+  it("uses bounded keyset paging",async()=>{transaction.mockResolvedValue({records:[],nextCursor:null});await listJournals(context,{kind:"DAILY",accountId:id});expect(transaction).toHaveBeenCalledWith(context,"JOURNAL_READ",{kind:"DAILY",accountId:id,limit:50});});
+  it("rejects numeric money/version at the read boundary",()=>expect(journalRecordSchema.safeParse({id,user_id:id,account_id:id,record_version:1,starting_balance:100,created_at:"2026-10-08T00:00:00Z",updated_at:"2026-10-08T00:00:00Z"}).success).toBe(false));
+  it("reads legacy long notes without truncating stored evidence",()=>expect(journalRecordSchema.parse({id,user_id:id,account_id:id,record_version:"1",notes:"x".repeat(5000),created_at:"2026-10-08T00:00:00Z",updated_at:"2026-10-08T00:00:00Z"}).notes).toHaveLength(5000));
+});

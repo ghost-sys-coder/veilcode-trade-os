@@ -2,6 +2,20 @@
 
 Visual baseline for the Phase 01 workspace. New interface work should reuse these token-based patterns in both light and dark mode.
 
+### Journal reflection forms and unavailable account register
+
+Files: `app/(app)/journal/{daily,weekly,monthly}/page.tsx`, `app/(app)/accounts/page.tsx`
+Last updated: 2026-10-08
+
+Journal hidden operation/version fields do not alter the existing Card, Label,
+Textarea and Button styling: `grid gap-4`, `text-muted-foreground`, inherited
+`bg-card` and token borders. Preserve the one-line account/period/load toolbar.
+Account load failures use the existing alert and neutral em-dash counts, not
+fabricated zero accounts or the normal no-accounts empty state. No new tokens.
+`features/journal/reflection-form.tsx` uses a native `fieldset.contents` to lock
+controls until hydration and during submission, preserving the existing grid.
+Do not accept edits while initial default values are still hydrating.
+
 ### Application surface
 
 File: `app/globals.css`

@@ -16,12 +16,17 @@ const messages = {
   MONEY_STORAGE_LIMIT:"The normalized value exceeds database storage precision. No value was silently truncated.",
   NUMERIC_STORAGE_LIMIT:"The value exceeds storage precision for its numeric domain. Prices, volumes and money have separate limits; nothing was silently truncated.",
   UNAVAILABLE:"Application workflow temporarily unavailable. Check operation status before retrying an uncertain write.",
+  READ_UNAVAILABLE:"Unable to load application data right now. Reload to retry; no write was attempted.",
+  SCHEMA_NOT_READY:"The application database needs its shared-workflow migrations. Ask the operator to apply the deployment prerequisites, then reload. No operation was committed.",
+  DATABASE_NOT_CONFIGURED:"The application database connection is not configured correctly. Ask the operator to check the server-only database and TLS settings.",
 } as const;
 export class ApplicationWorkflowError extends Error {
   constructor(readonly code:keyof typeof messages) { super(messages[code]); this.name="ApplicationWorkflowError"; }
 }
 
 const statements={
+  JOURNAL_READ:"select private.application_journal_read($1::jsonb) as result",
+  JOURNAL_WRITE:"select private.application_journal_write($1::jsonb) as result",
   CONFIGURATION_READ:"select private.configuration_read($1::jsonb) as result",
   CONFIGURATION_WRITE:"select private.configuration_write($1::jsonb) as result",
   ACCOUNT_READ:"select private.application_account_read($1::jsonb) as result",
@@ -64,9 +69,13 @@ export async function applicationTransaction(context:ApplicationContext, workflo
     const state=typeof error==="object" && error!==null && "code" in error ? String(error.code):"";
     const constraint=typeof error==="object" && error!==null && "constraint" in error ? String(error.constraint):"";
     const duplicateName=["strategies_owner_name_unique","setups_strategy_name_unique","trading_accounts_owner_name_unique"].includes(constraint);
-    throw new ApplicationWorkflowError(state==="40001"?"VERSION_CONFLICT":state==="23505"?(duplicateName?"DUPLICATE_NAME":"OPERATION_CONFLICT")
+    const unavailable=workflow.endsWith("WRITE")?"UNAVAILABLE":"READ_UNAVAILABLE";
+    const configurationFailure=error instanceof Error && error.message==="MT5_PUBLICATION_DATABASE_UNAVAILABLE";
+    throw new ApplicationWorkflowError(configurationFailure?"DATABASE_NOT_CONFIGURED"
+      :["42883","42P01","42703"].includes(state)?"SCHEMA_NOT_READY"
+      :state==="40001"?"VERSION_CONFLICT":state==="23505"?(duplicateName?"DUPLICATE_NAME":"OPERATION_CONFLICT")
       :state==="P0002"?"NOT_FOUND":state==="42501"?"ACCESS_DENIED"
       :state==="22003"?(workflow.startsWith("TRADE")?"NUMERIC_STORAGE_LIMIT":"MONEY_STORAGE_LIMIT")
-      :["22023","23514","23503","23502","22P02","22007","22008"].includes(state)?"INVALID_REFERENCE":"UNAVAILABLE");
+      :["22023","23514","23503","23502","22P02","22007","22008"].includes(state)?"INVALID_REFERENCE":unavailable);
   } finally {await database?.end().catch(()=>{});}
 }

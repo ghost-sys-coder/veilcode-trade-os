@@ -49,12 +49,12 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Account summary">
         <Card className="gap-3 p-5">
           <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Configured</p><Landmark className="size-4 text-primary" aria-hidden="true" /></div>
-          <p className="font-mono text-3xl font-semibold tracking-[-0.04em] tabular-nums">{accounts.length}</p>
-          <p className="text-xs text-muted-foreground">Total account records</p>
+          <p className="font-mono text-3xl font-semibold tracking-[-0.04em] tabular-nums">{error ? "—" : accounts.length}</p>
+          <p className="text-xs text-muted-foreground">{error ? "Account data unavailable" : "Total account records"}</p>
         </Card>
         <Card className="gap-3 p-5">
           <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Active</p><span className="size-2 rounded-full bg-profit" /></div>
-          <p className="font-mono text-3xl font-semibold tracking-[-0.04em] tabular-nums text-profit">{activeAccounts}</p>
+          <p className="font-mono text-3xl font-semibold tracking-[-0.04em] tabular-nums text-profit">{error ? "—" : activeAccounts}</p>
           <p className="text-xs text-muted-foreground">Currently operating</p>
         </Card>
         <Card className="gap-3 p-5">
@@ -68,7 +68,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
         <Card>
           <CardHeader className="border-b border-border/70">
             <CardTitle>Account register</CardTitle>
-            <CardDescription>{accounts.length} configured account{accounts.length === 1 ? "" : "s"}, each kept in its own currency precision.</CardDescription>
+            <CardDescription>{error ? "Account records could not be loaded. Existing accounts have not been removed." : `${accounts.length} configured account${accounts.length === 1 ? "" : "s"}, each kept in its own currency precision.`}</CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
             <Table>
@@ -83,7 +83,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                     <TableCell className="text-right"><Link href={`/accounts/${account.id}`} className="text-xs font-semibold text-primary hover:underline hover:underline-offset-4">View</Link></TableCell>
                   </TableRow>
                 ))}
-                {accounts.length === 0 ? <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">No accounts yet. Use the form to create your first account.</TableCell></TableRow> : null}
+                {accounts.length === 0 ? <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">{error ? "Unable to load the account register. Resolve the error above and reload." : "No accounts yet. Use the form to create your first account."}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
             {accounts.length > 0 ? (
