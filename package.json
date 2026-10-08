@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:verified": "npm run check:application-db && npm run build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -20,6 +21,7 @@
     "test:mcp-integration": "node --experimental-strip-types scripts/test-mcp-integration.mts",
     "dev:integration": "node scripts/start-local-integration-app.mjs",
     "check:integration-auth": "node --experimental-strip-types scripts/check-integration-auth.mts",
+    "check:application-db": "node --experimental-strip-types scripts/check-application-database.mts",
     "db:types": "node scripts/generate-database-types.mjs",
     "test:watch": "vitest"
   },

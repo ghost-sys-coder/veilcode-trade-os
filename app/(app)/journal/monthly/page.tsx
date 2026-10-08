@@ -1,4 +1,8 @@
 import { PageHeader } from "@/components/app/page-header";
+import { OperationFields } from "@/components/app/operation-fields";
+import { ReflectionForm } from "@/features/journal/reflection-form";
+import { getJournal } from "@/services/application/journals";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -63,7 +67,7 @@ export default async function MonthlyJournalPage({ searchParams }: MonthlyPagePr
   const currentReturn = parseDecimal(currentOpening).isZero() ? null : parseDecimal(summary.netPnl).div(currentOpening).times(100).toFixed(2);
   const previousReturn = parseDecimal(previousOpening).isZero() ? null : parseDecimal(previousSummary.netPnl).div(previousOpening).times(100).toFixed(2);
   const violations = realized.reduce((sum, trade) => sum + trade.ruleViolations, 0);
-  const { data: review } = accountId ? await supabase.from("monthly_reviews").select("*").eq("account_id", accountId).eq("month", bounds.start).maybeSingle() : { data: null };
+  const review = accountId ? (await getJournal(await getVerifiedBrowserContext(supabase),{kind:"MONTHLY",accountId,period:bounds.start})).record : null;
   const returnPath = `/journal/monthly?account=${encodeURIComponent(accountId)}&month=${month}`;
 
   return <div className="space-y-6"><PageHeader eyebrow="Process review" title="Monthly review" description={`${month} core realized performance and trader reflection.`} actions={<ReviewNavigation active="monthly" />} />
@@ -79,8 +83,8 @@ export default async function MonthlyJournalPage({ searchParams }: MonthlyPagePr
         ["Execution rating", averageExecution(realized) ?? "Not reviewed", averageExecution(previousRealized) ?? "Not reviewed"],
         ["Trades", String(summary.trades), String(previousSummary.trades)],
       ].map(([label, current, previous]) => <tr key={label} className="border-b border-border/50 last:border-0"><td className="py-3 font-medium">{label}</td><td className="py-3 font-mono">{current}</td><td className="py-3 font-mono text-muted-foreground">{previous}</td></tr>)}</tbody></table></CardContent></Card>
-      <Card><CardHeader><CardTitle>{review ? "Update monthly review" : "Write monthly review"}</CardTitle><CardDescription>Capture the durable reflection behind the realized month-over-month evidence.</CardDescription></CardHeader><CardContent><form action={saveMonthlyReview} className="grid gap-4 lg:grid-cols-2"><input type="hidden" name="accountId" value={accountId} /><input type="hidden" name="month" value={bounds.start} /><input type="hidden" name="returnPath" value={returnPath} />
+      <Card><CardHeader><CardTitle>{review ? "Update monthly review" : "Write monthly review"}</CardTitle><CardDescription>Capture the durable reflection behind the realized month-over-month evidence.</CardDescription></CardHeader><CardContent><ReflectionForm action={saveMonthlyReview} className="grid gap-4 lg:grid-cols-2"><OperationFields expectedVersion={review?.record_version ?? "0"} /><input type="hidden" name="accountId" value={accountId} /><input type="hidden" name="month" value={bounds.start} /><input type="hidden" name="returnPath" value={returnPath} />
         {[["whatWorked","What worked",review?.what_worked],["whatDidNot","What did not",review?.what_did_not],["lessons","Lessons",review?.lessons],["focusNextMonth","Focus next month",review?.focus_next_month],["notes","Notes",review?.notes]].map(([name,label,value]) => <div key={String(name)} className={`grid gap-2 ${name === "notes" ? "lg:col-span-2" : ""}`}><Label htmlFor={String(name)}>{label}</Label><Textarea id={String(name)} name={String(name)} defaultValue={String(value ?? "")} /></div>)}<div className="lg:col-span-2"><Button type="submit">Save monthly review</Button></div>
-      </form></CardContent></Card></> : <Card className="p-8 text-center text-muted-foreground">Create an account before writing a monthly review.</Card>}
+      </ReflectionForm></CardContent></Card></> : <Card className="p-8 text-center text-muted-foreground">Create an account before writing a monthly review.</Card>}
   </div>;
 }

@@ -42,7 +42,11 @@ try {
   // Share the OAuth/browser fixture lock: those checks temporarily configure the
   // same local resource rows. The session lock survives each suite's rollback
   // and is released on disconnect, including errors; never race these fixtures.
+  // A browser gate can take longer than an individual SQL suite. Bound fixture
+  // coordination independently; restore the shorter timeout for actual tests.
+  await client.query("set statement_timeout='180s'");
   await client.query("select pg_advisory_lock(670051234)");
+  await client.query("set statement_timeout='60s'");
   // Iterate pending schema inside EACH suite transaction. No migration history
   // entry or schema persists after its ROLLBACK, even when a suite fails.
   let pendingSchema = "";

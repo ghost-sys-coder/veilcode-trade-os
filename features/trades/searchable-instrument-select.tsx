@@ -10,9 +10,10 @@ import type { InstrumentRow } from "@/types/database-helpers";
 interface SearchableInstrumentSelectProps {
   instruments: InstrumentRow[];
   defaultValue?: string;
+  disabled?: boolean;
 }
 
-export function SearchableInstrumentSelect({ instruments, defaultValue }: SearchableInstrumentSelectProps) {
+export function SearchableInstrumentSelect({ instruments, defaultValue,disabled }: SearchableInstrumentSelectProps) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(defaultValue ?? instruments[0]?.id ?? "");
   const filtered = useMemo(() => {
@@ -40,8 +41,10 @@ export function SearchableInstrumentSelect({ instruments, defaultValue }: Search
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search EURUSD, gold, forex…"
         aria-label="Search instruments"
+        disabled={disabled}
       />
-      <Select name="instrumentId" value={selectedId} onValueChange={(value) => setSelectedId(value ?? "")} items={items} required>
+      {disabled?<input type="hidden" name="instrumentId" value={selectedId} />:null}
+      <Select name="instrumentId" value={selectedId} onValueChange={(value) => setSelectedId(value ?? "")} items={items} required disabled={disabled}>
         <SelectTrigger id="instrumentId" aria-label="Instrument" className="w-full"><SelectValue placeholder="Choose an instrument" /></SelectTrigger>
         <SelectContent>
           {visible.map((instrument) => (

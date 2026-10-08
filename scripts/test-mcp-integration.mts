@@ -130,12 +130,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,12);assert.equal((await legacy.listTools()).tools.length,12);
+  assert.equal((await modern.listTools()).tools.length,30);assert.equal((await legacy.listTools()).tools.length,30);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers twelve tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 30 tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -197,8 +197,7 @@ try {
   assert.equal(accountPatch.record_version,"2");assert.equal(accountPatch.broker_name,null);assert.equal(accountPatch.notes,"Original notes");
   const jpy=record(await modern.callTool({name:"tradeos_accounts_create",arguments:{operationId:randomUUID(),values:{...accountInput.values,
     name:"MCP JPY fixture",currency_code:"JPY",currency_precision:0,starting_balance:"1000.5"}}}));assert.equal(jpy.derived_balance,"1001");
-  // Deterministic manual financial fixtures only; trade-write tools are still
-  // pending. Never create broker orders or touch a hosted user's financial data.
+  // Deterministic local baseline fixtures; never create broker orders or touch hosted data.
   const instrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
   await database.query("insert into public.trades(user_id,account_id,instrument_id,status,direction,opened_at,net_pnl) values($1,$2,$3,'OPEN','BUY',clock_timestamp(),999)",[fixtureUser,account.id,instrument]);
   await database.query("insert into public.trades(user_id,account_id,instrument_id,status,direction,opened_at,closed_at,gross_pnl,net_pnl,outcome) values($1,$2,$3,'CLOSED','BUY',clock_timestamp()-interval '1 hour',clock_timestamp(),1.005,1.005,'WIN'),($1,$2,$3,'CLOSED','BUY',clock_timestamp()-interval '1 hour',clock_timestamp(),-.005,-.005,'LOSS')",[fixtureUser,account.id,instrument]);
@@ -253,6 +252,145 @@ try {
   const savedAccount=content(await modern.callTool({name:"tradeos_accounts_get",arguments:{id:account.id}}));
   assert.equal(savedAccount.name,"Newer MCP account");assert.equal(savedAccount.notes,"Browser shared account workflow");assert.equal(savedAccount.derived_balance,"100046.01");
   passed("browser account edits share the audited service, reject stale versions and preserve authoritative balance");
+
+
+  stage="account events and lifecycle";
+  const cashOperation=randomUUID(),occurredAt="2026-10-08T00:00:00Z";
+  const cashInput={operationId:cashOperation,accountId:account.id,type:"WITHDRAWAL",amount:"10.005",occurredAt};
+  const cashResult=await modern.callTool({name:"tradeos_adjustment_create",arguments:cashInput});
+  assert.equal(record(cashResult).amount,"-10.01");
+  assert.deepEqual(content(await legacy.callTool({name:"tradeos_adjustment_create",arguments:cashInput})),content(cashResult));
+  const other=record(await modern.callTool({name:"tradeos_adjustment_create",arguments:{operationId:randomUUID(),accountId:account.id,type:"OTHER",amount:"5",occurredAt,isPerformanceNeutral:true,classificationReason:"Cash-only adjustment"}}));
+  const classified=record(await modern.callTool({name:"tradeos_adjustment_classify",arguments:{operationId:randomUUID(),id:other.id,expectedVersion:"1",isPerformanceNeutral:false,reason:"Reviewed economic treatment"}}));
+  assert.equal(classified.record_version,"2");assert.equal(classified.amount,"5.00");assert.equal(classified.is_performance_neutral,false);
+  const classificationHistory=content(await modern.callTool({name:"tradeos_account_events_list",arguments:{accountId:account.id,kind:"CLASSIFICATIONS"}}));
+  assert((classificationHistory.records as unknown[]).length>=1);
+  const snapshot=record(await modern.callTool({name:"tradeos_snapshot_record",arguments:{operationId:randomUUID(),accountId:account.id,balance:"1000",unrealizedPnl:"0.2",capturedAt:occurredAt}}));
+  assert.equal(snapshot.equity,"1000.20000000");
+  const badSnapshot=await modern.callTool({name:"tradeos_snapshot_record",arguments:{operationId:randomUUID(),accountId:account.id,balance:"1000",equity:"1001",unrealizedPnl:"5",capturedAt:occurredAt}});
+  assert(badSnapshot.isError&&JSON.stringify(badSnapshot.content).includes("INVALID_REFERENCE"));
+  const challenge=record(await modern.callTool({name:"tradeos_accounts_create",arguments:{operationId:randomUUID(),values:{...accountInput.values,name:"Lifecycle challenge",account_type:"PROP_CHALLENGE"}}}));
+  const passedChallenge=record(await modern.callTool({name:"tradeos_account_transition",arguments:{operationId:randomUUID(),accountId:challenge.id,expectedVersion:"1",status:"PASSED",effectiveAt:occurredAt,reason:"Confirmed challenge completion"}}));
+  assert.equal(passedChallenge.status,"PASSED");
+  const funded=record(await modern.callTool({name:"tradeos_account_link_funded",arguments:{operationId:randomUUID(),accountId:challenge.id,expectedVersion:passedChallenge.record_version,name:"Separate funded account",startingBalance:"10000",platform:"OTHER",startedAt:"2026-10-08"}}));
+  assert.equal(funded.previous_account_id,challenge.id);assert.equal(funded.account_type,"FUNDED");
+  passed("cash retries, auditable OTHER classification, snapshot equation and separate funded lifecycle work through real HTTP");
+
+  stage="canonical trade workflow";
+  const referencePage=content(await modern.callTool({name:"tradeos_trade_instruments",arguments:{limit:100}}));
+  assert((referencePage.records as Array<Record<string,unknown>>).some(item=>item.id===instrument));
+  const tradeOperation=randomUUID();
+  const tradeInput={operationId:tradeOperation,values:{account_id:funded.id,instrument_id:instrument,direction:"BUY",status:"OPEN",opened_at:"2026-10-08T01:00:21.333Z",planned_stop_loss:"1.08",planned_risk_amount:"100"},
+    plannedTargets:[{label:"Partial target",planned_price:"1.10",planned_close_percentage:"50"}]};
+  const tradeCreation=await modern.callTool({name:"tradeos_trades_create",arguments:tradeInput});let canonical=record(tradeCreation);
+  assert.equal(canonical.status,"OPEN");assert.equal(canonical.net_pnl,null);
+  assert.deepEqual(content(await legacy.callTool({name:"tradeos_trades_create",arguments:tradeInput})),content(tradeCreation));
+  const getCanonical=async()=>content(await modern.callTool({name:"tradeos_trades_get",arguments:{id:canonical.id}}));
+  const badPlan=await modern.callTool({name:"tradeos_trades_patch",arguments:{operationId:randomUUID(),id:canonical.id,expectedVersion:canonical.record_version,values:{planned_stop_loss:"1.09"}}});
+  assert(badPlan.isError&&JSON.stringify(badPlan.content).includes("INVALID_REFERENCE"));
+  canonical=record(await modern.callTool({name:"tradeos_trade_correct_plan",arguments:{operationId:randomUUID(),id:canonical.id,expectedVersion:canonical.record_version,fieldName:"planned_stop_loss",newValue:"1.081",reason:"Recorded stop data correction"}}));
+  canonical=record(await modern.callTool({name:"tradeos_trade_management",arguments:{operationId:randomUUID(),id:canonical.id,expectedVersion:canonical.record_version,event:{event_type:"STOP_MOVED",occurred_at:"2026-10-08T02:00:00Z",price:"1.085",notes:"Actual break-even stop movement"}}}));
+  assert.equal(canonical.planned_stop_loss,"1.0810000000");assert.equal(canonical.actual_stop_loss,"1.0850000000");
+  const aggregate=await getCanonical();const target=(aggregate.targets as Array<Record<string,unknown>>)[0];
+  canonical=record(await modern.callTool({name:"tradeos_trade_targets",arguments:{operationId:randomUUID(),id:canonical.id,expectedVersion:canonical.record_version,executedTargets:[{id:target.id,actual_close_percentage:"50",actual_fill_price:"1.1",pnl_contribution:"25",hit_at:"2026-10-08T02:30:00Z"}]}}));
+  assert.equal(canonical.net_pnl,null);
+  const badReviewOperation=randomUUID();
+  const badClose=await modern.callTool({name:"tradeos_trades_patch",arguments:{operationId:badReviewOperation,id:canonical.id,expectedVersion:canonical.record_version,values:{status:"CLOSED",closed_at:"2026-10-08T03:00:00Z",gross_pnl:"10.20",commission:"0.1",swap:"0.1"},reviews:{psychology:{values:{fear_influenced:false},complete:true}}}});
+  assert(badClose.isError);
+  const stillOpen=(await getCanonical()).trade as Record<string,unknown>;
+  assert.equal(stillOpen.status,"OPEN");assert.equal(stillOpen.record_version,canonical.record_version);
+  assert.equal(content(await modern.callTool({name:"tradeos_operation_status",arguments:{operationId:badReviewOperation}})).status,"UNKNOWN");
+  canonical=record(await modern.callTool({name:"tradeos_trades_patch",arguments:{operationId:randomUUID(),id:canonical.id,expectedVersion:canonical.record_version,values:{status:"CLOSED",closed_at:"2026-10-08T03:00:00Z",gross_pnl:"10.20",commission:"0.1",swap:"0.1"}}}));
+  assert.equal(canonical.net_pnl,"10.00");assert.equal(canonical.outcome,"PARTIAL_WIN");assert.equal(canonical.actual_r,"0.10000000");
+  canonical=record(await modern.callTool({name:"tradeos_trade_review",arguments:{operationId:randomUUID(),id:canonical.id,expectedVersion:canonical.record_version,reviews:{psychology:{values:{fear_influenced:false,greed_influenced:false,fomo_influenced:true},complete:true},rules:{results:[{trading_rule_id:rule.id,complied:true,notes:"Reviewed risk limit"}],complete:true}}}}));
+  const reviewed=await getCanonical();
+  assert((reviewed.psychology as Record<string,unknown>).reviewed_at);
+  assert.equal((reviewed.ruleReviewItems as unknown[]).length,1);assert.equal((reviewed.corrections as unknown[]).length,1);
+  assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1 and id=$2",[fixtureUser,canonical.id])).rows[0].count,1);
+  passed("canonical retry, locked plan, actual management, partial closure, exact financials and immutable reviews work atomically");
+
+  stage="browser account event adapters";
+  await page.goto(`${origin}/accounts/${account.id}`);
+  const adjustmentForm=page.locator("form").filter({has:page.getByRole("button",{name:"Record adjustment",exact:true})});
+  await adjustmentForm.getByRole("combobox",{name:/^Type/}).click();
+  await page.getByRole("option",{name:"DEPOSIT",exact:true}).click();
+  await adjustmentForm.getByLabel("Amount",{exact:true}).fill("0.1");
+  await adjustmentForm.getByLabel("Occurred at",{exact:true}).fill("2026-10-08T04:00");
+  await adjustmentForm.getByRole("button",{name:"Record adjustment",exact:true}).click();
+  await page.getByText("Account adjustment recorded.",{exact:true}).waitFor();
+  await page.goto(`${origin}/prop?account=${challenge.id}`);
+  const snapshotForm=page.locator("form").filter({has:page.getByRole("button",{name:"Record snapshot",exact:true})});
+  await snapshotForm.getByLabel("Equity",{exact:true}).fill("100010");
+  await snapshotForm.getByRole("button",{name:"Record snapshot",exact:true}).click();
+  await page.getByText("Account snapshot recorded.",{exact:true}).waitFor();
+  passed("browser adjustment and snapshot forms use shared durable workflows without client errors");
+
+  stage="browser canonical trade adapter";
+  await page.goto(`${origin}/trades/${canonical.id}/edit`);
+  const mainTradeForm=page.locator("form").filter({has:page.locator('input[name="id"]')});
+  await mainTradeForm.locator('textarea[name="whatWentWell"]').fill("Browser review through shared atomic workflow");
+  await mainTradeForm.getByRole("button",{name:"Save trade",exact:true}).click();
+  await page.getByText("Trade saved.",{exact:true}).waitFor();
+  const browserReviewed=await getCanonical();
+  assert.equal((browserReviewed.review as Record<string,unknown>).what_went_well,"Browser review through shared atomic workflow");
+  assert.equal((browserReviewed.trade as Record<string,unknown>).outcome,"PARTIAL_WIN");
+  assert.equal((browserReviewed.trade as Record<string,unknown>).opened_at,"2026-10-08T01:00:21.333+00:00");
+  passed("browser trade save uses shared transaction and preserves completed review snapshots and financial result");
+
+  stage="browser explicit management history";
+  const managementForm=page.locator("form").filter({has:page.getByRole("button",{name:"Record management event",exact:true})});
+  await managementForm.getByRole("combobox",{name:/^Management event/}).click();
+  await page.getByRole("option",{name:"NOTE",exact:true}).click();
+  await managementForm.getByLabel("Occurred at (UTC)",{exact:true}).fill("2026-10-08T04:00");
+  await managementForm.getByLabel("What changed and why?",{exact:true}).fill("Reviewed management evidence after complete closure");
+  await managementForm.getByRole("button",{name:"Record management event",exact:true}).click();
+  await page.getByText("Trade management event recorded. The planned values are unchanged.",{exact:true}).waitFor();
+  const managed=await getCanonical();assert.equal((managed.managementEvents as unknown[]).length,2);
+  assert.equal((managed.trade as Record<string,unknown>).planned_stop_loss,"1.0810000000");
+  passed("explicit browser management appends separate evidence without changing recorded plans");
+
+  stage="browser draft creation";
+  await page.goto(`${origin}/trades/new`);
+  await page.getByRole("button",{name:"Save draft",exact:true}).click();
+  await page.getByText("Draft saved.",{exact:true}).waitFor();
+  const newDraftId=new URL(page.url()).pathname.split("/")[2];
+  const draftAggregate=content(await modern.callTool({name:"tradeos_trades_get",arguments:{id:newDraftId}}));
+  assert.equal((draftAggregate.trade as Record<string,unknown>).status,"DRAFT");
+  assert.equal((draftAggregate.trade as Record<string,unknown>).net_pnl,null);
+  assert.equal((draftAggregate.executionReview as Record<string,unknown>).reviewed_at,null);
+  passed("browser creates an incomplete draft atomically without manufacturing realized or reviewed evidence");
+
+  stage="journal reflections across SDK and browser";
+  for(const [kind,period,segment,queryKey] of [["DAILY","2026-10-08","daily","date"],["WEEKLY","2026-10-05","weekly","week"],["MONTHLY","2026-10-01","monthly","month"]]) {
+    stage=`journal ${kind}: missing read`;
+    const key={kind,accountId:account.id,period};
+    assert.equal(content(await modern.callTool({name:"tradeos_journals_get",arguments:key})).record,null);
+    const journalInput={...key,operationId:randomUUID(),expectedVersion:"0",values:{notes:`MCP ${kind} reflection`,...(kind==="DAILY"?{followed_daily_plan:false}:{})}};
+    stage=`journal ${kind}: SDK creation`;
+    const created=await modern.callTool({name:"tradeos_journals_save",arguments:journalInput});
+    assert.equal(record(created).record_version,"1");
+    assert.deepEqual(content(await legacy.callTool({name:"tradeos_journals_save",arguments:journalInput})),content(created));
+    const listing=content(await modern.callTool({name:"tradeos_journals_list",arguments:{kind,accountId:account.id,limit:1}}));
+    assert.equal((listing.records as unknown[]).length,1);
+    stage=`journal ${kind}: browser load`;
+    const queryPeriod=kind==="MONTHLY"?period.slice(0,7):period;
+    await page.goto(`${origin}/journal/${segment}?account=${account.id}&${queryKey}=${queryPeriod}`);
+    const reflection=page.locator('form').filter({has:page.locator('input[name="operationId"]')});
+    await reflection.locator('fieldset[data-journal-ready="true"]').waitFor();
+    assert.equal(await reflection.locator('input[name="expectedVersion"]').inputValue(),"1");
+    stage=`journal ${kind}: browser save`;
+    await reflection.locator('textarea[name="notes"]').fill(`Browser ${kind} reflection`);
+    assert.equal(await reflection.locator('textarea[name="notes"]').inputValue(),`Browser ${kind} reflection`);
+    await reflection.getByRole("button",{name:kind==="DAILY"?"Save daily journal":kind==="WEEKLY"?"Save weekly review":"Save monthly review",exact:true}).click();
+    await page.getByText(kind==="DAILY"?"Daily journal saved.":kind==="WEEKLY"?"Weekly review saved.":"Monthly review saved.",{exact:true}).waitFor();
+    stage=`journal ${kind}: read after browser save`;
+    const saved=content(await modern.callTool({name:"tradeos_journals_get",arguments:key})).record as Record<string,unknown>;
+    assert.equal(saved.notes,`Browser ${kind} reflection`);assert.equal(saved.record_version,"2");
+    if(kind==="DAILY") {assert.equal(saved.followed_daily_plan,false);assert.equal(saved.stopped_when_required,null);}
+    const stale=await modern.callTool({name:"tradeos_journals_save",arguments:{...journalInput,operationId:randomUUID(),expectedVersion:"1"}});
+    assert(stale.isError && JSON.stringify(stale.content).includes("VERSION_CONFLICT"));
+  }
+  passed("all three journal kinds share audited SDK/browser writers, nullable answers, durable retries and stale-version rejection");
 
   stage="archival and preserved references";
   const archived=record(await modern.callTool({name:"tradeos_configuration_archive",arguments:{entity:"STRATEGY",operationId:randomUUID(),id:strategy.id,expectedVersion:"3",reason:"Retire referenced methodology"}}));

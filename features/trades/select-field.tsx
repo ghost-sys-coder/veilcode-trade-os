@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -28,7 +30,8 @@ export function SelectField({
   disabled,
   onValueChange,
 }: SelectFieldProps) {
-  const id = `field-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const instanceId=useId();
+  const id = `field-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}-${instanceId}`;
 
   return (
     <div className="grid gap-2">

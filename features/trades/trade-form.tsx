@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { parseDecimal } from "@/domain/money/decimal";
 import {
@@ -16,6 +16,7 @@ import { DraftNavigationGuard } from "@/features/trades/draft-navigation-guard";
 import { ExecutionSection } from "@/features/trades/execution-section";
 import { IdentificationSection } from "@/features/trades/identification-section";
 import { PlanCorrectionPanel } from "@/features/trades/plan-correction-panel";
+import { TradeManagementForm } from "@/features/trades/management-form";
 import { PlanSection } from "@/features/trades/plan-section";
 import { PsychologySection } from "@/features/trades/psychology-section";
 import { ResultSection } from "@/features/trades/result-section";
@@ -44,13 +45,14 @@ function value(formData: FormData, name: string): string {
   return typeof result === "string" ? result.trim() : "";
 }
 
-export function TradeForm({ accounts, instruments, strategies, setups, rules, record, userId, timezone, initialValues, calculatorTransfer }: TradeFormProps) {
+export function TradeForm({ accounts, instruments, strategies, setups, rules, record, userId, timezone, initialValues, calculatorTransfer,operationId,correctionOperationId,managementOperationId }: TradeFormProps) {
   const trade = record?.trade;
   const lockedPlan = trade?.status === "OPEN" || trade?.status === "CLOSED";
   const [accountId, setAccountId] = useState(trade?.account_id ?? initialValues?.accountId ?? accounts[0]?.id ?? "");
   const [status, setStatus] = useState<TradeStatus>(trade?.status ?? "DRAFT");
   const [preview, setPreview] = useState<CalculationPreview>(emptyPreview);
   const [dirty, setDirty] = useState(false);
+  const editedDates=useRef(new Set<string>());
   const account = accounts.find((item) => item.id === accountId);
   const applicableRules = useMemo(
     () => rules.filter((rule) => rule.active && (rule.account_id === null || rule.account_id === accountId)),
@@ -76,7 +78,7 @@ export function TradeForm({ accounts, instruments, strategies, setups, rules, re
     try { if (risk && reward) next.plannedRiskReward = calculateRiskMultiple(reward, risk); } catch {}
     try {
       if (gross && currentAccount) {
-        next.netPnl = calculateNetPnl({ grossPnl: gross, commission: value(formData, "commission") || "0", swap: value(formData, "swap") || "0", otherFees: value(formData, "otherFees") || "0", currencyPrecision: currentAccount.currency_precision });
+        next.netPnl = calculateNetPnl({ grossPnl: gross, commission: value(formData, "commission") || "0", swap: value(formData, "swap") || "0", otherFees: value(formData, "otherFees") || "0",tradingCredits:value(formData,"tradingCredits")||trade?.trading_credits||"0", currencyPrecision: currentAccount.currency_precision });
         if (risk) next.actualR = calculateRiskMultiple(next.netPnl, risk);
         if (currentStatus === "CLOSED") next.outcome = classifyClosedTradeOutcome(next.netPnl, currentAccount.currency_precision, usedPartials);
       }
@@ -97,15 +99,29 @@ export function TradeForm({ accounts, instruments, strategies, setups, rules, re
     setDirty(false);
     for (const name of ["plannedAt", "openedAt", "closedAt", "targetHitAt"]) {
       const entries = formData.getAll(name);
+      const recorded=name==="plannedAt"?trade?.planned_at:name==="openedAt"?trade?.opened_at:name==="closedAt"?trade?.closed_at:undefined;
+      // Unrelated review edits must not truncate recorded seconds/microseconds
+      // or reinterpret the unchanged timestamp through a browser timezone.
+      if(name!=="targetHitAt"&&recorded&&!editedDates.current.has(name)) {formData.set(name,recorded);continue;}
+      const targetIds=formData.getAll("targetId").map(String);
+      const normalized=entries.map((entry,index)=>{
+        const original=name==="targetHitAt"?record?.targets.find(target=>target.id===targetIds[index])?.hit_at:undefined;
+        if(original&&!editedDates.current.has(`targetHitAt:${index}`))return original;
+        return typeof entry==="string"&&entry?new Date(entry).toISOString():"";
+      });
       if (entries.length > 1) {
         formData.delete(name);
-        for (const entry of entries) formData.append(name, typeof entry === "string" && entry ? new Date(entry).toISOString() : "");
+        for (const entry of normalized) formData.append(name,entry);
       } else {
-        const entry = entries[0];
-        if (typeof entry === "string" && entry) formData.set(name, new Date(entry).toISOString());
+        if(normalized[0])formData.set(name,normalized[0]);
       }
     }
     await saveManualTrade(formData);
+  }
+  function markEditedDate(target:EventTarget|null) {
+    if(!(target instanceof HTMLInputElement))return;
+    if(["plannedAt","openedAt","closedAt"].includes(target.name))editedDates.current.add(target.name);
+    if(target.name==="targetHitAt"&&target.form)editedDates.current.add(`targetHitAt:${Array.from(target.form.querySelectorAll('input[name="targetHitAt"]')).indexOf(target)}`);
   }
 
   return (
@@ -113,10 +129,12 @@ export function TradeForm({ accounts, instruments, strategies, setups, rules, re
       <DraftNavigationGuard dirty={dirty} />
       <form
         action={submit}
-        onInput={(event) => { setDirty(true); updatePreview(event.currentTarget); }}
-        onChange={(event) => { setDirty(true); updatePreview(event.currentTarget); }}
+        onInput={(event) => { setDirty(true);markEditedDate(event.target); updatePreview(event.currentTarget); }}
+        onChange={(event) => { setDirty(true);markEditedDate(event.target); updatePreview(event.currentTarget); }}
         className="space-y-6"
       >
+        <input type="hidden" name="operationId" value={operationId} />
+        {record?<input type="hidden" name="expectedVersion" value={record.recordVersion} />:null}
         {trade ? <input type="hidden" name="id" value={trade.id} /> : null}
         {calculatorTransfer ? <input type="hidden" name="calculatorTransfer" value="true" /> : null}
         <input type="hidden" name="timezone" value={timezone} />
@@ -140,7 +158,8 @@ export function TradeForm({ accounts, instruments, strategies, setups, rules, re
       </form>
 
       <ScreenshotUploader tradeId={trade?.id} userId={userId} screenshots={record?.screenshots ?? []} />
-      {trade && lockedPlan ? <PlanCorrectionPanel trade={trade} targets={record?.targets ?? []} corrections={record?.corrections ?? []} /> : null}
+      {trade&&lockedPlan&&!trade.mt5_connection_id&&!["MT4","MT5","BROKER_API"].includes(trade.source_type)?<TradeManagementForm id={trade.id} operationId={managementOperationId} expectedVersion={record!.recordVersion} />:null}
+      {trade && lockedPlan ? <PlanCorrectionPanel trade={trade} operationId={correctionOperationId} expectedVersion={record!.recordVersion} targets={record?.targets ?? []} corrections={record?.corrections ?? []} /> : null}
     </div>
   );
 }

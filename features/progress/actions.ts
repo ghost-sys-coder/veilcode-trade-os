@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
+import { writeAccountEvent } from "@/services/application/account-events";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { ApplicationWorkflowError } from "@/services/application/transaction";
 import { decimalStringSchema } from "@/domain/validation/schemas";
 import { firstValidationError } from "@/lib/action-errors";
 import { requireUserId } from "@/lib/auth";
@@ -108,16 +110,9 @@ export async function recordAccountSnapshot(formData: FormData): Promise<void> {
   const parsed = schema.safeParse({ accountId: value(formData, "accountId"), balance: value(formData, "balance"), equity: value(formData, "equity"), unrealizedPnl: value(formData, "unrealizedPnl"), capturedAt: value(formData, "capturedAt"), notes: optional(formData, "notes") });
   if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
   if (!parsed.data.equity && !parsed.data.unrealizedPnl) finish(path, "error", "Enter either equity or unrealized PnL.");
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const { data: account, error: accountError } = await supabase.from("trading_accounts").select("currency_precision").eq("id", parsed.data.accountId).eq("user_id", userId).maybeSingle();
-  if (accountError || !account) finish(path, "error", accountError?.message ?? "Account not found.");
-  const balance = normalizeMoney(parsed.data.balance, account.currency_precision);
-  const equity = normalizeMoney(parsed.data.equity ?? parseDecimal(balance).plus(parsed.data.unrealizedPnl!), account.currency_precision);
-  const unrealized = normalizeMoney(parseDecimal(equity).minus(balance), account.currency_precision);
-  if (parsed.data.unrealizedPnl && normalizeMoney(parsed.data.unrealizedPnl, account.currency_precision) !== unrealized) finish(path, "error", "Equity must equal balance plus unrealized PnL.");
-  const { error } = await supabase.from("account_snapshots").insert({ user_id: userId, account_id: parsed.data.accountId, captured_at: new Date(parsed.data.capturedAt).toISOString(), balance, equity, unrealized_pnl: unrealized, notes: parsed.data.notes ?? null });
-  if (error) finish(path, "error", error.message);
+  try {await writeAccountEvent(await getVerifiedBrowserContext(await createClient()),"SNAPSHOT",{...parsed.data,
+    operationId:value(formData,"operationId"),capturedAt:new Date(parsed.data.capturedAt).toISOString()});}
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid snapshot. Equity must equal balance plus unrealized PnL.");}
   revalidatePath("/prop"); revalidatePath(`/accounts/${parsed.data.accountId}`);
   finish(path, "message", "Account snapshot recorded.");
 }
@@ -150,9 +145,10 @@ export async function transitionAccountStatus(formData: FormData): Promise<void>
   const parsed = z.object({ accountId: z.string().uuid(), status: z.enum(ACCOUNT_STATUSES), effectiveAt: z.string().min(1), failureReason: z.enum(ACCOUNT_FAILURE_REASONS).optional(), notes: z.string().trim().max(2000).optional() }).safeParse({ accountId: value(formData, "accountId"), status: value(formData, "status"), effectiveAt: value(formData, "effectiveAt"), failureReason: optional(formData, "failureReason"), notes: optional(formData, "notes") });
   if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
   if (parsed.data.status === "FAILED" && !parsed.data.failureReason) finish(path, "error", "A failure reason is required.");
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("transition_account_status", { p_account_id: parsed.data.accountId, p_new_status: parsed.data.status, p_effective_at: new Date(parsed.data.effectiveAt).toISOString(), p_failure_reason: parsed.data.status === "FAILED" ? parsed.data.failureReason : null, p_notes: parsed.data.notes ?? null });
-  if (error) finish(path, "error", error.message);
+  try {await writeAccountEvent(await getVerifiedBrowserContext(await createClient()),"TRANSITION",{accountId:parsed.data.accountId,
+    operationId:value(formData,"operationId"),expectedVersion:value(formData,"expectedVersion"),status:parsed.data.status,
+    effectiveAt:new Date(parsed.data.effectiveAt).toISOString(),failureReason:parsed.data.status==="FAILED"?parsed.data.failureReason:null,reason:parsed.data.notes});}
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid lifecycle change. A meaningful reason is required.");}
   revalidatePath("/prop"); revalidatePath("/accounts"); revalidatePath(`/accounts/${parsed.data.accountId}`);
   finish(path, "message", `Account marked ${parsed.data.status.toLowerCase()}.`);
 }
@@ -161,11 +157,10 @@ export async function createLinkedFundedAccount(formData: FormData): Promise<voi
   const path = pathFor(formData, "/prop");
   const parsed = z.object({ challengeId: z.string().uuid(), name: z.string().trim().min(2).max(80), startingBalance: decimalStringSchema, platform: z.enum(ACCOUNT_PLATFORMS), startedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).safeParse({ challengeId: value(formData, "challengeId"), name: value(formData, "name"), startingBalance: value(formData, "startingBalance"), platform: value(formData, "platform"), startedAt: value(formData, "startedAt") });
   if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
-  const userId = await requireUserId(); const supabase = await createClient();
-  const { data: challenge, error: challengeError } = await supabase.from("trading_accounts").select("*").eq("id", parsed.data.challengeId).eq("user_id", userId).eq("account_type", "PROP_CHALLENGE").eq("status", "PASSED").maybeSingle();
-  if (challengeError || !challenge) finish(path, "error", challengeError?.message ?? "Only a passed challenge can create a linked funded account.");
-  const { error } = await supabase.from("trading_accounts").insert({ user_id: userId, name: parsed.data.name, account_type: "FUNDED", broker_name: challenge.broker_name, platform: parsed.data.platform, currency_code: challenge.currency_code, currency_precision: challenge.currency_precision, starting_balance: normalizeMoney(parsed.data.startingBalance, challenge.currency_precision), leverage: challenge.leverage, started_at: parsed.data.startedAt, status: "ACTIVE", previous_account_id: challenge.id, notes: `Linked from passed challenge: ${challenge.name}` });
-  if (error) finish(path, "error", error.message);
+  const {challengeId,...fields}=parsed.data;
+  try {await writeAccountEvent(await getVerifiedBrowserContext(await createClient()),"LINK_FUNDED",{...fields,accountId:challengeId,
+    operationId:value(formData,"operationId"),expectedVersion:value(formData,"expectedVersion")});}
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Only a current, passed challenge can create a linked funded account.");}
   revalidatePath("/prop"); revalidatePath("/accounts");
   finish(path, "message", "Linked funded account created. The challenge history remains separate.");
 }

@@ -8,6 +8,8 @@ import { TradeSection } from "@/features/trades/trade-section";
 import type { TradePlanCorrectionRow, TradeRow, TradeTargetRow } from "@/types/database-helpers";
 
 interface PlanCorrectionPanelProps {
+  operationId: string;
+  expectedVersion: string;
   trade: TradeRow;
   targets: TradeTargetRow[];
   corrections: TradePlanCorrectionRow[];
@@ -18,7 +20,7 @@ function displayValue(value: unknown): string {
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
-export function PlanCorrectionPanel({ trade, targets, corrections }: PlanCorrectionPanelProps) {
+export function PlanCorrectionPanel({ trade, targets, corrections,operationId,expectedVersion }: PlanCorrectionPanelProps) {
   const action = correctTradePlanValue.bind(null, trade.id);
   const fields = [
     "planned_entry", "planned_stop_loss", "planned_take_profit", "planned_lot_size",
@@ -31,14 +33,16 @@ export function PlanCorrectionPanel({ trade, targets, corrections }: PlanCorrect
     { field: "planned_stop_loss", label: "Stop", current: trade.planned_stop_loss },
     { field: "planned_take_profit", label: "Target", current: trade.planned_take_profit },
     { field: "planned_risk_amount", label: "Risk", current: trade.planned_risk_amount },
-  ].map((item) => ({
-    ...item,
-    original: corrections.find((correction) => correction.field_name === item.field)?.previous_value ?? item.current,
-  }));
+  ].map((item) => {
+    const first=corrections.find((correction)=>correction.field_name===item.field);
+    return {...item,original:first?first.previous_value:item.current};
+  });
 
   return (
     <TradeSection eyebrow="Audit trail" title="Correct recorded plan value" description="Use this only to fix incorrectly recorded evidence. An actual stop move or target change belongs to trade-management history, not this correction log.">
       <form action={action} className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <input type="hidden" name="operationId" value={operationId} />
+        <input type="hidden" name="expectedVersion" value={expectedVersion} />
         <SelectField name="fieldName" label="Protected field" items={fields} defaultValue="planned_entry" required />
         <SelectField name="tradeTargetId" label="Target, if correcting a target" items={[{ label: "Not a target correction", value: "UNSET" }, ...targets.map((target) => ({ label: target.label, value: target.id }))]} defaultValue="UNSET" />
         <div className="space-y-2"><Label htmlFor="newValue">Corrected value</Label><Input id="newValue" name="newValue" required /></div>

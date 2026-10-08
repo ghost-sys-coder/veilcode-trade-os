@@ -1,3 +1,6 @@
+import { OperationFields } from "@/components/app/operation-fields";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { listAccountEvents } from "@/services/application/account-events";
 import { ArrowLeft, Landmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,7 +36,16 @@ export default async function AccountDetailPage({ params, searchParams }: Accoun
     derivedBalance,
     netTradingPnl,
     snapshots,
+    unplacedClosedTradeCount,
   } = ledger;
+  const versions=new Map<string,string>();
+  const context=await getVerifiedBrowserContext(supabase);
+  let afterId:string|undefined;
+  do {
+    const page=await listAccountEvents(context,{accountId:id,kind:"ADJUSTMENTS",limit:100,...(afterId?{afterId}:{})});
+    for(const record of page.records) if(typeof record.id==="string"&&typeof record.record_version==="string")versions.set(record.id,record.record_version);
+    afterId=page.nextCursor??undefined;
+  } while(afterId);
   const latestSnapshot = snapshots[0];
 
   return (
@@ -71,6 +83,7 @@ export default async function AccountDetailPage({ params, searchParams }: Accoun
           <CardHeader className="border-b border-border/70">
             <CardTitle>Balance timeline</CardTitle>
             <CardDescription>Trades enter the ledger only on final closure. Equal timestamps use deterministic ordering.</CardDescription>
+            {unplacedClosedTradeCount!=="0"?<p role="alert" className="text-sm text-destructive">Timeline incomplete: {unplacedClosedTradeCount} closed trades require closure dates. The exact account balance includes their results, but they cannot be placed on an authoritative historical curve until corrected.</p>:null}
           </CardHeader>
           <CardContent className="px-0 pb-0">
             <Table>
@@ -107,6 +120,7 @@ export default async function AccountDetailPage({ params, searchParams }: Accoun
             </CardHeader>
             <CardContent>
               <form action={createAccountAdjustment} className="space-y-4">
+                <OperationFields />
                 <input type="hidden" name="accountId" value={account.id} />
                 <input type="hidden" name="returnPath" value={`/accounts/${account.id}`} />
                 <SelectField label="Type" name="type" required items={ADJUSTMENT_TYPES.map((value) => ({ value, label: value.replaceAll("_", " ") }))} />
@@ -141,6 +155,7 @@ export default async function AccountDetailPage({ params, searchParams }: Accoun
                       : <Badge variant="secondary">{adjustment.is_performance_neutral ? "Performance-neutral" : "Performance-affecting"}</Badge>}
                     {adjustment.type === "OTHER" ? (
                       <form action={classifyAccountAdjustment} className="mt-3 grid gap-2">
+                        <OperationFields expectedVersion={versions.get(adjustment.id)} />
                         <input type="hidden" name="accountId" value={account.id} />
                         <input type="hidden" name="adjustmentId" value={adjustment.id} />
                         <input type="hidden" name="returnPath" value={`/accounts/${account.id}`} />

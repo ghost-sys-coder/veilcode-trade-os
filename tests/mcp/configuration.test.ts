@@ -83,6 +83,21 @@ describe("verified shared application service",()=>{
   it("redacts unexpected exception messages in form redirects",()=>{
     expect(configurationFormError(new Error("PRIVATE_TEST_VALUE"))).not.toContain("PRIVATE_TEST_VALUE");
   });
+  it.each(["42883","42P01","42703"])("identifies missing schema dependencies (%s) without leaking SQL",async state=>{
+    configure();query.mockImplementation(async(sql:string)=>{if(sql.includes("configuration_read"))throw {code:state,message:"PRIVATE_TEST_VALUE"};return {rows:[]};});
+    await expect(listConfiguration(context,{entity:"STRATEGY"})).rejects.toMatchObject({code:"SCHEMA_NOT_READY"});
+    expect(query).toHaveBeenCalledWith("rollback");expect(end).toHaveBeenCalledOnce();
+  });
+  it("does not describe a failed read as an uncertain write",async()=>{
+    configure();connect.mockRejectedValue({code:"ECONNREFUSED",message:"PRIVATE_TEST_VALUE"});
+    await expect(listConfiguration(context,{entity:"STRATEGY"})).rejects.toMatchObject({code:"READ_UNAVAILABLE"});
+    expect(new ApplicationWorkflowError("READ_UNAVAILABLE").message).not.toContain("operation status");
+  });
+  it("distinguishes invalid server configuration from transient connectivity",async()=>{
+    configure();databaseConfig.mockImplementation(()=>{throw new Error("MT5_PUBLICATION_DATABASE_UNAVAILABLE");});
+    await expect(listConfiguration(context,{entity:"STRATEGY"})).rejects.toMatchObject({code:"DATABASE_NOT_CONFIGURED"});
+    expect(createDb).not.toHaveBeenCalled();
+  });
   it("distinguishes a duplicate configuration name from reused operation payloads",async()=>{
     configure();query.mockImplementation(async(sql:string)=>{if(sql.includes("configuration_write"))throw {code:"23505",constraint:"strategies_owner_name_unique"};return {rows:[]};});
     await expect(writeConfiguration(context,"CREATE",base)).rejects.toMatchObject({code:"DUPLICATE_NAME"});

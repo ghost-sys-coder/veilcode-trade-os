@@ -17,11 +17,13 @@ import type {
   TradingRuleRow,
 } from "@/types/database-helpers";
 
-export interface TradeFormAccount extends TradingAccountRow {
+export interface TradeFormAccount extends Omit<TradingAccountRow,"record_version"> {
+  record_version: string;
   derived_balance: string;
 }
 
 export interface ManualTradeRecord {
+  recordVersion: string;
   trade: TradeRow;
   targets: TradeTargetRow[];
   executionReview: TradeExecutionReviewRow | null;
@@ -36,6 +38,9 @@ export interface ManualTradeRecord {
 }
 
 export interface TradeFormProps {
+  operationId: string;
+  correctionOperationId: string;
+  managementOperationId: string;
   accounts: TradeFormAccount[];
   instruments: InstrumentRow[];
   strategies: StrategyRow[];
