@@ -1,5 +1,6 @@
 /** Fixed release prerequisites for the adapted browser and MCP services. */
 export const APPLICATION_DATABASE_FUNCTIONS = [
+  "private.application_reference_read(jsonb)","private.application_reference_write(jsonb)","private.application_trade_tag_write(jsonb)",
   "private.configuration_read(jsonb)", "private.configuration_write(jsonb)",
   "private.application_account_read(jsonb)", "private.application_account_write(jsonb)",
   "private.application_account_ledger(jsonb)", "private.application_account_event_read(jsonb)",
@@ -11,6 +12,8 @@ export const APPLICATION_DATABASE_FUNCTIONS = [
   "private.application_progress_write(jsonb,jsonb)", "private.application_progress_data(jsonb)",
 ] as const;
 export const APPLICATION_DATABASE_COLUMNS = [
+  {table:"tags",column:"record_version"},
+  {table:"instruments",column:"record_version"},
   {table:"trading_accounts", column:"record_version"},
   {table:"account_adjustments", column:"record_version"},
   {table:"strategies", column:"record_version"},

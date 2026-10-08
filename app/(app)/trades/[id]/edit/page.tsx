@@ -17,12 +17,13 @@ interface EditTradePageProps {
 export default async function EditTradePage({ params, searchParams }: EditTradePageProps) {
   const [{ id }, status, userId, supabase] = await Promise.all([params, searchParams, requireUserId(), createClient()]);
   const [references, record] = await Promise.all([
-    getTradeFormReferences(supabase),
+    getTradeFormReferences(supabase,{includeInactiveInstruments:true}),
     getManualTradeRecord(supabase, id, userId),
   ]);
   if (!record) notFound();
   const editableReferences = {
     ...references,
+    instruments: references.instruments.filter(instrument=>instrument.active || instrument.id===record.trade.instrument_id),
     strategies: references.strategies.filter((strategy) => strategy.active || strategy.id === record.trade.strategy_id),
     setups: references.setups.filter((setup) => setup.active || setup.id === record.trade.setup_id),
   };

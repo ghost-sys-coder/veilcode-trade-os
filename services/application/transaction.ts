@@ -26,6 +26,9 @@ export class ApplicationWorkflowError extends Error {
 }
 
 const statements={
+  REFERENCE_READ:"select private.application_reference_read($1::jsonb) as result",
+  REFERENCE_WRITE:"select private.application_reference_write($1::jsonb) as result",
+  TRADE_TAG_WRITE:"select private.application_trade_tag_write($1::jsonb) as result",
   PROGRESS_READ:"select private.application_progress_read($1::jsonb) as result",
   PROGRESS_DATA:"select private.application_progress_data($1::jsonb) as result",
   PROGRESS_WRITE:"select private.application_progress_write($1::jsonb,$2::jsonb) as result",
@@ -76,7 +79,8 @@ export async function applicationTransaction(context:ApplicationContext, workflo
     if(error instanceof RangeError || error instanceof ZodError)throw new ApplicationWorkflowError("INVALID_REFERENCE");
     const state=typeof error==="object" && error!==null && "code" in error ? String(error.code):"";
     const constraint=typeof error==="object" && error!==null && "constraint" in error ? String(error.constraint):"";
-    const duplicateName=["strategies_owner_name_unique","setups_strategy_name_unique","trading_accounts_owner_name_unique"].includes(constraint);
+    const duplicateName=["strategies_owner_name_unique","setups_strategy_name_unique","trading_accounts_owner_name_unique",
+      "tags_owner_normalized_name_unique","instruments_user_symbol_unique"].includes(constraint);
     const unavailable=workflow.endsWith("WRITE")?"UNAVAILABLE":"READ_UNAVAILABLE";
     const configurationFailure=error instanceof Error && error.message==="MT5_PUBLICATION_DATABASE_UNAVAILABLE";
     throw new ApplicationWorkflowError(configurationFailure?"DATABASE_NOT_CONFIGURED"

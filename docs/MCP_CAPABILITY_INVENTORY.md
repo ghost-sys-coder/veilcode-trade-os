@@ -1,7 +1,7 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and 40 tools are
+Updated 2026-10-08: stateless HTTP, five contract resources and 48 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries remain pending. Account adjustments/classification, snapshots/lifecycle, canonical
@@ -10,8 +10,13 @@ join account metadata/balances and strategy/setup/rule workflows. Browser action
 use the same typed services and private transactions. See
 [account-event and trade verification](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md).
 
+Owned tag/instrument list/get/create/patch/archive and trade-tag list/assign/remove
+now share audited, versioned services with browser tag forms. Global instruments
+remain read-only, and referenced specifications are protected. See
+[reference verification](MCP_REFERENCES_VERIFICATION.md).
+
 Hosted MCP stays disabled. Computed journal summaries, analytics/exports,
-tags, remaining instrument CRUD, screenshots/file access, MT5/import reads,
+reference permanent deletion, screenshots/file access, MT5/import reads,
 profile settings, permanent deletion, local stdio and external clients remain
 pending. The completed workflow family is not full MCP readiness.
 
@@ -47,8 +52,8 @@ database and protocol evidence before entering the catalog.
 | strategies.list/get/create/patch/archive/delete | strategies saveStrategy | strategySchema | Setup relationship, referenced archive, one-use unused deletion |
 | setups.list/get/create/patch/archive/delete | strategies saveSetup | setupSchema | Parent ownership, names/IDs, references and archive |
 | rules.list/get/create/patch/archive/delete | rules saveTradingRule | tradingRuleSchema | Historical review snapshots never change |
-| instruments.list/get/create/patch/archive/delete | reference instruments; trade-form references | Instrument ownership and specifications | Keep global references read-only; explicit user-owned instruments |
-| tags.list/create/patch/delete/assign/remove | journal saveTag/assignTag/removeTag | tagSchema; normalized DB uniqueness | Case-insensitive per-owner uniqueness and trade ownership |
+| instruments.list/get/create/patch/archive (implemented; delete pending) | application/references; trade-form references | references/commands and database specification guards | Global read-only; owner isolation; exact pip precision; referenced specifications/history preserved |
+| tags.list/get/create/patch/archive and trade-tags.list/assign/remove (implemented; delete pending) | journal saveTag/assignTag/removeTag; application/references | references/commands; normalized DB uniqueness | Case-insensitive per-owner names; both trade/tag versions; receipts/audits and historical archival |
 | goals.list/get/create/patch/archive (implemented; permanent delete pending) | progress createGoal/patchGoal/archiveGoal; application/progress | progress/commands and private progress workflows | Ownership, retries, optimistic versions, preserve referenced evidence |
 | goals.progress.list/record (implemented) | progress recordCustomGoalProgress; application/progress | Append-only private workflow; decimal/UTC schemas | Automatic goals reject manual evidence; latest current value, not summed increments |
 | prop.get/save/progress (implemented) | progress savePropConfig; application/progress | progress/commands, progress/dataset, private exact loader | Account eligibility; complete optional groups; cash-free profit, cash-neutral analytics drawdown; unsupported firm mechanics unavailable |
@@ -84,6 +89,14 @@ instrument editing and configuration deletion). Implement explicit
 domain workflows and archive policy for these; do not claim a wrapper exists.
 
 ## Resources and workflow guidance
+
+Reference tools are `tradeos_references_list/get/create/patch/archive`, with
+`entity: TAG | INSTRUMENT`, plus `tradeos_trade_tags_list/assign/remove`.
+Patch/archive use the reference's string `record_version`. Association changes
+require both `expectedVersion` from the trade and `expectedTagVersion` from the
+tag; use returned `tradeVersion` before another trade edit. The domain resource
+documents global read-only access, protected specifications and historical archive
+behavior. None of these tools permanently deletes a reference.
 
 The ten goal/prop tools are `tradeos_goals_get/list/create/patch/archive`,
 `tradeos_goal_progress_list/record`, `tradeos_prop_get/save` and

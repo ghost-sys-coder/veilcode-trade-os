@@ -1,4 +1,5 @@
 import "server-only";
+import {getReference,listReferences,writeReference,listTradeTags,writeTradeTag} from "@/services/application/references";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { getIntegrationContext, verifiedIntegrationClaims } from "@/services/integrations/actor-context";
 import { getIntegrationOperation } from "@/services/integrations/operation-status";
@@ -28,6 +29,8 @@ export async function handleMcpRequest(request:Request):Promise<Response> {
     verifiedIntegrationClaims(context);
     if(request.method!=="POST")return new Response(null,{status:405,headers:{Allow:"POST","Cache-Control":"no-store"}});
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:id=>getIntegrationOperation(context,id),
+      referencesList:input=>listReferences(context,input),referencesGet:input=>getReference(context,input),referencesWrite:(action,input)=>writeReference(context,action,input),
+      tradeTagsList:input=>listTradeTags(context,input),tradeTagsWrite:(action,input)=>writeTradeTag(context,action,input),
       configurationList:input=>listConfiguration(context,input), configurationGet:input=>getConfiguration(context,input),
       configurationWrite:(action,input)=>writeConfiguration(context,action,input), accountsList:input=>listAccounts(context,input),
       accountsGet:input=>getAccount(context,input), accountsWrite:(action,input)=>writeAccount(context,action,input),

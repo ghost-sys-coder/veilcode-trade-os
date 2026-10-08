@@ -1,6 +1,8 @@
 import "server-only";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { referenceArchiveSchema,referenceCreateSchema,referencePatchSchema,referenceGetSchema,referenceListSchema,
+  referencePageSchema,referenceRecordSchema,referenceResultSchema,tradeTagsListSchema,tradeTagCommandSchema,tradeTagResultSchema,type ReferenceAction } from "@/domain/references/commands";
 import { calculatePositionSize } from "@/domain/trading/position-sizing";
 import { getInstrumentSpecification, SUPPORTED_ACCOUNT_CURRENCIES } from "@/domain/trading/instrument-specifications";
 import { parseDecimal } from "@/domain/money/decimal";
@@ -41,17 +43,23 @@ const toolNames = ["tradeos_capabilities", "tradeos_position_size", "tradeos_ope
   "tradeos_account_events_list","tradeos_adjustment_create","tradeos_adjustment_classify","tradeos_snapshot_record",
   "tradeos_account_transition","tradeos_account_link_funded","tradeos_trades_list","tradeos_trades_get","tradeos_trades_create",
   "tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments","tradeos_journals_get","tradeos_journals_list","tradeos_journals_save","tradeos_goals_get","tradeos_goals_list","tradeos_goals_create","tradeos_goals_patch","tradeos_goals_archive","tradeos_goal_progress_list","tradeos_goal_progress_record","tradeos_prop_get","tradeos_prop_save","tradeos_progress_get"] as const;
+const referenceToolNames=["tradeos_references_list","tradeos_references_get","tradeos_references_create","tradeos_references_patch","tradeos_references_archive",
+  "tradeos_trade_tags_list","tradeos_trade_tags_assign","tradeos_trade_tags_remove"] as const;
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const catalog = {
-  version:"1", tools:toolNames, resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration permanent deletion","instruments","tags","computed journal summaries","analytics","exports","screenshots upload/download","mt5"],
-  status:"HTTP plus accounts/events/lifecycle, canonical trades/targets/management/plan corrections/reviews and strategies/setups/rules. Persisted journal reflections, goals, explicit prop rules and shared account progress are available; computed journal summaries, other workflows, permanent deletion and local stdio are pending.",
+  version:"1", tools:[...toolNames,...referenceToolNames], resources:["catalog","domain","money","workflows","reporting"],
+  pendingFamilies:["configuration/reference permanent deletion","computed journal summaries","analytics","exports","screenshots upload/download","mt5","profile"],
+  status:"HTTP plus accounts/events/lifecycle, canonical trades/reviews, strategies/setups/rules, journals, goals and prop progress. Owned tags/instruments and audited trade-tag associations are available; global instruments are read-only. Computed summaries, other workflows, permanent deletion and local stdio are pending.",
 };
 const resources = {
   catalog,
   domain:{ canonicalTrade:"One logical position from planning through complete closure, independent of source.",
     relationships:["Account owns trades, snapshots and adjustments","Trade references an instrument, strategy and setup","Setup belongs to a strategy","Rules are snapshotted at completed review"],
     tradeStatuses:TRADE_STATUSES, tradeOutcomes:TRADE_OUTCOMES, tradeGrades:TRADE_GRADES, ruleTypes:RULE_TYPES,
+    references:{entities:["TAG","INSTRUMENT"],ownership:"Tags are user-owned and names are unique case-insensitively per owner. Global instruments are readable but cannot be patched or archived. Owned instruments retain exact symbol identity.",
+      specifications:"pip_size is a positive decimal string with at most 14 integer and 10 fractional digits, independent of account-currency precision. Referenced symbol/class/currencies/pip/price precision are immutable; display name may change. No broker symbol mapping is created implicitly.",
+      archive:"Keeps historical tags, trades and MT5 mapping evidence. Archived tags cannot be newly assigned; existing associations can be explicitly removed with an audit. Archived names remain reserved.",
+      versions:"Patch/archive use record_version as expectedVersion. Tag assignment/removal require trade.record_version as expectedVersion and tag.record_version as expectedTagVersion. A successful association change returns tradeVersion; reload before another edit."},
     configuration:{entities:["STRATEGY","SETUP","RULE"],identifiers:"UUID; SETUP.strategy_id must reference an owned, non-archived strategy. RULE.account_id is an owned account or null for all accounts.",
       versions:"record_version is a decimal integer string; provide it as expectedVersion on patch/archive.",
       patch:"Omitted fields are unchanged; explicit null clears description (strategy/setup), account_id and numeric_limit where allowed.",
@@ -77,6 +85,11 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  referencesList:(input:unknown)=>Promise<ReturnType<typeof referencePageSchema.parse>>;
+  referencesGet:(input:unknown)=>Promise<ReturnType<typeof referenceRecordSchema.parse>>;
+  referencesWrite:(action:ReferenceAction,input:unknown)=>Promise<ReturnType<typeof referenceResultSchema.parse>>;
+  tradeTagsList:(input:unknown)=>Promise<ReturnType<typeof referencePageSchema.parse>>;
+  tradeTagsWrite:(action:"ASSIGN"|"REMOVE",input:unknown)=>Promise<ReturnType<typeof tradeTagResultSchema.parse>>;
   operationStatus:(id:string)=>Promise<Record<string,unknown>>;
   configurationList:(input:unknown)=>Promise<ReturnType<typeof configurationPageSchema.parse>>;
   configurationGet:(input:unknown)=>Promise<ReturnType<typeof configurationRecordSchema.parse>>;
@@ -182,5 +195,13 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_prop_get",{description:"Read the owned account's persisted manually configured prop rules. Missing configuration is null; no universal firm rule is invented.",inputSchema:propGetSchema,outputSchema:propResultSchema,annotations:readOnly},async input=>guarded(()=>services.propGet(input)));
   server.registerTool("tradeos_prop_save",{description:"Create/patch a PROP_CHALLENGE or FUNDED configuration with operationId and expectedVersion (0 only when absent). Optional rule groups must be wholly defined/cleared. Money and percentages retain separate precision. Requires explicit firm, drawdown type, IANA timezone and profitable-day threshold when first configured.",inputSchema:propSaveSchema,outputSchema:progressResultSchema,annotations:mutation},async input=>guarded(()=>services.progressWrite("PROP_SAVE",input)));
   server.registerTool("tradeos_progress_get",{description:"Calculate one owned account's progress from complete exact data in a consistent read snapshot, using the same domain as the UI. Trading targets/return exclude cash adjustments; balance includes them. Closed_at owns realized results; opened_at owns trading-day eligibility. R sample is explicit; rules use immutable reviewed snapshots. Ambiguous OTHER/incomplete closure withholds drawdown. Trailing/custom loss mechanics and unspecified firm cash-flow policies remain unavailable. Maximum-drawdown goals are limits, not encouragement to increase losses.",inputSchema:propGetSchema,outputSchema:progressDatasetResultSchema,annotations:readOnly},async input=>guarded(()=>services.progressGet(input)));
+  server.registerTool("tradeos_references_list",{description:"List owned TAG or global/owned INSTRUMENT records in bounded ID order. Use nextCursor as afterId. Archived references excluded by default; inactive instruments retain their active flag. Tags are unique case-insensitively within their owner.",inputSchema:referenceListSchema,outputSchema:referencePageSchema,annotations:readOnly},async input=>guarded(()=>services.referencesList(input)));
+  server.registerTool("tradeos_references_get",{description:"Read an owned tag or accessible instrument, including exact pip_size, string record_version and archive state. A global instrument has user_id:null and is read-only.",inputSchema:referenceGetSchema,outputSchema:referenceRecordSchema,annotations:readOnly},async input=>guarded(()=>services.referencesGet(input)));
+  server.registerTool("tradeos_references_create",{description:"Create an owned TAG or INSTRUMENT using durable operationId. Decimal pip size retains separate precision; never supply owner/global status. No MT5 symbol mapping is inferred.",inputSchema:referenceCreateSchema,outputSchema:referenceResultSchema,annotations:mutation},async input=>guarded(()=>services.referencesWrite("CREATE",input)));
+  server.registerTool("tradeos_references_patch",{description:"Patch an owned tag or instrument using expectedVersion and operationId. Omitted fields stay unchanged; null clears only nullable fields. Referenced instrument specifications cannot change; global records and archived records are not editable.",inputSchema:referencePatchSchema,outputSchema:referenceResultSchema,annotations:mutation},async input=>guarded(()=>services.referencesWrite("PATCH",input)));
+  server.registerTool("tradeos_references_archive",{description:"Archive an owned tag/instrument with a meaningful reason, operationId and expectedVersion. Preserves historical references and deactivates instruments. Does not permanently delete or remove existing tag associations.",inputSchema:referenceArchiveSchema,outputSchema:referenceResultSchema,annotations:mutation},async input=>guarded(()=>services.referencesWrite("ARCHIVE",input)));
+  server.registerTool("tradeos_trade_tags_list",{description:"List tags assigned to one owned trade with bounded ID cursors, including archived tags retained as historical labels.",inputSchema:tradeTagsListSchema,outputSchema:referencePageSchema,annotations:readOnly},async input=>guarded(()=>services.tradeTagsList(input)));
+  server.registerTool("tradeos_trade_tags_assign",{description:"Assign an active owned tag to an owned canonical trade. Requires durable operationId, expectedVersion from trade.record_version and expectedTagVersion from tag.record_version. Returns the new tradeVersion. Does not alter broker execution facts or complete any review.",inputSchema:tradeTagCommandSchema,outputSchema:tradeTagResultSchema,annotations:mutation},async input=>guarded(()=>services.tradeTagsWrite("ASSIGN",input)));
+  server.registerTool("tradeos_trade_tags_remove",{description:"Remove a tag association, not the tag itself or financial history. Archived tags may be removed. Requires operationId and both current trade/tag versions. Retains the before/after association audit and returns tradeVersion.",inputSchema:tradeTagCommandSchema,outputSchema:tradeTagResultSchema,annotations:mutation},async input=>guarded(()=>services.tradeTagsWrite("REMOVE",input)));
   return server;
 }

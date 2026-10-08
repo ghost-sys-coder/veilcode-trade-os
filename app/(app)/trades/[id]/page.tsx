@@ -1,4 +1,5 @@
 import { ArrowLeft, Edit3, ImageIcon, Tag } from "lucide-react";
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -13,6 +14,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getManualTradeRecord, getTradeFormReferences } from "@/services/trades/get-trade-form-data";
 import { SCREENSHOT_CATEGORIES } from "@/types/domain";
 import { plannedActualComparison } from "@/domain/journal/analytics";
+import { listBrowserTags,listBrowserTradeTags } from "@/services/application/references";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
 
 interface TradeDetailPageProps {
   params: Promise<{ id: string }>;
@@ -27,21 +30,20 @@ function show(value: string | number | boolean | null | undefined): string {
 
 export default async function TradeDetailPage({ params, searchParams }: TradeDetailPageProps) {
   const [{ id }, status, userId, supabase] = await Promise.all([params, searchParams, requireUserId(), createClient()]);
-  const [record, references, tagsResult, tradeTagsResult] = await Promise.all([
-    getManualTradeRecord(supabase, id, userId),
-    getTradeFormReferences(supabase),
-    supabase.from("tags").select("id,name,color").order("name"),
-    supabase.from("trade_tags").select("tag_id").eq("trade_id", id),
-  ]);
+  const context=await getVerifiedBrowserContext(supabase);
+  const record=await getManualTradeRecord(supabase,id,userId);
   if (!record) notFound();
+  const [references, tags, assignedTags] = await Promise.all([
+    getTradeFormReferences(supabase,{includeInactiveInstruments:true}),
+    listBrowserTags(context),
+    listBrowserTradeTags(context,id),
+  ]);
   const trade = record.trade;
   const account = references.accounts.find((item) => item.id === trade.account_id);
   const instrument = references.instruments.find((item) => item.id === trade.instrument_id);
   const strategy = references.strategies.find((item) => item.id === trade.strategy_id);
   const setup = references.setups.find((item) => item.id === trade.setup_id);
-  const assignedIds = new Set((tradeTagsResult.data ?? []).map((item) => item.tag_id));
-  const tags = tagsResult.data ?? [];
-  const assignedTags = tags.filter((tag) => assignedIds.has(tag.id));
+  const assignedIds = new Set(assignedTags.map(tag=>tag.id));
   const availableTags = tags.filter((tag) => !assignedIds.has(tag.id));
   const signedByPath = new Map<string, string>();
   await Promise.all(record.screenshots.map(async (screenshot) => {
@@ -63,7 +65,7 @@ export default async function TradeDetailPage({ params, searchParams }: TradeDet
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Canonical trade record" title={`${instrument?.symbol ?? "Trade"} · ${trade.direction}`} description="The complete decision, execution, management, and review record for this position." actions={<div className="flex gap-2"><Button variant="outline" nativeButton={false} render={<Link href="/trades"><ArrowLeft />Journal</Link>} /><Button nativeButton={false} render={<Link href={`/trades/${id}/edit`}><Edit3 />Edit record</Link>} /></div>} />
-      {status.error || tagsResult.error || tradeTagsResult.error ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">{status.error ?? tagsResult.error?.message ?? tradeTagsResult.error?.message}</p> : null}
+      {status.error ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">{status.error}</p> : null}
       {status.message ? <p className="rounded-lg border border-profit/25 bg-profit/10 p-4 text-sm text-profit">{status.message}</p> : null}
 
       <Card><CardContent className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-4">{[["Instrument", instrument?.symbol], ["Account", account?.name], ["Journal date", trade.opened_at ?? trade.planned_at ?? trade.created_at], ["Status", trade.status], ["Outcome", trade.outcome], ["Net PnL", trade.net_pnl === null ? null : `${account?.currency_code} ${trade.net_pnl}`], ["Actual R", trade.actual_r === null ? null : `${trade.actual_r}R`], ["Grade", record.review?.trade_quality_grade]].map(([label, value]) => <div key={label}><p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-1.5 font-semibold">{show(value)}</p></div>)}</CardContent></Card>
@@ -95,7 +97,7 @@ export default async function TradeDetailPage({ params, searchParams }: TradeDet
 
       <section className="grid gap-4 xl:grid-cols-2">
         <Card><CardHeader><CardTitle>Plan correction history</CardTitle><CardDescription>Append-only evidence of post-open recorded-value corrections.</CardDescription></CardHeader><CardContent className="space-y-3">{record.corrections.map((correction) => <div key={correction.id} className="rounded-lg border border-border/70 p-3 text-sm"><div className="flex justify-between gap-3"><strong>{correction.field_name.replaceAll("_", " ")}</strong><time className="text-xs text-muted-foreground">{new Date(correction.created_at).toLocaleString()}</time></div><p className="mt-2 font-mono text-xs">{JSON.stringify(correction.previous_value)} → {JSON.stringify(correction.new_value)}</p><p className="mt-2 text-muted-foreground">{correction.reason}</p></div>)}{record.corrections.length === 0 ? <p className="text-sm text-muted-foreground">No plan corrections. The recorded plan remains unchanged.</p> : null}</CardContent></Card>
-        <Card><CardHeader><Tag className="size-5 text-primary" /><CardTitle>Tags</CardTitle><CardDescription>User-owned labels with case-insensitive uniqueness.</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex flex-wrap gap-2">{assignedTags.map((tag) => <form action={removeTag} key={tag.id}><input type="hidden" name="tradeId" value={id} /><input type="hidden" name="tagId" value={tag.id} /><input type="hidden" name="returnPath" value={`/trades/${id}`} /><Button type="submit" size="sm" variant="outline">{tag.name} ×</Button></form>)}{assignedTags.length === 0 ? <p className="text-sm text-muted-foreground">No tags assigned.</p> : null}</div>{availableTags.length ? <form action={assignTag} className="flex items-end gap-2"><input type="hidden" name="tradeId" value={id} /><input type="hidden" name="returnPath" value={`/trades/${id}`} /><div className="flex-1"><SelectField label="Assign tag" name="tagId" required items={availableTags.map((tag) => ({ value: tag.id, label: tag.name }))} /></div><Button type="submit">Assign</Button></form> : <p className="text-xs text-muted-foreground">Create more tags from the journal page.</p>}</CardContent></Card>
+        <Card><CardHeader><Tag className="size-5 text-primary" /><CardTitle>Tags</CardTitle><CardDescription>User-owned labels with case-insensitive uniqueness.</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex flex-wrap gap-2">{assignedTags.map((tag) => <form action={removeTag} key={tag.id}><input type="hidden" name="operationId" value={randomUUID()} /><input type="hidden" name="expectedVersion" value={record.recordVersion} /><input type="hidden" name="tradeId" value={id} /><input type="hidden" name="expectedTagVersion" value={tag.record_version} /><input type="hidden" name="tagId" value={tag.id} /><input type="hidden" name="returnPath" value={`/trades/${id}`} /><Button type="submit" size="sm" variant="outline">{tag.name} ×</Button></form>)}{assignedTags.length === 0 ? <p className="text-sm text-muted-foreground">No tags assigned.</p> : null}</div>{availableTags.length ? <form action={assignTag} className="flex items-end gap-2"><input type="hidden" name="operationId" value={randomUUID()} /><input type="hidden" name="expectedVersion" value={record.recordVersion} /><input type="hidden" name="tradeId" value={id} /><input type="hidden" name="returnPath" value={`/trades/${id}`} /><div className="flex-1"><SelectField label="Assign tag" name="tagId" required items={availableTags.map((tag) => ({ value: `${tag.id}:${tag.record_version}`, label: tag.name }))} /></div><Button type="submit">Assign</Button></form> : <p className="text-xs text-muted-foreground">Create more tags from the journal page.</p>}</CardContent></Card>
       </section>
     </div>
   );
