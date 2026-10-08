@@ -11,10 +11,11 @@ import type { Database } from "@/types/database";
 import type { ManualTradeRecord } from "@/features/trades/types";
 
 
-export async function getTradeFormReferences(supabase: SupabaseClient<Database>) {
+export async function getTradeFormReferences(supabase: SupabaseClient<Database>,options:{includeInactiveInstruments?:boolean}={}) {
+  const instrumentQuery=supabase.from("instruments").select("*").order("symbol");
   const [accountsResult, instrumentsResult, strategiesResult, setupsResult, rulesResult, profileResult] = await Promise.all([
     supabase.from("trading_accounts").select("*").order("name"),
-    supabase.from("instruments").select("*").eq("active", true).order("symbol"),
+    options.includeInactiveInstruments?instrumentQuery:instrumentQuery.eq("active",true),
     supabase.from("strategies").select("*").order("name"),
     supabase.from("setups").select("*").order("name"),
     supabase.from("trading_rules").select("*").order("name"),

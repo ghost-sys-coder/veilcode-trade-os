@@ -6,8 +6,10 @@ list/get/create/patch/archive workflows and account list/get/create/patch with
 exact balance access are implemented. Account adjustments/classification,
 snapshots/lifecycle and canonical trade/target/management/correction/review
 workflows now use shared services. Persisted journal reflections and goal/prop
-commands plus exact shared account-progress metrics bring coverage to 40 HTTP
-tools; computed journal summaries remain pending. See
+commands plus exact shared account-progress metrics, owned tag/instrument
+workflows and audited trade-tag associations bring coverage to 48 HTTP
+tools; computed journal summaries and permanent deletion remain pending. See
+[reference verification](MCP_REFERENCES_VERIFICATION.md),
 [goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md) and
 [journal and accounts repair verification](MCP_JOURNALS_AND_ACCOUNTS_REPAIR.md). See
 [the workflow report](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md). The real local MCP

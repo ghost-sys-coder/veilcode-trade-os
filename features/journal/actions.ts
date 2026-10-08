@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { writeAccountEvent } from "@/services/application/account-events";
 import { saveJournal } from "@/services/application/journals";
+import { writeReference,writeTradeTag } from "@/services/application/references";
 import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
 import { ApplicationWorkflowError } from "@/services/application/transaction";
 import {
@@ -126,43 +127,34 @@ export async function classifyAccountAdjustment(formData: FormData): Promise<voi
 }
 
 export async function saveTag(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  await requireUserId();
   const supabase = await createClient();
   const path = returnPath(formData, "/trades");
   const result = tagSchema.safeParse({ id: optional(formData, "id"), name: text(formData, "name"), color: optional(formData, "color") });
   if (!result.success) finish(path, "error", firstValidationError(result.error));
-  const payload = { user_id: userId, name: result.data.name, color: result.data.color ?? null };
-  const mutation = result.data.id
-    ? supabase.from("tags").update(payload).eq("id", result.data.id).eq("user_id", userId)
-    : supabase.from("tags").insert(payload);
-  const { error } = await mutation;
-  if (error) finish(path, "error", error.code === "23505" ? "A tag with that name already exists." : error.message);
+  try {await writeReference(await getVerifiedBrowserContext(supabase),result.data.id?"PATCH":"CREATE",{
+    entity:"TAG",operationId:text(formData,"operationId"),...(result.data.id?{id:result.data.id,expectedVersion:text(formData,"expectedVersion")}:{}),
+    values:{name:result.data.name,color:result.data.color??null},
+  });} catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid tag values. Reload before retrying.");}
   revalidatePath("/trades");
   finish(path, "message", result.data.id ? "Tag updated." : "Tag created.");
 }
 
-export async function assignTag(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+async function changeTradeTag(formData:FormData,action:"ASSIGN"|"REMOVE") {
+  await requireUserId();
   const supabase = await createClient();
   const tradeId = text(formData, "tradeId");
-  const tagId = text(formData, "tagId");
+  const [tagId,selectedVersion] = text(formData, "tagId").split(":");
   const path = returnPath(formData, `/trades/${tradeId}`);
-  const { error } = await supabase.from("trade_tags").upsert({ user_id: userId, trade_id: tradeId, tag_id: tagId }, { onConflict: "trade_id,tag_id" });
-  if (error) finish(path, "error", error.message);
+  try {await writeTradeTag(await getVerifiedBrowserContext(supabase),action,{tradeId,tagId,operationId:text(formData,"operationId"),
+    expectedVersion:text(formData,"expectedVersion"),expectedTagVersion:text(formData,"expectedTagVersion")||selectedVersion});}
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid tag assignment. Reload before retrying.");}
   revalidatePath("/trades");
   revalidatePath(`/trades/${tradeId}`);
-  finish(path, "message", "Tag assigned.");
+  finish(path, "message",action==="ASSIGN"?"Tag assigned.":"Tag removed from trade.");
 }
 
+export async function assignTag(formData: FormData): Promise<void> {await changeTradeTag(formData,"ASSIGN");}
 export async function removeTag(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const tradeId = text(formData, "tradeId");
-  const tagId = text(formData, "tagId");
-  const path = returnPath(formData, `/trades/${tradeId}`);
-  const { error } = await supabase.from("trade_tags").delete().eq("trade_id", tradeId).eq("tag_id", tagId).eq("user_id", userId);
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/trades");
-  revalidatePath(`/trades/${tradeId}`);
-  finish(path, "message", "Tag removed from trade.");
+  await changeTradeTag(formData,"REMOVE");
 }

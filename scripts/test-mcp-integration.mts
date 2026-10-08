@@ -135,12 +135,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,40);assert.equal((await legacy.listTools()).tools.length,40);
+  assert.equal((await modern.listTools()).tools.length,48);assert.equal((await legacy.listTools()).tools.length,48);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 40 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 48 tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -315,6 +315,97 @@ try {
   assert.equal((reviewed.ruleReviewItems as unknown[]).length,1);assert.equal((reviewed.corrections as unknown[]).length,1);
   assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1 and id=$2",[fixtureUser,canonical.id])).rows[0].count,1);
   passed("canonical retry, locked plan, actual management, partial closure, exact financials and immutable reviews work atomically");
+
+  stage="reference tools and simultaneous retries";
+  const tagOperation=randomUUID();
+  const tagInput={entity:"TAG",operationId:tagOperation,values:{name:"FOMO fixture",color:"#aabbcc"}};
+  const tagRacers=await Promise.all([modern,legacy].map(client=>client.callTool({name:"tradeos_references_create",arguments:tagInput})));
+  assert.deepEqual(content(tagRacers[0]),content(tagRacers[1]));let tag=record(tagRacers[0]);
+  assert.equal(tag.normalized_name,"fomo fixture");assert.equal(tag.record_version,"1");
+  assert.equal((await database.query("select count(*)::integer as count from private.application_operations where owner_id=$1 and operation_id=$2",[fixtureUser,tagOperation])).rows[0].count,1);
+  const duplicateTag=await modern.callTool({name:"tradeos_references_create",arguments:{...tagInput,operationId:randomUUID(),values:{name:"fomo FIXTURE",color:null}}});
+  assert(duplicateTag.isError&&JSON.stringify(duplicateTag.content).includes("DUPLICATE_NAME"));
+  const tagConflict=await modern.callTool({name:"tradeos_references_create",arguments:{...tagInput,values:{name:"Changed retry",color:null}}});
+  assert(tagConflict.isError&&JSON.stringify(tagConflict.content).includes("OPERATION_CONFLICT"));
+  assert.equal(content(await modern.callTool({name:"tradeos_operation_status",arguments:{operationId:tagOperation}})).status,"COMMITTED");
+  tag=record(await modern.callTool({name:"tradeos_references_patch",arguments:{entity:"TAG",operationId:randomUUID(),id:tag.id,expectedVersion:tag.record_version,values:{color:null}}}));
+  assert.equal(tag.name,"FOMO fixture");assert.equal(tag.color,null);
+  passed("reference retries are one durable effect; case-insensitive duplicates, changed payloads and nullable clearing work");
+
+  stage="tag association concurrency";
+  const tagLink={operationId:randomUUID(),tradeId:canonical.id,tagId:tag.id,expectedVersion:canonical.record_version,expectedTagVersion:tag.record_version};
+  const links=await Promise.all([modern,legacy].map(client=>client.callTool({name:"tradeos_trade_tags_assign",arguments:tagLink})));
+  assert.deepEqual(content(links[0]),content(links[1]));
+  let tradeVersion=content(links[0]).tradeVersion;
+  assert.equal((await database.query("select count(*)::integer as count from public.trade_tags where trade_id=$1 and tag_id=$2",[canonical.id,tag.id])).rows[0].count,1);
+  const staleLink=await modern.callTool({name:"tradeos_trade_tags_remove",arguments:{...tagLink,operationId:randomUUID()}});
+  assert(staleLink.isError&&JSON.stringify(staleLink.content).includes("VERSION_CONFLICT"));
+  const labels=content(await modern.callTool({name:"tradeos_trade_tags_list",arguments:{tradeId:canonical.id,limit:1}})).records as Array<Record<string,unknown>>;
+  assert.equal(labels[0].id,tag.id);assert.equal(labels[0].record_version,tag.record_version);
+  passed("simultaneous assignment has one association, updates trade version and rejects stale removal");
+
+  stage="browser tag regression";
+  await page.goto(`${origin}/trades`);
+  const tagCreateForm=page.locator("form").filter({has:page.getByRole("button",{name:"Create tag",exact:true})});
+  assert(await tagCreateForm.locator('input[name="operationId"]').inputValue());
+  await tagCreateForm.getByLabel("New tag",{exact:true}).fill("Browser tag fixture");
+  await tagCreateForm.getByRole("button",{name:"Create tag",exact:true}).click();
+  stage="browser tag creation confirmation";
+  await page.getByText("Tag created.",{exact:true}).waitFor();
+  const tagDetails=page.locator("details").filter({has:page.getByText("Edit FOMO fixture",{exact:true})});
+  await tagDetails.locator("summary").click();
+  assert.equal(await tagDetails.locator('input[name="expectedVersion"]').inputValue(),tag.record_version);
+  tag=record(await modern.callTool({name:"tradeos_references_patch",arguments:{entity:"TAG",operationId:randomUUID(),id:tag.id,expectedVersion:tag.record_version,values:{name:"Newer MCP tag"}}}));
+  await tagDetails.getByLabel("Display name",{exact:true}).fill("Stale browser tag");
+  await tagDetails.getByRole("button",{name:"Save tag",exact:true}).click();
+  stage="browser stale tag conflict confirmation";
+  await page.getByRole("alert").filter({hasText:"This record changed"}).waitFor();
+  assert.equal(content(await modern.callTool({name:"tradeos_references_get",arguments:{entity:"TAG",id:tag.id}})).name,"Newer MCP tag");
+  await page.goto(`${origin}/trades/${canonical.id}`);
+  await page.getByRole("button",{name:"Newer MCP tag ×",exact:true}).click();
+  stage="browser tag removal confirmation";
+  await page.getByText("Tag removed from trade.",{exact:true}).waitFor();
+  stage="browser tag selector";
+  const tagSelect=page.getByRole("combobox",{name:/^Assign tag/});await tagSelect.click();
+  await page.getByRole("option",{name:"Newer MCP tag",exact:true}).click();
+  await page.getByRole("button",{name:"Assign",exact:true}).click();stage="browser tag assignment confirmation";await page.getByText("Tag assigned.",{exact:true}).waitFor();
+  const taggedCanonical=(await getCanonical()).trade as Record<string,unknown>;tradeVersion=taggedCanonical.record_version;
+  stage="tag financial regression";
+  assert.equal(taggedCanonical.net_pnl,"10.00");assert.equal(taggedCanonical.outcome,"PARTIAL_WIN");
+  const beforeTags=reviewed.trade as Record<string,unknown>;
+  for(const field of ["gross_pnl","commission","swap","other_fees","trading_credits","net_pnl","actual_r","outcome"])assert.equal(taggedCanonical[field],beforeTags[field]);
+  passed("browser tag create, stale edit rejection, remove and assign use the same audited services without changing financials");
+
+  stage="tag archival and historical references";
+  tag=record(await modern.callTool({name:"tradeos_references_archive",arguments:{entity:"TAG",operationId:randomUUID(),id:tag.id,expectedVersion:tag.record_version,reason:"Retire fixture label, retain history"}}));
+  assert(tag.archived_at);
+  assert.equal((content(await modern.callTool({name:"tradeos_trade_tags_list",arguments:{tradeId:canonical.id}})).records as unknown[]).length,1);
+  const archiveAssign=await modern.callTool({name:"tradeos_trade_tags_assign",arguments:{...tagLink,operationId:randomUUID(),expectedVersion:tradeVersion,expectedTagVersion:tag.record_version}});
+  assert(archiveAssign.isError&&JSON.stringify(archiveAssign.content).includes("INVALID_REFERENCE"));
+  await page.goto(`${origin}/trades/${canonical.id}`);await page.getByRole("button",{name:"Newer MCP tag ×",exact:true}).click();
+  await page.getByText("Tag removed from trade.",{exact:true}).waitFor();
+  passed("archived tags remain historical labels, reject new assignment and allow audited browser removal");
+
+  stage="owned instruments and immutable specification";
+  const owned=record(await modern.callTool({name:"tradeos_references_create",arguments:{entity:"INSTRUMENT",operationId:randomUUID(),values:{symbol:"FIXTUREm",display_name:"Owned precision fixture",asset_class:"FOREX",base_currency:"EUR",quote_currency:"USD",pip_size:"0.0000000001",price_precision:10,active:true}}}));
+  assert.equal(owned.pip_size,"0.0000000001");assert.equal(owned.user_id,fixtureUser);
+  const global=content(await modern.callTool({name:"tradeos_references_get",arguments:{entity:"INSTRUMENT",id:instrument}}));assert.equal(global.user_id,null);
+  const globalEdit=await modern.callTool({name:"tradeos_references_patch",arguments:{entity:"INSTRUMENT",operationId:randomUUID(),id:instrument,expectedVersion:global.record_version,values:{display_name:"Unauthorized global change"}}});assert(globalEdit.isError);
+  const ownedTrade=record(await modern.callTool({name:"tradeos_trades_create",arguments:{operationId:randomUUID(),values:{account_id:jpy.id,instrument_id:owned.id,direction:"BUY",status:"DRAFT"}}}));
+  const specEdit=await modern.callTool({name:"tradeos_references_patch",arguments:{entity:"INSTRUMENT",operationId:randomUUID(),id:owned.id,expectedVersion:owned.record_version,values:{pip_size:"0.01"}}});
+  assert(specEdit.isError&&JSON.stringify(specEdit.content).includes("INVALID_REFERENCE"));
+  const archivedInstrument=record(await modern.callTool({name:"tradeos_references_archive",arguments:{entity:"INSTRUMENT",operationId:randomUUID(),id:owned.id,expectedVersion:owned.record_version,reason:"Retire referenced precision fixture"}}));
+  assert.equal(archivedInstrument.active,false);
+  const instrumentIds:string[]=[];let instrumentCursor:string|undefined;
+  do {
+    const instrumentPage=content(await modern.callTool({name:"tradeos_references_list",arguments:{entity:"INSTRUMENT",limit:7,...(instrumentCursor?{afterId:instrumentCursor}:{})}}));
+    const rows=instrumentPage.records as Array<{id:string;user_id:string|null}>;assert(rows.every(row=>row.user_id===null||row.user_id===fixtureUser));
+    instrumentIds.push(...rows.map(row=>row.id));instrumentCursor=instrumentPage.nextCursor as string|undefined;assert(instrumentIds.length<300);
+  } while(instrumentCursor);
+  assert.deepEqual(instrumentIds,(await database.query("select id::text from public.instruments where (user_id is null or user_id=$1) and archived_at is null order by id",[fixtureUser])).rows.map(row=>row.id));
+  assert(!instrumentIds.includes(owned.id as string));
+  await page.goto(`${origin}/trades/${ownedTrade.id}`);await page.getByRole("heading",{name:"FIXTUREm · BUY",exact:true}).waitFor();
+  passed("owned exact instrument specs, global read-only access, complete paging and referenced archival preserve historical display");
 
   stage="goals and prop SDK coverage";
   const goalOperation=randomUUID();
