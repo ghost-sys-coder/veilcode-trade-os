@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { normalizeAdjustmentAmount } from "@/domain/journal/analytics";
-import { normalizeMoney } from "@/domain/money/decimal";
+import { writeAccountEvent } from "@/services/application/account-events";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { ApplicationWorkflowError } from "@/services/application/transaction";
 import {
   adjustmentClassificationSchema,
   accountAdjustmentSchema,
@@ -146,7 +147,7 @@ export async function saveMonthlyReview(formData: FormData): Promise<void> {
 }
 
 export async function createAccountAdjustment(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  await requireUserId();
   const supabase = await createClient();
   const accountId = text(formData, "accountId");
   const path = returnPath(formData, `/accounts/${accountId}`);
@@ -163,23 +164,9 @@ export async function createAccountAdjustment(formData: FormData): Promise<void>
   });
   if (!result.success) finish(path, "error", firstValidationError(result.error));
   const value = result.data;
-  const { data: account, error: accountError } = await supabase.from("trading_accounts").select("currency_precision").eq("id", value.accountId).eq("user_id", userId).maybeSingle();
-  if (accountError || !account) finish(path, "error", accountError?.message ?? "Account not found.");
-  const amount = normalizeMoney(normalizeAdjustmentAmount(value.type, value.amount), account.currency_precision);
-  const classification = value.type === "OTHER" ? {
-    is_performance_neutral: value.isPerformanceNeutral,
-    classification_reason: value.classificationReason,
-  } : {};
-  const { error } = await supabase.from("account_adjustments").insert({
-    user_id: userId,
-    account_id: value.accountId,
-    type: value.type,
-    amount,
-    occurred_at: value.occurredAt,
-    notes: value.notes ?? null,
-    ...classification,
-  });
-  if (error) finish(path, "error", error.message);
+  try { await writeAccountEvent(await getVerifiedBrowserContext(supabase),"ADJUSTMENT",{...value,operationId:text(formData,"operationId"),
+    ...(value.type!=="OTHER"?{isPerformanceNeutral:true}: {})}); }
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid adjustment. Reload and check the values.");}
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);
   revalidatePath("/analytics", "layout");
@@ -198,12 +185,9 @@ export async function classifyAccountAdjustment(formData: FormData): Promise<voi
     reason: text(formData, "reason"),
   });
   if (!result.success) finish(path, "error", firstValidationError(result.error));
-  const { error } = await supabase.rpc("classify_account_adjustment", {
-    p_adjustment_id: result.data.adjustmentId,
-    p_is_performance_neutral: result.data.isPerformanceNeutral,
-    p_reason: result.data.reason,
-  });
-  if (error) finish(path, "error", error.message);
+  try {await writeAccountEvent(await getVerifiedBrowserContext(supabase),"CLASSIFY",{operationId:text(formData,"operationId"),id:result.data.adjustmentId,
+    expectedVersion:text(formData,"expectedVersion"),isPerformanceNeutral:result.data.isPerformanceNeutral,reason:result.data.reason});}
+  catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid classification. Reload and check the values.");}
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);
   revalidatePath("/analytics", "layout");

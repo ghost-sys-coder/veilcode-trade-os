@@ -7,6 +7,8 @@ import { integrationErrorResponse } from "@/lib/integrations/http";
 import { createTradeOsMcpServer } from "@/lib/mcp/server";
 import { getConfiguration, listConfiguration, writeConfiguration } from "@/services/application/configuration";
 import { getAccount, listAccounts, writeAccount } from "@/services/application/accounts";
+import { listAccountEvents,writeAccountEvent } from "@/services/application/account-events";
+import { listTrades,getTrade,writeTrade,listTradeReferences } from "@/services/application/trades";
 
 /** No cookie login, in-memory session map, or caller-submitted owner identity. */
 export async function handleMcpRequest(request:Request):Promise<Response> {
@@ -26,7 +28,9 @@ export async function handleMcpRequest(request:Request):Promise<Response> {
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:id=>getIntegrationOperation(context,id),
       configurationList:input=>listConfiguration(context,input), configurationGet:input=>getConfiguration(context,input),
       configurationWrite:(action,input)=>writeConfiguration(context,action,input), accountsList:input=>listAccounts(context,input),
-      accountsGet:input=>getAccount(context,input), accountsWrite:(action,input)=>writeAccount(context,action,input)}),
+      accountsGet:input=>getAccount(context,input), accountsWrite:(action,input)=>writeAccount(context,action,input),
+      accountEventsList:input=>listAccountEvents(context,input),accountEventsWrite:(action,input)=>writeAccountEvent(context,action,input),
+      tradesList:input=>listTrades(context,input),tradesGet:input=>getTrade(context,input),tradesWrite:(action,input)=>writeTrade(context,action,input),tradeInstruments:input=>listTradeReferences(context,input)}),
       {responseMode:"json",legacy:"stateless",maxRequestBodySize:1_048_576,maxSubscriptions:0});
     try {
       const response=await handler.fetch(request);

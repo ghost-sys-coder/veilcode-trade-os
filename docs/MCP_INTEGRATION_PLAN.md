@@ -3,7 +3,10 @@
 Branch: `feature/mcp-access`. Status: updated from master `32306e5` after the
 focused demo check passed; stateless HTTP and the strategy/setup/rule shared
 list/get/create/patch/archive workflows and account list/get/create/patch with
-exact balance access are implemented. The real local MCP
+exact balance access are implemented. Account adjustments/classification,
+snapshots/lifecycle and canonical trade/target/management/correction/review
+workflows now use shared services and 27 exposed HTTP tools. See
+[the workflow report](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md). The real local MCP
 OAuth/consent/refresh/revocation gate passes. Remaining application workflows,
 permanent deletion, local stdio, external-client verification and hosted
 activation remain pending. See

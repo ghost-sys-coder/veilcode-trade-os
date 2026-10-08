@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(47);
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000000','authenticated','authenticated','account-mcp@example.test','fixture-only','{}','{}',now(),now()),
 ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','00000000-0000-0000-0000-000000000000','authenticated','authenticated','account-other@example.test','fixture-only','{}','{}',now(),now());
@@ -84,6 +84,11 @@ select is(public.get_integration_operation('https://trade.example/mcp','MCP',(cu
 insert into public.account_adjustments(user_id,account_id,type,amount,occurred_at)
 select 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',current_setting('account.fixture.id')::uuid,'DEPOSIT',.01,clock_timestamp() from generate_series(1,1001);
 select is((private.application_account_read(jsonb_build_object('id',current_setting('account.fixture.id')))->>'account_adjustments_total')::numeric,55.01::numeric,'all 1001 repeated adjustments contribute without first-page truncation or drift');
+select is(jsonb_array_length(private.application_account_ledger(jsonb_build_object('id',current_setting('account.fixture.id')))->'adjustments'),1004,'browser ledger also exhausts all financial rows without the Data API cap');
+select is(jsonb_array_length(private.application_account_ledger(jsonb_build_object('id',current_setting('account.fixture.id')))->'trades'),2,'ledger timeline excludes open trades');
+insert into public.account_adjustments(id,user_id,account_id,type,amount,occurred_at)
+values('12121212-1212-4212-8212-121212121212',auth.uid(),current_setting('account.fixture.id')::uuid,'DEPOSIT',9007199254740993.01,clock_timestamp());
+select is((select value->>'amount' from jsonb_array_elements(private.application_account_ledger(jsonb_build_object('id',current_setting('account.fixture.id')))->'adjustments') where value->>'id'='12121212-1212-4212-8212-121212121212'),'9007199254740993.01','ledger preserves values above JavaScript safe-integer range exactly');
 -- Simulate one genuinely legacy unclassified row, not a permitted new insert.
 set local session_replication_role=replica;
 update public.account_adjustments set is_performance_neutral=null,classification_reason=null,classified_at=null,classified_by_user_id=null
@@ -114,6 +119,9 @@ select throws_ok($$select pg_temp.patch_account('4','{"name":"Must roll back"}')
 drop trigger fixture_fail_account_audit on private.application_mutation_audits;
 select is(private.application_account_read(jsonb_build_object('id',current_setting('account.fixture.id')))->>'name','Renamed account','record update rolls back with failed receipt/audit');
 select throws_ok($$update private.application_mutation_audits set changes='{}'$$,'42501','Integration audit events are append-only.','account audit cannot be rewritten');
+insert into public.trades(user_id,account_id,instrument_id,status,direction,gross_pnl,net_pnl,outcome)
+select auth.uid(),current_setting('account.fixture.id')::uuid,id,'CLOSED','BUY',.10,.10,'WIN' from public.instruments where symbol='EURUSD' and user_id is null;
+select is(private.application_account_ledger(jsonb_build_object('id',current_setting('account.fixture.id')))->'account'->>'closed_trade_net_pnl','0.11','undated legacy closed results remain in exact account totals rather than disappearing with timeline filtering');
 update private.integration_grants set status='REVOKED',revoked_at=clock_timestamp() where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 select throws_ok($$select private.application_account_read('{"limit":10}')$$,'42501','Integration access denied.','revocation blocks account reads immediately');
 select throws_ok($$select private.application_account_write(current_setting('account.fixture.request')::jsonb)$$,'42501','Integration access denied.','revocation blocks idempotent account retries too');

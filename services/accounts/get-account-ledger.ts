@@ -1,33 +1,24 @@
+import { getAccountLedgerRecords } from "@/services/application/accounts";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { ApplicationWorkflowError } from "@/services/application/transaction";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import Decimal from "decimal.js";
+import { accountWithBalance } from "@/domain/accounts/commands";
 
 import { buildBalanceTimeline } from "@/domain/journal/analytics";
-import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
+import { normalizeMoney } from "@/domain/money/decimal";
 import { normalizeSupabaseNumeric } from "@/lib/supabase/numeric";
 import type { Database } from "@/types/database";
 
 export async function getAccountLedger(supabase: SupabaseClient<Database>, accountId: string) {
-  const [accountResult, tradesResult, adjustmentsResult, snapshotsResult, instrumentsResult] = await Promise.all([
-    supabase.from("trading_accounts").select("*").eq("id", accountId).maybeSingle(),
-    supabase.from("trades").select("id,instrument_id,status,closed_at,net_pnl").eq("account_id", accountId).eq("status", "CLOSED").not("closed_at", "is", null),
-    supabase.from("account_adjustments").select("*").eq("account_id", accountId).order("occurred_at"),
-    supabase.from("account_snapshots").select("*").eq("account_id", accountId).order("captured_at", { ascending: false }),
-    supabase.from("instruments").select("id,symbol"),
-  ]);
-  const error = accountResult.error ?? tradesResult.error ?? adjustmentsResult.error ?? snapshotsResult.error ?? instrumentsResult.error;
-  if (error) throw new Error(error.message);
-  if (!accountResult.data) return null;
-
-  const adjustmentIds = (adjustmentsResult.data ?? []).map((adjustment) => adjustment.id);
-  const classificationsResult = adjustmentIds.length > 0
-    ? await supabase
-        .from("account_adjustment_classifications")
-        .select("*")
-        .in("adjustment_id", adjustmentIds)
-        .order("created_at", { ascending: false })
-    : { data: [], error: null };
-  if (classificationsResult.error) throw new Error(classificationsResult.error.message);
-
+  let records;
+  try {records=await getAccountLedgerRecords(await getVerifiedBrowserContext(supabase),{id:accountId});}
+  catch(error) {if(error instanceof ApplicationWorkflowError&&error.code==="NOT_FOUND")return null;throw error;}
+  const accountResult={data:records.account};
+  const tradesResult={data:records.trades as Array<{id:string;instrument_id:string;closed_at:string;net_pnl:string|null}>};
+  const adjustmentsResult={data:records.adjustments as unknown as Database["public"]["Tables"]["account_adjustments"]["Row"][]};
+  const snapshotsResult={data:records.snapshots as unknown as Database["public"]["Tables"]["account_snapshots"]["Row"][]};
+  const instrumentsResult={data:records.instruments};
+  const classificationsResult={data:records.classifications as unknown as Database["public"]["Tables"]["account_adjustment_classifications"]["Row"][]};
   const account = accountResult.data;
   const instruments = new Map((instrumentsResult.data ?? []).map((item) => [item.id, item.symbol]));
   const trades = (tradesResult.data ?? [])
@@ -54,10 +45,8 @@ export async function getAccountLedger(supabase: SupabaseClient<Database>, accou
       label: adjustment.type.replaceAll("_", " ").toLowerCase(),
     })),
   });
-  const netTradingPnl = normalizeMoney(
-    trades.reduce((sum, trade) => sum.plus(parseDecimal(trade.netPnl)), new Decimal(0)),
-    account.currency_precision,
-  );
+  const exactAccount=accountWithBalance(account);
+  const netTradingPnl=exactAccount.closed_trade_net_pnl;
 
   return {
     account: {
@@ -77,7 +66,8 @@ export async function getAccountLedger(supabase: SupabaseClient<Database>, accou
         : normalizeMoney(normalizeSupabaseNumeric(snapshot.unrealized_pnl), account.currency_precision),
     })),
     timeline,
-    derivedBalance: timeline.at(-1)?.balance ?? normalizeMoney(normalizeSupabaseNumeric(account.starting_balance), account.currency_precision),
+    derivedBalance: exactAccount.derived_balance,
+    unplacedClosedTradeCount:(BigInt(account.closed_trade_count)-BigInt(trades.length)).toString(),
     netTradingPnl,
   };
 }

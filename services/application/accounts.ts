@@ -12,6 +12,11 @@ export async function listAccounts(context:ApplicationContext,input:unknown) {
 export async function getAccount(context:ApplicationContext,input:unknown) {
   return accountWithBalance(await applicationTransaction(context,"ACCOUNT_READ",accountGetSchema.parse(input)));
 }
+export async function getAccountLedgerRecords(context:ApplicationContext,input:unknown) {
+  return z.object({account:accountRecordSchema,trades:z.array(z.record(z.string(),z.unknown())),adjustments:z.array(z.record(z.string(),z.unknown())),
+    snapshots:z.array(z.record(z.string(),z.unknown())),classifications:z.array(z.record(z.string(),z.unknown())),instruments:z.array(z.object({id:z.string().uuid(),symbol:z.string()}))})
+    .parse(await applicationTransaction(context,"ACCOUNT_LEDGER",accountGetSchema.parse(input)));
+}
 /** Browser register exhausts bounded pages; MCP clients paginate explicitly. */
 export async function listBrowserAccounts(context:ApplicationContext) {
   if("actor" in context)throw new Error("Direct browser register required.");

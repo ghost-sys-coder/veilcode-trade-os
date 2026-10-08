@@ -59,6 +59,7 @@ export type Database = {
           classification_reason: string | null
           classified_at: string | null
           classified_by_user_id: string | null
+          record_version: number
         }
         Insert: {
           id?: string
@@ -73,6 +74,7 @@ export type Database = {
           classification_reason?: string | null
           classified_at?: string | null
           classified_by_user_id?: string | null
+          record_version?: number
         }
         Update: {
           id?: string
@@ -87,6 +89,7 @@ export type Database = {
           classification_reason?: string | null
           classified_at?: string | null
           classified_by_user_id?: string | null
+          record_version?: number
         }
         Relationships: []
       }
@@ -856,6 +859,7 @@ export type Database = {
           reason: string
           actor_user_id: string
           created_at: string
+          correction_sequence: number
         }
         Insert: {
           id?: string
@@ -869,6 +873,7 @@ export type Database = {
           reason: string
           actor_user_id: string
           created_at?: string
+          correction_sequence?: number
         }
         Update: {
           id?: string
@@ -882,6 +887,7 @@ export type Database = {
           reason?: string
           actor_user_id?: string
           created_at?: string
+          correction_sequence?: number
         }
         Relationships: []
       }

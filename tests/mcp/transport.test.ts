@@ -68,7 +68,9 @@ describe("official SDK interoperability",()=>{
     await client.connect(transport);
     const tools=await client.listTools();expect(tools.tools.map(tool=>tool.name)).toEqual(["tradeos_capabilities","tradeos_position_size","tradeos_operation_status",
       "tradeos_configuration_list","tradeos_configuration_get","tradeos_configuration_create","tradeos_configuration_patch","tradeos_configuration_archive",
-      "tradeos_accounts_list","tradeos_accounts_get","tradeos_accounts_create","tradeos_accounts_patch"]);
+      "tradeos_accounts_list","tradeos_accounts_get","tradeos_accounts_create","tradeos_accounts_patch",
+      "tradeos_account_events_list","tradeos_adjustment_create","tradeos_adjustment_classify","tradeos_snapshot_record","tradeos_account_transition","tradeos_account_link_funded",
+      "tradeos_trades_list","tradeos_trades_get","tradeos_trades_create","tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments"]);
     const contracts=await client.listResources();expect(contracts.resources).toHaveLength(5);
     const money=await client.readResource({uri:"tradeos://v1/money"});expect(money.contents[0]).toMatchObject({mimeType:"application/json"});
     const calculation=await client.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
@@ -84,13 +86,14 @@ describe("official SDK interoperability",()=>{
   it("supports legacy stateless MCP and rejects numeric monetary inputs and secret-bearing errors",async()=>{
     const unavailableService=async()=>{throw new Error("PRIVATE_TEST_VALUE");};
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:unavailableService,configurationList:unavailableService,
-      configurationGet:unavailableService,configurationWrite:unavailableService,accountsList:unavailableService,accountsGet:unavailableService,accountsWrite:unavailableService}),{responseMode:"json"});
+      configurationGet:unavailableService,configurationWrite:unavailableService,accountsList:unavailableService,accountsGet:unavailableService,accountsWrite:unavailableService,
+      accountEventsList:unavailableService,accountEventsWrite:unavailableService,tradesList:unavailableService,tradesGet:unavailableService,tradesWrite:unavailableService,tradeInstruments:unavailableService}),{responseMode:"json"});
     try {
       const request=(id:number,method:string,params:object)=>handler.fetch(new Request(`${origin}/mcp`,{method:"POST",
         headers:{"content-type":"application/json",accept:"application/json, text/event-stream","mcp-protocol-version":"2025-11-25"},
         body:JSON.stringify({jsonrpc:"2.0",id,method,params})}));
       const responseJson=async(response:Response)=>{const body=await response.text();return JSON.parse(response.headers.get("content-type")?.includes("text/event-stream")?body.split("\n").find(line=>line.startsWith("data: "))!.slice(6):body);};
-      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(12);
+      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(27);
       const rejected=await responseJson(await request(2,"tools/call",{name:"tradeos_position_size",arguments:{balance:100000,currency:"USD",currencyPrecision:2,
         riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.10000",stopLossPrice:"1.09800"}}));
       expect(rejected.result?.isError||rejected.error).toBeTruthy();

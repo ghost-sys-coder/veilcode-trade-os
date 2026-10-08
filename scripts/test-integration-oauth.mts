@@ -906,6 +906,7 @@ try {
       await database.query("delete from private.mt5_execution_sources where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_execution_versions where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
       await database.query("delete from private.mt5_publication_approvals where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);
+      await database.query("delete from private.application_trade_versions where trade_id in (select id from public.trades where user_id=$1)",[fixtureUser]);
       await database.query("delete from public.trades where user_id=$1",[fixtureUser]);
       await database.query("delete from public.import_batches where user_id=$1",[fixtureUser]);
       await database.query("delete from private.mt5_capture_progress where connection_id in (select id from private.mt5_connections where owner_id=$1)",[fixtureUser]);

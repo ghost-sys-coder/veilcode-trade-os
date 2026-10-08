@@ -112,6 +112,20 @@ Last updated: 2026-09-23
 
 ### Data form
 
+Account-event/trade workflow update (2026-10-08): hidden operation/version
+fields preserve the layout. Required lifecycle reasons use shared Label/Textarea
+with existing `space-y-2` spacing. Trading credits use the existing monetary
+field pattern and explain trade attribution versus account cash. The explicit
+management form (`features/trades/management-form.tsx`) inherits TradeSection,
+`grid gap-5`, shared controls, `text-xs text-muted-foreground` help and the
+primary Button. Actual stop movements are recorded there, not in a silently
+editable post-OPEN field. No new colors, shadows or surface tokens were added.
+Broker execution inputs are visibly read-only; opened account/instrument/direction
+are locked rather than offering edits the server would reject. Hidden exact
+timestamps and change tracking preserve stored fractions on unrelated saves.
+Repeated SelectField instances use stable, unique label/control IDs so inline
+classification and configuration forms cannot target a different row's control.
+
 Account form update (2026-10-08): hidden operation/version fields preserve the
 existing layout. The optional baseline/date correction reason uses the same
 `space-y-2` field group, shared Input/Label, and `text-xs text-muted-foreground`

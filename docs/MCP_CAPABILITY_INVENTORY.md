@@ -1,18 +1,17 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and twelve tools are
-implemented. In addition to capabilities, position sizing and operation status,
-`tradeos_configuration_list/get/create/patch/archive` cover STRATEGY, SETUP and
-RULE. `tradeos_accounts_list/get/create/patch` cover metadata and exact derived
-balance access. Browser account/strategy/setup/rule actions use the same services.
-Account adjustments/snapshots/lifecycle and other families remain pending. See
-[account verification](MCP_ACCOUNTS_VERIFICATION.md).
-Browser strategy/setup/rule actions use the same typed services and
-private transaction. Real local OAuth/browser/HTTP verification passes. Hosted
-MCP stays disabled; permanent deletion, other families, local stdio and real
-external-client verification remain pending. See
-[configuration verification](MCP_CONFIGURATION_VERIFICATION.md).
+Updated 2026-10-08: stateless HTTP, five contract resources and 27 tools are
+implemented. Account adjustments/classification, snapshots/lifecycle, canonical
+trades/targets/management/corrections/reviews and read-only trade instruments now
+join account metadata/balances and strategy/setup/rule workflows. Browser actions
+use the same typed services and private transactions. See
+[account-event and trade verification](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md).
+
+Hosted MCP stays disabled. Goals, prop configuration, journals, analytics/exports,
+tags, remaining instrument CRUD, screenshots/file access, MT5/import reads,
+profile settings, permanent deletion, local stdio and external clients remain
+pending. The completed workflow family is not full MCP readiness.
 
 ## Shared service boundary
 

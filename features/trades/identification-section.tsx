@@ -31,6 +31,7 @@ function localDateTime(value?: string | null): string {
 
 export function IdentificationSection({ accounts, instruments, trade, accountId, status, onAccountChange, onStatusChange, initialInstrumentId, initialDirection, lockAccount }: IdentificationSectionProps) {
   const lockedLifecycle = trade?.status === "OPEN" || trade?.status === "CLOSED";
+  const broker=Boolean(trade?.mt5_connection_id)||Boolean(trade&&["MT4","MT5","BROKER_API"].includes(trade.source_type));
   const statuses = TRADE_STATUSES
     .filter((value) => !lockedLifecycle || (trade?.status === "OPEN" ? value === "OPEN" || value === "CLOSED" : value === "CLOSED"))
     .map((value) => ({ label: value.replaceAll("_", " "), value }));
@@ -49,14 +50,16 @@ export function IdentificationSection({ accounts, instruments, trade, accountId,
           disabled={lockedLifecycle || lockAccount}
         />
         {lockedLifecycle || lockAccount ? <input type="hidden" name="accountId" value={accountId} /> : null}
-        <SearchableInstrumentSelect instruments={instruments} defaultValue={trade?.instrument_id ?? initialInstrumentId} />
-        <SelectField name="direction" label="Direction" items={TRADE_DIRECTIONS.map((value) => ({ label: value, value }))} defaultValue={trade?.direction ?? initialDirection ?? "BUY"} help="BUY expects price to rise; SELL expects price to fall." required />
-        <SelectField name="status" label="Trade status" items={statuses} value={status} onValueChange={(value) => value && onStatusChange(value as TradeStatus)} help="Draft is incomplete, planned is not filled, open is live, closed is final, and canceled was never taken." required />
+        <SearchableInstrumentSelect instruments={instruments} defaultValue={trade?.instrument_id ?? initialInstrumentId} disabled={lockedLifecycle||broker} />
+        {lockedLifecycle||broker?<input type="hidden" name="direction" value={trade?.direction??initialDirection??"BUY"} />:null}
+        <SelectField name="direction" label="Direction" items={TRADE_DIRECTIONS.map((value) => ({ label: value, value }))} defaultValue={trade?.direction ?? initialDirection ?? "BUY"} help="BUY expects price to rise; SELL expects price to fall." required disabled={lockedLifecycle||broker} />
+        {broker?<input type="hidden" name="status" value={status} />:null}
+        <SelectField name="status" label="Trade status" items={statuses} value={status} onValueChange={(value) => value && onStatusChange(value as TradeStatus)} help="Draft is incomplete, planned is not filled, open is live, closed is final, and canceled was never taken." required disabled={broker} />
         <SelectField name="orderType" label="Order type" items={ORDER_TYPES.map((value) => ({ label: value.replaceAll("_", " "), value }))} defaultValue={trade?.order_type ?? "MARKET"} help="Record how the entry was intended to be triggered." required />
         <SelectField name="session" label="Trading session" items={TRADING_SESSIONS.map((value) => ({ label: value.replaceAll("_", " "), value }))} defaultValue={trade?.session ?? "OTHER"} help="Used to compare performance across market sessions." required />
-        <div className="space-y-2"><Label htmlFor="plannedAt">Planned date/time</Label><Input id="plannedAt" name="plannedAt" type="datetime-local" defaultValue={localDateTime(trade?.planned_at)} /><p className="text-xs text-muted-foreground">When you identified or planned the trade.</p></div>
-        <div className="space-y-2"><Label htmlFor="openedAt">Opened date/time</Label><Input id="openedAt" name="openedAt" type="datetime-local" defaultValue={localDateTime(trade?.opened_at)} /><p className="text-xs text-muted-foreground">When the order actually filled.</p></div>
-        <div className="space-y-2"><Label htmlFor="closedAt">Closed date/time</Label><Input id="closedAt" name="closedAt" type="datetime-local" defaultValue={localDateTime(trade?.closed_at)} /><p className="text-xs text-muted-foreground">When the final part of the position closed.</p></div>
+        <div className="space-y-2"><Label htmlFor="plannedAt">Planned date/time</Label><Input id="plannedAt" name="plannedAt" type="datetime-local" readOnly={lockedLifecycle} defaultValue={localDateTime(trade?.planned_at)} /><p className="text-xs text-muted-foreground">When you identified or planned the trade.</p></div>
+        <div className="space-y-2"><Label htmlFor="openedAt">Opened date/time</Label><Input id="openedAt" name="openedAt" type="datetime-local" readOnly={broker} defaultValue={localDateTime(trade?.opened_at)} /><p className="text-xs text-muted-foreground">When the order actually filled.</p></div>
+        <div className="space-y-2"><Label htmlFor="closedAt">Closed date/time</Label><Input id="closedAt" name="closedAt" type="datetime-local" readOnly={broker} defaultValue={localDateTime(trade?.closed_at)} /><p className="text-xs text-muted-foreground">When the final part of the position closed.</p></div>
       </div>
     </TradeSection>
   );
