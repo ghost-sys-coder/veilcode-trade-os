@@ -121,6 +121,19 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-09: after user approval, added only the verified pooler host/port and
+  public CA to `feature/mcp-access` Preview; production settings/credentials
+  remained unchanged. Rebuilt pushed reporting commit `e09ca3f` to READY and
+  passed 14 distinct hosted read-only browser checks using normal user sign-in.
+  The mapped account's current label is USD100K FTMO ACCOUNT; immutable-ID lookup
+  verified twenty closed trades, USD2032.53 profit and USD102032.53 balance.
+  Complete CSV, journal/calendar and behavior reads pass. Before/after financial,
+  grant and connection hashes are identical. Read-only inspection found the
+  user's independent PR #18 merge at master `02565eb` serving the production
+  domain with a READY build. The agent did not merge/promote Production.
+  MCP remains disabled; remaining capabilities/client gates are pending. See
+  [reporting evidence](MCP_REPORTING_VERIFICATION.md).
+
 - 2026-10-08: verified the user's merged master at `425b1a5` and fast-forwarded
   the existing MCP branch. Added five shared reporting tools and exact schemas,
   owner-scoped complete history reads and the shared browser/MCP CSV builder.

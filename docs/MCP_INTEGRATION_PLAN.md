@@ -12,7 +12,10 @@ performance/behavior analytics, the realized calendar and full filtered CSV expo
 bringing coverage to 53 HTTP tools. Paginated balance-curve events and permanent
 deletion remain pending. The user-approved read-only reporting migration is
 installed on the hosted project; hosted prerequisites and the verified production
-build pass. Reporting code publication/deployment remains pending. See
+build pass. Reporting source `e09ca3f` is pushed and its branch preview is READY;
+authenticated preview reporting verification passes. The user's independent
+PR #18 merge at master `02565eb` has a READY production deployment; remaining
+MCP capabilities and activation/client gates remain pending. See
 [reporting verification](MCP_REPORTING_VERIFICATION.md),
 [reference verification](MCP_REFERENCES_VERIFICATION.md),
 [goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md) and
