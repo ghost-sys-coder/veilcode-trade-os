@@ -4,7 +4,9 @@ import { z } from "zod";
 import { calculatePositionSize } from "@/domain/trading/position-sizing";
 import { getInstrumentSpecification, SUPPORTED_ACCOUNT_CURRENCIES } from "@/domain/trading/instrument-specifications";
 import { parseDecimal } from "@/domain/money/decimal";
+import {progressDatasetResultSchema} from "@/domain/progress/dataset";
 import { journalGetSchema,journalListSchema,journalSaveSchema,journalResultSchema,journalPageSchema } from "@/domain/journal/commands";
+import {goalGetSchema,goalListSchema,goalCreateSchema,goalPatchSchema,goalArchiveSchema,goalProgressSchema,goalProgressListSchema,goalRecordSchema,goalPageSchema,goalEventPageSchema,propGetSchema,propSaveSchema,propResultSchema,progressResultSchema,type ProgressAction} from "@/domain/progress/commands";
 import { TRADE_OUTCOMES, TRADE_STATUSES, TRADE_GRADES, RULE_TYPES } from "@/types/domain";
 import { configurationArchiveSchema, configurationCreateSchema, configurationGetSchema, configurationListSchema,
   configurationPageSchema, configurationPatchSchema, configurationRecordSchema, configurationResultSchema } from "@/domain/configuration/commands";
@@ -38,12 +40,12 @@ const toolNames = ["tradeos_capabilities", "tradeos_position_size", "tradeos_ope
   "tradeos_accounts_list","tradeos_accounts_get","tradeos_accounts_create","tradeos_accounts_patch",
   "tradeos_account_events_list","tradeos_adjustment_create","tradeos_adjustment_classify","tradeos_snapshot_record",
   "tradeos_account_transition","tradeos_account_link_funded","tradeos_trades_list","tradeos_trades_get","tradeos_trades_create",
-  "tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments","tradeos_journals_get","tradeos_journals_list","tradeos_journals_save"] as const;
+  "tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments","tradeos_journals_get","tradeos_journals_list","tradeos_journals_save","tradeos_goals_get","tradeos_goals_list","tradeos_goals_create","tradeos_goals_patch","tradeos_goals_archive","tradeos_goal_progress_list","tradeos_goal_progress_record","tradeos_prop_get","tradeos_prop_save","tradeos_progress_get"] as const;
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const catalog = {
   version:"1", tools:toolNames, resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration permanent deletion","instruments","tags","goals","prop","computed journal summaries","analytics","exports","screenshots upload/download","mt5"],
-  status:"HTTP plus accounts/events/lifecycle, canonical trades/targets/management/plan corrections/reviews and strategies/setups/rules. Daily/weekly/monthly persisted reflections are available; computed journal summaries, other workflows, permanent deletion and local stdio are pending.",
+  pendingFamilies:["configuration permanent deletion","instruments","tags","computed journal summaries","analytics","exports","screenshots upload/download","mt5"],
+  status:"HTTP plus accounts/events/lifecycle, canonical trades/targets/management/plan corrections/reviews and strategies/setups/rules. Persisted journal reflections, goals, explicit prop rules and shared account progress are available; computed journal summaries, other workflows, permanent deletion and local stdio are pending.",
 };
 const resources = {
   catalog,
@@ -91,6 +93,12 @@ export type McpApplicationServices = {
   journalsGet:(input:unknown)=>Promise<ReturnType<typeof journalResultSchema.parse>>;
   journalsList:(input:unknown)=>Promise<ReturnType<typeof journalPageSchema.parse>>;
   journalsSave:(input:unknown)=>Promise<ReturnType<typeof journalResultSchema.parse>>;
+  goalsGet:(input:unknown)=>Promise<ReturnType<typeof goalRecordSchema.parse>>;
+  goalsList:(input:unknown)=>Promise<ReturnType<typeof goalPageSchema.parse>>;
+  goalProgressList:(input:unknown)=>Promise<ReturnType<typeof goalEventPageSchema.parse>>;
+  propGet:(input:unknown)=>Promise<ReturnType<typeof propResultSchema.parse>>;
+  progressWrite:(action:ProgressAction,input:unknown)=>Promise<ReturnType<typeof progressResultSchema.parse>>;
+  progressGet:(input:unknown)=>Promise<Record<string,unknown>>;
 };
 export function createTradeOsMcpServer(services:McpApplicationServices) {
   const server = new McpServer({name:"trade-os",version:"1.0.0"});
@@ -164,5 +172,15 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_journals_get",{description:"Read the persisted DAILY, WEEKLY or MONTHLY reflection for an owned account and calendar period. Weekly starts Monday; monthly starts on day one. Missing record is null, not reviewed evidence. Does not compute performance summaries or change journal-date/closed-at conventions.",inputSchema:journalGetSchema,outputSchema:journalResultSchema,annotations:readOnly},async input=>guarded(()=>services.journalsGet(input)));
   server.registerTool("tradeos_journals_list",{description:"List persisted account reflections by kind in stable cursor order. Exhaust nextCursor for all records. Monetary observations remain strings, not authoritative ledger balances; no computed analytics are returned.",inputSchema:journalListSchema,outputSchema:journalPageSchema,annotations:readOnly},async input=>guarded(()=>services.journalsList(input)));
   server.registerTool("tradeos_journals_save",{description:"Create or patch a persisted reflection using durable operationId. expectedVersion is 0 only for a missing period, otherwise use record_version. Omitted fields stay unchanged; null clears a nullable field. False is deliberate, not missing data. Monetary/derived summaries cannot be edited here. Saving does not complete trade reviews.",inputSchema:journalSaveSchema,outputSchema:journalResultSchema,annotations:mutation},async input=>guarded(()=>services.journalsSave(input)));
+  server.registerTool("tradeos_goals_get",{description:"Read an owned goal with exact target, active/archive state and string record_version.",inputSchema:goalGetSchema,outputSchema:goalRecordSchema,annotations:readOnly},async input=>guarded(()=>services.goalsGet(input)));
+  server.registerTool("tradeos_goals_list",{description:"List owned account goals with bounded ID cursors. Archived entries are excluded unless includeArchived is true.",inputSchema:goalListSchema,outputSchema:goalPageSchema,annotations:readOnly},async input=>guarded(()=>services.goalsList(input)));
+  server.registerTool("tradeos_goals_create",{description:"Create an owned research/process goal with durable operationId. Currency targets normalize at account precision; counts require whole numbers; R/custom/percentage goals have separate precision. CUSTOM needs custom_unit. Trade-count goals never prescribe extra trades.",inputSchema:goalCreateSchema,outputSchema:progressResultSchema,annotations:mutation},async input=>guarded(()=>services.progressWrite("GOAL_CREATE",input)));
+  server.registerTool("tradeos_goals_patch",{description:"Patch a goal using expectedVersion. Omitted fields stay unchanged; null clears optional fields. Account/owner cannot change; existing custom progress prevents changing type or unit. Derived achievement is not a writable field.",inputSchema:goalPatchSchema,outputSchema:progressResultSchema,annotations:mutation},async input=>guarded(()=>services.progressWrite("GOAL_PATCH",input)));
+  server.registerTool("tradeos_goals_archive",{description:"Archive/deactivate an owned goal with reason, operationId and expectedVersion. Keeps evidence and history; never permanently deletes. Archived goals cannot receive new progress or silently reactivate.",inputSchema:goalArchiveSchema,outputSchema:progressResultSchema,annotations:mutation},async input=>guarded(()=>services.progressWrite("GOAL_ARCHIVE",input)));
+  server.registerTool("tradeos_goal_progress_list",{description:"List append-only custom-goal observations using bounded cursors. Values are exact decimals; an event is a recorded current value, not an increment to sum. Latest uses recorded_at, created_at and ID ordering.",inputSchema:goalProgressListSchema,outputSchema:goalEventPageSchema,annotations:readOnly},async input=>guarded(()=>services.goalProgressList(input)));
+  server.registerTool("tradeos_goal_progress_record",{description:"Append explicit current-value evidence only to an active CUSTOM goal. Uses operationId and expectedVersion, increments its version and preserves every observation. Does not alter automatic goal progress or mark trade reviews complete.",inputSchema:goalProgressSchema,outputSchema:progressResultSchema,annotations:mutation},async input=>guarded(()=>services.progressWrite("GOAL_PROGRESS",input)));
+  server.registerTool("tradeos_prop_get",{description:"Read the owned account's persisted manually configured prop rules. Missing configuration is null; no universal firm rule is invented.",inputSchema:propGetSchema,outputSchema:propResultSchema,annotations:readOnly},async input=>guarded(()=>services.propGet(input)));
+  server.registerTool("tradeos_prop_save",{description:"Create/patch a PROP_CHALLENGE or FUNDED configuration with operationId and expectedVersion (0 only when absent). Optional rule groups must be wholly defined/cleared. Money and percentages retain separate precision. Requires explicit firm, drawdown type, IANA timezone and profitable-day threshold when first configured.",inputSchema:propSaveSchema,outputSchema:progressResultSchema,annotations:mutation},async input=>guarded(()=>services.progressWrite("PROP_SAVE",input)));
+  server.registerTool("tradeos_progress_get",{description:"Calculate one owned account's progress from complete exact data in a consistent read snapshot, using the same domain as the UI. Trading targets/return exclude cash adjustments; balance includes them. Closed_at owns realized results; opened_at owns trading-day eligibility. R sample is explicit; rules use immutable reviewed snapshots. Ambiguous OTHER/incomplete closure withholds drawdown. Trailing/custom loss mechanics and unspecified firm cash-flow policies remain unavailable. Maximum-drawdown goals are limits, not encouragement to increase losses.",inputSchema:propGetSchema,outputSchema:progressDatasetResultSchema,annotations:readOnly},async input=>guarded(()=>services.progressGet(input)));
   return server;
 }

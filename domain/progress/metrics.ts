@@ -49,10 +49,11 @@ export function calculateProfitTarget(input: {
   mode: ValueMode;
   value: string;
   currencyPrecision: number;
+  tradingNetProfit?: string;
 }): AmountProgress {
   const target = configuredAmount(input.mode, input.value, input.startingBalance, input.currencyPrecision);
   const current = normalizeMoney(
-    parseDecimal(input.currentBalance).minus(input.startingBalance),
+    input.tradingNetProfit ?? parseDecimal(input.currentBalance).minus(input.startingBalance),
     input.currencyPrecision,
   );
   const remaining = normalizeMoney(
@@ -115,7 +116,7 @@ export function calculateConsistency(
   if (positiveDays.length === 0) {
     return { available: false, percentage: null, bestDayProfit: "0", totalPositiveProfit: "0", reason: "No positive realized trading day is available yet." };
   }
-  const best = Decimal.max(...positiveDays);
+  const best = positiveDays.reduce((maximum,value)=>Decimal.max(maximum,value),positiveDays[0]);
   const total = positiveDays.reduce((sum, value) => sum.plus(value), new Decimal(0));
   return {
     available: true,
@@ -130,11 +131,11 @@ export function summarizeTradingDays(
   trades: readonly PropTradeMetric[],
   timezone: string,
   profitableDayMinimum: string,
-): { tradingDays: number; profitableDays: number; losingDays: number; breakEvenDays: number } {
+): { tradingDays: number; profitableDays: number; losingDays: number; breakEvenDays: number; belowThresholdPositiveDays: number } {
   const openedDays = new Set<string>();
   const realizedByDay = new Map<string, Decimal>();
   for (const trade of trades) {
-    if (trade.openedAt) openedDays.add(dateKey(trade.openedAt, timezone));
+    if (trade.openedAt && (trade.status === "OPEN" || trade.status === "CLOSED")) openedDays.add(dateKey(trade.openedAt, timezone));
     if (trade.status === "CLOSED" && trade.closedAt && trade.netPnl !== null) {
       const key = dateKey(trade.closedAt, timezone);
       realizedByDay.set(key, (realizedByDay.get(key) ?? new Decimal(0)).plus(trade.netPnl));
@@ -144,12 +145,14 @@ export function summarizeTradingDays(
   let profitableDays = 0;
   let losingDays = 0;
   let breakEvenDays = 0;
+  let belowThresholdPositiveDays = 0;
   for (const value of realizedByDay.values()) {
     if (value.gt(0) && value.gte(threshold)) profitableDays += 1;
     else if (value.lt(0)) losingDays += 1;
-    else breakEvenDays += 1;
+    else if (value.isZero()) breakEvenDays += 1;
+    else belowThresholdPositiveDays += 1;
   }
-  return { tradingDays: openedDays.size, profitableDays, losingDays, breakEvenDays };
+  return { tradingDays: openedDays.size, profitableDays, losingDays, breakEvenDays, belowThresholdPositiveDays };
 }
 
 export function goalProgressPercentage(current: string, target: string): string {

@@ -9,19 +9,12 @@ import { getVerifiedBrowserContext } from "@/services/integrations/browser-conte
 import { ApplicationWorkflowError } from "@/services/application/transaction";
 import { decimalStringSchema } from "@/domain/validation/schemas";
 import { firstValidationError } from "@/lib/action-errors";
-import { requireUserId } from "@/lib/auth";
+import { writeProgress } from "@/services/application/progress";
 import { createClient } from "@/lib/supabase/server";
 import {
   ACCOUNT_FAILURE_REASONS,
   ACCOUNT_PLATFORMS,
   ACCOUNT_STATUSES,
-  GOAL_TYPES,
-  PROP_CONSISTENCY_FORMULAS,
-  PROP_DAILY_BASELINES,
-  PROP_DRAWDOWN_TYPES,
-  PROP_LOSS_MEASURES,
-  PROP_TOTAL_BASELINES,
-  PROP_VALUE_MODES,
 } from "@/types/domain";
 
 function value(formData: FormData, name: string): string {
@@ -43,65 +36,30 @@ function finish(path: string, kind: "error" | "message", message: string): never
 }
 
 const optionalDecimal = z.preprocess((item) => item === "" ? undefined : item, decimalStringSchema.optional());
-const optionalInteger = z.preprocess((item) => item === "" ? undefined : item, z.coerce.number().int().min(0).optional());
-
-function validTimezone(timezone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
-    return true;
-  } catch {
-    return false;
-  }
+function utcFormInstant(raw:string):string {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)?`${raw}:00Z`:raw;
 }
 
-const configSchema = z.object({
-  accountId: z.string().uuid(), firmName: z.string().trim().min(2).max(120), modelName: z.string().trim().max(120).optional(),
-  phaseName: z.string().trim().max(120).optional(), profitTargetMode: z.enum(PROP_VALUE_MODES).optional(), profitTargetValue: optionalDecimal,
-  dailyLossMode: z.enum(PROP_VALUE_MODES).optional(), dailyLossValue: optionalDecimal, dailyLossBaseline: z.enum(PROP_DAILY_BASELINES).optional(), dailyLossMeasure: z.enum(PROP_LOSS_MEASURES).optional(),
-  totalLossMode: z.enum(PROP_VALUE_MODES).optional(), totalLossValue: optionalDecimal, totalLossBaseline: z.enum(PROP_TOTAL_BASELINES).optional(), totalLossMeasure: z.enum(PROP_LOSS_MEASURES).optional(),
-  drawdownType: z.enum(PROP_DRAWDOWN_TYPES), consistencyFormula: z.enum(PROP_CONSISTENCY_FORMULAS).optional(), consistencyLimitPercent: optionalDecimal,
-  minimumTradingDays: optionalInteger, maximumTradingDays: optionalInteger, tradingDayTimezone: z.string().trim().min(1).max(100).refine(validTimezone, "Enter a valid IANA timezone, such as Africa/Kampala or UTC."), profitableDayMinPnl: decimalStringSchema,
-  notes: z.string().trim().max(4000).optional(),
-}).superRefine((item, context) => {
-  const groups = [
-    [item.profitTargetMode, item.profitTargetValue, "profitTargetValue"],
-    [item.dailyLossMode, item.dailyLossValue, "dailyLossValue", item.dailyLossBaseline, item.dailyLossMeasure],
-    [item.totalLossMode, item.totalLossValue, "totalLossValue", item.totalLossBaseline, item.totalLossMeasure],
-    [item.consistencyFormula, item.consistencyLimitPercent, "consistencyLimitPercent"],
-  ] as const;
-  for (const group of groups) {
-    const fields = group.filter((_, index) => index !== 2);
-    if (fields.some(Boolean) && !fields.every(Boolean)) context.addIssue({ code: "custom", path: [group[2]], message: "Complete every field in this optional rule, or leave the whole rule blank." });
-  }
-});
+function failure(error:unknown):string {
+  return error instanceof ApplicationWorkflowError?error.message:error instanceof z.ZodError?firstValidationError(error):"Application workflow unavailable. Check operation status before retrying an uncertain write.";
+}
 
-export async function savePropConfig(formData: FormData): Promise<void> {
-  const path = pathFor(formData, "/prop");
-  const parsed = configSchema.safeParse({
-    accountId: value(formData, "accountId"), firmName: value(formData, "firmName"), modelName: optional(formData, "modelName"), phaseName: optional(formData, "phaseName"),
-    profitTargetMode: optional(formData, "profitTargetMode"), profitTargetValue: value(formData, "profitTargetValue"),
-    dailyLossMode: optional(formData, "dailyLossMode"), dailyLossValue: value(formData, "dailyLossValue"), dailyLossBaseline: optional(formData, "dailyLossBaseline"), dailyLossMeasure: optional(formData, "dailyLossMeasure"),
-    totalLossMode: optional(formData, "totalLossMode"), totalLossValue: value(formData, "totalLossValue"), totalLossBaseline: optional(formData, "totalLossBaseline"), totalLossMeasure: optional(formData, "totalLossMeasure"),
-    drawdownType: value(formData, "drawdownType"), consistencyFormula: optional(formData, "consistencyFormula"), consistencyLimitPercent: value(formData, "consistencyLimitPercent"),
-    minimumTradingDays: value(formData, "minimumTradingDays"), maximumTradingDays: value(formData, "maximumTradingDays"), tradingDayTimezone: value(formData, "tradingDayTimezone"),
-    profitableDayMinPnl: value(formData, "profitableDayMinPnl"), notes: optional(formData, "notes"),
-  });
-  if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const item = parsed.data;
-  const { error } = await supabase.from("prop_firm_configs").upsert({
-    user_id: userId, account_id: item.accountId, firm_name: item.firmName, model_name: item.modelName ?? null, phase_name: item.phaseName ?? null,
-    profit_target_mode: item.profitTargetMode ?? null, profit_target_value: item.profitTargetValue ?? null,
-    daily_loss_mode: item.dailyLossMode ?? null, daily_loss_value: item.dailyLossValue ?? null, daily_loss_baseline: item.dailyLossBaseline ?? null, daily_loss_measure: item.dailyLossMeasure ?? null,
-    total_loss_mode: item.totalLossMode ?? null, total_loss_value: item.totalLossValue ?? null, total_loss_baseline: item.totalLossBaseline ?? null, total_loss_measure: item.totalLossMeasure ?? null,
-    drawdown_type: item.drawdownType, consistency_formula: item.consistencyFormula ?? null, consistency_limit_percent: item.consistencyLimitPercent ?? null,
-    minimum_trading_days: item.minimumTradingDays ?? null, maximum_trading_days: item.maximumTradingDays ?? null,
-    trading_day_timezone: item.tradingDayTimezone, profitable_day_min_pnl: item.profitableDayMinPnl, notes: item.notes ?? null,
-  }, { onConflict: "account_id" });
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/prop");
-  finish(path, "message", "Prop rules saved.");
+export async function savePropConfig(formData:FormData):Promise<void> {
+  const path=pathFor(formData,"/prop");
+  const names={firmName:"firm_name",modelName:"model_name",phaseName:"phase_name",profitTargetMode:"profit_target_mode",profitTargetValue:"profit_target_value",
+    dailyLossMode:"daily_loss_mode",dailyLossValue:"daily_loss_value",dailyLossBaseline:"daily_loss_baseline",dailyLossMeasure:"daily_loss_measure",
+    totalLossMode:"total_loss_mode",totalLossValue:"total_loss_value",totalLossBaseline:"total_loss_baseline",totalLossMeasure:"total_loss_measure",
+    drawdownType:"drawdown_type",consistencyFormula:"consistency_formula",consistencyLimitPercent:"consistency_limit_percent",
+    minimumTradingDays:"minimum_trading_days",maximumTradingDays:"maximum_trading_days",tradingDayTimezone:"trading_day_timezone",profitableDayMinPnl:"profitable_day_min_pnl",notes:"notes"};
+  const values:Record<string,unknown>={};
+  for(const [name,field] of Object.entries(names)) {
+    const raw=value(formData,name);
+    values[field]=!raw?null:field==="minimum_trading_days"||field==="maximum_trading_days"?(/^\d+$/.test(raw)?Number(raw):raw):raw;
+  }
+  try {await writeProgress(await getVerifiedBrowserContext(await createClient()),"PROP_SAVE",{accountId:value(formData,"accountId"),
+    operationId:value(formData,"operationId"),expectedVersion:value(formData,"expectedVersion"),values});}
+  catch(error){finish(path,"error",failure(error));}
+  revalidatePath("/prop");finish(path,"message","Prop rules saved.");
 }
 
 export async function recordAccountSnapshot(formData: FormData): Promise<void> {
@@ -111,33 +69,47 @@ export async function recordAccountSnapshot(formData: FormData): Promise<void> {
   if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
   if (!parsed.data.equity && !parsed.data.unrealizedPnl) finish(path, "error", "Enter either equity or unrealized PnL.");
   try {await writeAccountEvent(await getVerifiedBrowserContext(await createClient()),"SNAPSHOT",{...parsed.data,
-    operationId:value(formData,"operationId"),capturedAt:new Date(parsed.data.capturedAt).toISOString()});}
+    operationId:value(formData,"operationId"),capturedAt:utcFormInstant(parsed.data.capturedAt)});}
   catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid snapshot. Equity must equal balance plus unrealized PnL.");}
   revalidatePath("/prop"); revalidatePath(`/accounts/${parsed.data.accountId}`);
   finish(path, "message", "Account snapshot recorded.");
 }
 
-export async function createGoal(formData: FormData): Promise<void> {
-  const path = pathFor(formData, "/goals");
-  const schema = z.object({ accountId: z.string().uuid(), title: z.string().trim().min(2).max(120), goalType: z.enum(GOAL_TYPES), targetValue: decimalStringSchema, targetDate: z.string().optional(), customUnit: z.string().trim().max(40).optional(), notes: z.string().trim().max(1000).optional() }).superRefine((item, context) => {
-    if (item.goalType === "CUSTOM" && !item.customUnit) context.addIssue({ code: "custom", path: ["customUnit"], message: "Custom goals require a unit." });
-  });
-  const parsed = schema.safeParse({ accountId: value(formData, "accountId"), title: value(formData, "title"), goalType: value(formData, "goalType"), targetValue: value(formData, "targetValue"), targetDate: optional(formData, "targetDate"), customUnit: optional(formData, "customUnit"), notes: optional(formData, "notes") });
-  if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
-  const userId = await requireUserId(); const supabase = await createClient(); const item = parsed.data;
-  const { error } = await supabase.from("account_goals").insert({ user_id: userId, account_id: item.accountId, title: item.title, goal_type: item.goalType, target_value: item.targetValue, target_date: item.targetDate ?? null, custom_unit: item.goalType === "CUSTOM" ? item.customUnit ?? null : null, notes: item.notes ?? null });
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/goals"); finish(path, "message", "Goal created.");
+export async function createGoal(formData:FormData):Promise<void> {
+  const path=pathFor(formData,"/goals");
+  try {await writeProgress(await getVerifiedBrowserContext(await createClient()),"GOAL_CREATE",{operationId:value(formData,"operationId"),
+    accountId:value(formData,"accountId"),values:{title:value(formData,"title"),goal_type:value(formData,"goalType"),
+      target_value:value(formData,"targetValue"),target_date:value(formData,"targetDate")||null,
+      custom_unit:value(formData,"goalType")==="CUSTOM"?value(formData,"customUnit")||null:null,notes:value(formData,"notes")||null,active:true}});}
+  catch(error){finish(path,"error",failure(error));}
+  revalidatePath("/goals");finish(path,"message","Goal created.");
 }
 
-export async function recordCustomGoalProgress(formData: FormData): Promise<void> {
-  const path = pathFor(formData, "/goals");
-  const parsed = z.object({ goalId: z.string().uuid(), progressValue: decimalStringSchema, recordedAt: z.string().min(1), notes: z.string().trim().max(1000).optional() }).safeParse({ goalId: value(formData, "goalId"), progressValue: value(formData, "progressValue"), recordedAt: value(formData, "recordedAt"), notes: optional(formData, "notes") });
-  if (!parsed.success) finish(path, "error", firstValidationError(parsed.error));
-  const userId = await requireUserId(); const supabase = await createClient();
-  const { error } = await supabase.from("account_goal_progress_events").insert({ user_id: userId, goal_id: parsed.data.goalId, progress_value: parsed.data.progressValue, recorded_at: new Date(parsed.data.recordedAt).toISOString(), notes: parsed.data.notes ?? null });
-  if (error) finish(path, "error", error.message);
-  revalidatePath("/goals"); finish(path, "message", "Custom progress recorded.");
+export async function patchGoal(formData:FormData):Promise<void> {
+  const path=pathFor(formData,"/goals");
+  try {await writeProgress(await getVerifiedBrowserContext(await createClient()),"GOAL_PATCH",{operationId:value(formData,"operationId"),
+    id:value(formData,"goalId"),expectedVersion:value(formData,"expectedVersion"),values:{title:value(formData,"title"),
+      target_value:value(formData,"targetValue"),target_date:value(formData,"targetDate")||null,notes:value(formData,"notes")||null,
+      active:formData.get("active")==="on"}});}
+  catch(error){finish(path,"error",failure(error));}
+  revalidatePath("/goals");finish(path,"message","Goal updated.");
+}
+
+export async function archiveGoal(formData:FormData):Promise<void> {
+  const path=pathFor(formData,"/goals");
+  try {await writeProgress(await getVerifiedBrowserContext(await createClient()),"GOAL_ARCHIVE",{operationId:value(formData,"operationId"),
+    id:value(formData,"goalId"),expectedVersion:value(formData,"expectedVersion"),reason:value(formData,"reason")});}
+  catch(error){finish(path,"error",failure(error));}
+  revalidatePath("/goals");finish(path,"message","Goal archived. Progress evidence is preserved.");
+}
+
+export async function recordCustomGoalProgress(formData:FormData):Promise<void> {
+  const path=pathFor(formData,"/goals");
+  try {await writeProgress(await getVerifiedBrowserContext(await createClient()),"GOAL_PROGRESS",{operationId:value(formData,"operationId"),
+    goalId:value(formData,"goalId"),expectedVersion:value(formData,"expectedVersion"),progressValue:value(formData,"progressValue"),
+    recordedAt:utcFormInstant(value(formData,"recordedAt")),notes:value(formData,"notes")||null});}
+  catch(error){finish(path,"error",failure(error));}
+  revalidatePath("/goals");finish(path,"message","Custom progress recorded.");
 }
 
 export async function transitionAccountStatus(formData: FormData): Promise<void> {
@@ -147,7 +119,7 @@ export async function transitionAccountStatus(formData: FormData): Promise<void>
   if (parsed.data.status === "FAILED" && !parsed.data.failureReason) finish(path, "error", "A failure reason is required.");
   try {await writeAccountEvent(await getVerifiedBrowserContext(await createClient()),"TRANSITION",{accountId:parsed.data.accountId,
     operationId:value(formData,"operationId"),expectedVersion:value(formData,"expectedVersion"),status:parsed.data.status,
-    effectiveAt:new Date(parsed.data.effectiveAt).toISOString(),failureReason:parsed.data.status==="FAILED"?parsed.data.failureReason:null,reason:parsed.data.notes});}
+    effectiveAt:utcFormInstant(parsed.data.effectiveAt),failureReason:parsed.data.status==="FAILED"?parsed.data.failureReason:null,reason:parsed.data.notes});}
   catch(error) {finish(path,"error",error instanceof ApplicationWorkflowError?error.message:"Invalid lifecycle change. A meaningful reason is required.");}
   revalidatePath("/prop"); revalidatePath("/accounts"); revalidatePath(`/accounts/${parsed.data.accountId}`);
   finish(path, "message", `Account marked ${parsed.data.status.toLowerCase()}.`);

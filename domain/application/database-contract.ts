@@ -7,6 +7,8 @@ export const APPLICATION_DATABASE_FUNCTIONS = [
   "private.application_trade_read(jsonb)", "private.application_trade_prepare(jsonb)",
   "private.application_trade_write(jsonb,jsonb)", "private.application_trade_references(jsonb)",
   "private.application_journal_read(jsonb)", "private.application_journal_write(jsonb)",
+  "private.application_progress_read(jsonb)", "private.application_progress_prepare(jsonb)",
+  "private.application_progress_write(jsonb,jsonb)", "private.application_progress_data(jsonb)",
 ] as const;
 export const APPLICATION_DATABASE_COLUMNS = [
   {table:"trading_accounts", column:"record_version"},
@@ -18,4 +20,6 @@ export const APPLICATION_DATABASE_COLUMNS = [
   {table:"daily_logs", column:"record_version"},
   {table:"weekly_reviews", column:"record_version"},
   {table:"monthly_reviews", column:"record_version"},
+  {table:"account_goals", column:"record_version"},
+  {table:"prop_firm_configs", column:"record_version"},
 ] as const;

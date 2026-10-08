@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { accountCreateSchema, accountGetSchema, accountListSchema, accountPatchSchema, accountRecordSchema,
-  accountResultSchema, accountWithBalance } from "@/domain/accounts/commands";
+  accountResultSchema, accountWithBalance,accountLedgerRecordsSchema } from "@/domain/accounts/commands";
 import { applicationTransaction, type ApplicationContext } from "@/services/application/transaction";
 
 const rawPage=z.object({records:z.array(accountRecordSchema),nextCursor:z.string().uuid().nullable()}).strict();
@@ -13,8 +13,7 @@ export async function getAccount(context:ApplicationContext,input:unknown) {
   return accountWithBalance(await applicationTransaction(context,"ACCOUNT_READ",accountGetSchema.parse(input)));
 }
 export async function getAccountLedgerRecords(context:ApplicationContext,input:unknown) {
-  return z.object({account:accountRecordSchema,trades:z.array(z.record(z.string(),z.unknown())),adjustments:z.array(z.record(z.string(),z.unknown())),
-    snapshots:z.array(z.record(z.string(),z.unknown())),classifications:z.array(z.record(z.string(),z.unknown())),instruments:z.array(z.object({id:z.string().uuid(),symbol:z.string()}))})
+  return accountLedgerRecordsSchema
     .parse(await applicationTransaction(context,"ACCOUNT_LEDGER",accountGetSchema.parse(input)));
 }
 /** Browser register exhausts bounded pages; MCP clients paginate explicitly. */

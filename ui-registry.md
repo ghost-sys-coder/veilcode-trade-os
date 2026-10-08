@@ -2,6 +2,21 @@
 
 Visual baseline for the Phase 01 workspace. New interface work should reuse these token-based patterns in both light and dark mode.
 
+### Audited goals and prop forms
+
+Files: `app/(app)/goals/page.tsx`, `app/(app)/prop/page.tsx`, `components/app/mutation-form.tsx`
+Last updated: 2026-10-08
+
+Preserve the existing substantial Card surfaces, `grid gap-4`, compact Label,
+token Inputs/Buttons and the one-line account/load toolbar in both themes.
+Goal edit/archive controls use native disclosures with `mt-5 border-t
+border-border/70 pt-4`; archival visibly preserves evidence. Drawdown goals show
+limit utilization and within/exceeded status, not achievement for increasing
+losses. R summaries show their qualifying sample; missing evidence stays
+unavailable. Hidden operation/version fields do not change layout. The shared
+native `fieldset.contents` guards hydration and pending writes while preserving
+the grid; journal reflections reuse it. Timestamp inputs explicitly say UTC.
+
 ### Journal reflection forms and unavailable account register
 
 Files: `app/(app)/journal/{daily,weekly,monthly}/page.tsx`, `app/(app)/accounts/page.tsx`

@@ -22,6 +22,11 @@ const connected:Client[]=[];
 const origin="http://127.0.0.1:3100", resource=`${origin}/mcp`, callback="http://127.0.0.1:9877/callback";
 function passed(message:string) {console.log(`PASS ${++checks}: ${message}`);}
 function content(result:Awaited<ReturnType<Client["callTool"]>>):Record<string,unknown> {
+  if(result.isError) {
+    const known=["VERSION_CONFLICT","OPERATION_CONFLICT","READ_UNAVAILABLE","SCHEMA_NOT_READY","ACCESS_DENIED","INVALID_REFERENCE","APPLICATION_WORKFLOW_UNAVAILABLE"];
+    const code=known.find(code=>result.content?.some(item=>item.type==="text" && item.text.startsWith(code)));
+    if(code)console.error(`Fixture tool error code: ${code}`);
+  }
   assert(!result.isError && result.structuredContent && typeof result.structuredContent==="object");
   return result.structuredContent as Record<string,unknown>;
 }
@@ -130,12 +135,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,30);assert.equal((await legacy.listTools()).tools.length,30);
+  assert.equal((await modern.listTools()).tools.length,40);assert.equal((await legacy.listTools()).tools.length,40);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 30 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 40 tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -175,14 +180,16 @@ try {
   stage="stable pagination";
   const ids:string[]=[];let afterId:string|undefined;
   do {
+    stage="strategy pagination: SDK response";
     const result=content(await modern.callTool({name:"tradeos_configuration_list",arguments:{entity:"STRATEGY",limit:1,...(afterId?{afterId}:{})}}));
-    const records=result.records as Array<{id:string;user_id:string}>;assert(records.every(item=>item.user_id===fixtureUser));
+    const records=result.records as Array<{id:string;user_id:string}>;stage="strategy pagination: owner";assert(records.every(item=>item.user_id===fixtureUser));
     ids.push(...records.map(item=>item.id));afterId=result.nextCursor as string|undefined;
-    assert(ids.length<=100);
+    stage="strategy pagination: bounded iteration";assert(ids.length<=100);
   } while(afterId);
+  stage="strategy pagination: unique IDs and created record";
   assert.equal(ids.length,new Set(ids).size);assert(ids.includes(strategy.id as string));
   const allIds=(await database.query("select id::text from public.strategies where user_id=$1 and archived_at is null order by id",[fixtureUser])).rows.map(row=>row.id);
-  assert.deepEqual(ids,allIds);
+  stage="strategy pagination: complete SQL comparison";assert.deepEqual(ids,allIds);
   passed("all stable pages contain only the owner and no duplicated/omitted strategy IDs");
 
   stage="account CRUD and financial fixtures";
@@ -309,6 +316,83 @@ try {
   assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1 and id=$2",[fixtureUser,canonical.id])).rows[0].count,1);
   passed("canonical retry, locked plan, actual management, partial closure, exact financials and immutable reviews work atomically");
 
+  stage="goals and prop SDK coverage";
+  const goalOperation=randomUUID();
+  const customInput={operationId:goalOperation,accountId:funded.id,values:{title:"MCP custom evidence",goal_type:"CUSTOM",target_value:"25.00000001",target_date:null,custom_unit:"hours",notes:null,active:true}};
+  const customCreation=await modern.callTool({name:"tradeos_goals_create",arguments:customInput});let custom=record(customCreation);
+  assert.equal(custom.target_value,"25.00000001");
+  assert.deepEqual(content(await legacy.callTool({name:"tradeos_goals_create",arguments:customInput})),content(customCreation));
+  assert.equal(content(await modern.callTool({name:"tradeos_goals_get",arguments:{id:custom.id}})).record_version,"1");
+  assert.equal((content(await modern.callTool({name:"tradeos_goals_list",arguments:{accountId:funded.id,limit:1}})).records as unknown[]).length,1);
+  const evidenceInput={operationId:randomUUID(),goalId:custom.id,expectedVersion:"1",progressValue:"5",recordedAt:"2026-10-08T05:00:00Z"};
+  const firstEvidence=await modern.callTool({name:"tradeos_goal_progress_record",arguments:evidenceInput});
+  assert.equal(content(firstEvidence).goalVersion,"2");
+  assert.deepEqual(content(await legacy.callTool({name:"tradeos_goal_progress_record",arguments:evidenceInput})),content(firstEvidence));
+  const staleGoal=await modern.callTool({name:"tradeos_goals_patch",arguments:{id:custom.id,operationId:randomUUID(),expectedVersion:"1",values:{title:"Stale"}}});
+  assert(staleGoal.isError && JSON.stringify(staleGoal.content).includes("VERSION_CONFLICT"));
+  custom=record(await modern.callTool({name:"tradeos_goals_patch",arguments:{id:custom.id,operationId:randomUUID(),expectedVersion:"2",values:{notes:"Explicit evidence"}}}));
+  assert.equal(custom.record_version,"3");assert.equal(custom.title,"MCP custom evidence");
+  passed("goals SDK create/read/list/patch, cross-client evidence retry and stale edits preserve exact targets and history");
+
+  const propInput={operationId:randomUUID(),accountId:funded.id,expectedVersion:"0",values:{firm_name:"MCP configured firm",drawdown_type:"STATIC",trading_day_timezone:"UTC",profitable_day_min_pnl:"0",profit_target_mode:"PERCENT",profit_target_value:"10"}};
+  const propCreation=await modern.callTool({name:"tradeos_prop_save",arguments:propInput});
+  assert.equal(record(propCreation).record_version,"1");
+  assert.deepEqual(content(await legacy.callTool({name:"tradeos_prop_save",arguments:propInput})),content(propCreation));
+  assert.equal((content(await modern.callTool({name:"tradeos_prop_get",arguments:{accountId:funded.id}})).record as Record<string,unknown>).firm_name,"MCP configured firm");
+  const progress=content(await modern.callTool({name:"tradeos_progress_get",arguments:{accountId:funded.id}}));
+  assert.equal(progress.netProfit,"10.00");assert.equal(progress.rSample,1);assert.equal(progress.closedTrades,1);
+  assert.equal((progress.profitTarget as Record<string,unknown>).percentage,"1.00");
+  assert.equal((progress.goals as Array<Record<string,unknown>>)[0].currentValue,"5");
+  passed("prop SDK save/get/retry and complete shared metrics reproduce closed profit10.00, R sample1 and target1.00%");
+
+  stage="browser goal progress and archive";
+  await page.goto(`${origin}/goals?account=${funded.id}`);
+  const evidenceForm=page.locator("form").filter({has:page.getByRole("button",{name:"Append progress event",exact:true})});
+  await evidenceForm.locator('fieldset[data-mutation-ready="true"]').waitFor();
+  await evidenceForm.locator('input[name="progressValue"]').fill("10");
+  await evidenceForm.getByLabel("Recorded at (UTC)",{exact:true}).fill("2026-10-08T06:00");
+  await evidenceForm.getByRole("button",{name:"Append progress event",exact:true}).click();
+  await page.getByText("Custom progress recorded.",{exact:true}).waitFor();
+  const afterEvidence=content(await modern.callTool({name:"tradeos_progress_get",arguments:{accountId:funded.id}}));
+  assert.equal((afterEvidence.goals as Array<Record<string,unknown>>)[0].currentValue,"10");
+  assert.equal((content(await modern.callTool({name:"tradeos_goal_progress_list",arguments:{goalId:custom.id,limit:100}})).records as unknown[]).length,2);
+  if(await page.locator("details").filter({has:page.getByText("Edit or archive goal",{exact:true})}).getAttribute("open")===null)await page.getByText("Edit or archive goal",{exact:true}).click();
+  const goalEdit=page.locator("form").filter({has:page.getByRole("button",{name:"Save goal changes",exact:true})});
+  await goalEdit.locator('fieldset[data-mutation-ready="true"]').waitFor();
+  await goalEdit.getByLabel("Goal title",{exact:true}).fill("Browser amended evidence");
+  await goalEdit.getByRole("button",{name:"Save goal changes",exact:true}).click();
+  await page.getByText("Goal updated.",{exact:true}).waitFor();
+  assert.equal(content(await modern.callTool({name:"tradeos_goals_get",arguments:{id:custom.id}})).title,"Browser amended evidence");
+  if(await page.locator("details").filter({has:page.getByText("Edit or archive goal",{exact:true})}).getAttribute("open")===null)await page.getByText("Edit or archive goal",{exact:true}).click();
+  const goalArchive=page.locator("form").filter({has:page.getByRole("button",{name:"Archive goal",exact:true})});
+  await goalArchive.locator('fieldset[data-mutation-ready="true"]').waitFor();
+  await goalArchive.getByLabel("Archive reason",{exact:true}).fill("Completed research milestone");
+  await goalArchive.getByRole("button",{name:"Archive goal",exact:true}).click();
+  await page.getByText("Goal archived. Progress evidence is preserved.",{exact:true}).waitFor();
+  assert(content(await modern.callTool({name:"tradeos_goals_get",arguments:{id:custom.id}})).archived_at);
+  assert.equal((content(await modern.callTool({name:"tradeos_goal_progress_list",arguments:{goalId:custom.id}})).records as unknown[]).length,2);
+  passed("browser custom evidence is a current value, not an increment; edit/archive preserve both observations");
+
+  stage="browser goal create and prop save";
+  const createGoalForm=page.locator("form").filter({has:page.getByRole("button",{name:"Create goal",exact:true})});
+  await createGoalForm.locator('fieldset[data-mutation-ready="true"]').waitFor();
+  await createGoalForm.getByLabel("Title",{exact:true}).fill("Browser research sample");
+  await createGoalForm.getByRole("combobox",{name:/^Goal type/}).click();
+  await page.getByRole("option",{name:"TOTAL TRADES",exact:true}).click();
+  await createGoalForm.getByLabel("Target value",{exact:true}).fill("100");
+  await createGoalForm.getByRole("button",{name:"Create goal",exact:true}).click();
+  await page.getByText("Goal created.",{exact:true}).waitFor();
+  assert((content(await modern.callTool({name:"tradeos_goals_list",arguments:{accountId:funded.id}})).records as Array<Record<string,unknown>>).some(item=>item.title==="Browser research sample"));
+  await page.goto(`${origin}/prop?account=${funded.id}`);
+  const propForm=page.locator("form").filter({has:page.getByRole("button",{name:"Save configured rules",exact:true})});
+  await propForm.locator('fieldset[data-mutation-ready="true"]').waitFor();
+  await propForm.getByLabel("Firm name",{exact:true}).fill("Browser explicit firm");
+  await propForm.getByRole("button",{name:"Save configured rules",exact:true}).click();
+  await page.getByText("Prop rules saved.",{exact:true}).waitFor();
+  const browserProp=content(await modern.callTool({name:"tradeos_prop_get",arguments:{accountId:funded.id}})).record as Record<string,unknown>;
+  assert.equal(browserProp.firm_name,"Browser explicit firm");assert.equal(browserProp.record_version,"2");
+  passed("browser goal create and prop edits use shared audit/version contracts without layout or hydration errors");
+
   stage="browser account event adapters";
   await page.goto(`${origin}/accounts/${account.id}`);
   const adjustmentForm=page.locator("form").filter({has:page.getByRole("button",{name:"Record adjustment",exact:true})});
@@ -320,6 +404,7 @@ try {
   await page.getByText("Account adjustment recorded.",{exact:true}).waitFor();
   await page.goto(`${origin}/prop?account=${challenge.id}`);
   const snapshotForm=page.locator("form").filter({has:page.getByRole("button",{name:"Record snapshot",exact:true})});
+  await snapshotForm.locator('fieldset[data-mutation-ready="true"]').waitFor();
   await snapshotForm.getByLabel("Equity",{exact:true}).fill("100010");
   await snapshotForm.getByRole("button",{name:"Record snapshot",exact:true}).click();
   await page.getByText("Account snapshot recorded.",{exact:true}).waitFor();
@@ -432,6 +517,7 @@ try {
       // data. Replica mode is transaction-local solely for immutable test cleanup.
       await database.query("begin");await database.query("set local session_replication_role=replica");
       await database.query("delete from private.application_mutation_audits where actor_user_id=$1",[fixtureUser]);
+      await database.query("delete from public.account_goal_progress_events where user_id=$1",[fixtureUser]);
       await database.query("delete from private.application_operations where owner_id=$1",[fixtureUser]);
       await database.query("delete from private.integration_grant_events where actor_user_id=$1",[fixtureUser]);
       await database.query("delete from private.integration_grants where owner_id=$1",[fixtureUser]);

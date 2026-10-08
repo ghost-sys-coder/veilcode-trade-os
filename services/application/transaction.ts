@@ -1,5 +1,6 @@
 import "server-only";
 import { Client } from "pg";
+import { ZodError } from "zod";
 import { IntegrationAuthorizationError } from "@/domain/integrations/actor";
 import { verifiedIntegrationClaims, type IntegrationContext } from "@/services/integrations/actor-context";
 import { verifiedBrowserClaims, type VerifiedBrowserContext } from "@/services/integrations/browser-context";
@@ -25,6 +26,9 @@ export class ApplicationWorkflowError extends Error {
 }
 
 const statements={
+  PROGRESS_READ:"select private.application_progress_read($1::jsonb) as result",
+  PROGRESS_DATA:"select private.application_progress_data($1::jsonb) as result",
+  PROGRESS_WRITE:"select private.application_progress_write($1::jsonb,$2::jsonb) as result",
   JOURNAL_READ:"select private.application_journal_read($1::jsonb) as result",
   JOURNAL_WRITE:"select private.application_journal_write($1::jsonb) as result",
   CONFIGURATION_READ:"select private.configuration_read($1::jsonb) as result",
@@ -38,7 +42,8 @@ const statements={
   TRADE_WRITE:"select private.application_trade_write($1::jsonb,$2::jsonb) as result",
   TRADE_REFERENCES:"select private.application_trade_references($1::jsonb) as result",
 } as const;
-const preparedStatements={ACCOUNT_EVENT_WRITE:"select private.application_account_event_prepare($1::jsonb) as result",
+const preparedStatements={PROGRESS_WRITE:"select private.application_progress_prepare($1::jsonb) as result",
+  ACCOUNT_EVENT_WRITE:"select private.application_account_event_prepare($1::jsonb) as result",
   TRADE_WRITE:"select private.application_trade_prepare($1::jsonb) as result"} as const;
 
 /** Fixed allowlist, verified runtime provenance, fresh database authorization. */
@@ -49,7 +54,10 @@ export async function applicationTransaction(context:ApplicationContext, workflo
   let database:Client|undefined;
   try {
     database=new Client({...publicationDatabaseConfig(process.env),application_name:"trade-os-application"});
-    await database.connect();await database.query("begin");
+    // Authorization takes a shared grant lock so revocation is serialized with
+    // each request. PostgreSQL forbids FOR SHARE in a READ ONLY transaction.
+    // Reads still execute only fixed SELECT workflows, with a consistent snapshot.
+    await database.connect();await database.query(workflow.endsWith("WRITE")?"begin":"begin isolation level repeatable read");
     await database.query("set local time zone 'UTC'");
     await database.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify(claims)]);
     let proposal:object|undefined;
@@ -65,7 +73,7 @@ export async function applicationTransaction(context:ApplicationContext, workflo
   } catch(error) {
     await database?.query("rollback").catch(()=>{});
     if(error instanceof ApplicationWorkflowError)throw error;
-    if(error instanceof RangeError)throw new ApplicationWorkflowError("INVALID_REFERENCE");
+    if(error instanceof RangeError || error instanceof ZodError)throw new ApplicationWorkflowError("INVALID_REFERENCE");
     const state=typeof error==="object" && error!==null && "code" in error ? String(error.code):"";
     const constraint=typeof error==="object" && error!==null && "constraint" in error ? String(error.constraint):"";
     const duplicateName=["strategies_owner_name_unique","setups_strategy_name_unique","trading_accounts_owner_name_unique"].includes(constraint);
@@ -75,7 +83,7 @@ export async function applicationTransaction(context:ApplicationContext, workflo
       :["42883","42P01","42703"].includes(state)?"SCHEMA_NOT_READY"
       :state==="40001"?"VERSION_CONFLICT":state==="23505"?(duplicateName?"DUPLICATE_NAME":"OPERATION_CONFLICT")
       :state==="P0002"?"NOT_FOUND":state==="42501"?"ACCESS_DENIED"
-      :state==="22003"?(workflow.startsWith("TRADE")?"NUMERIC_STORAGE_LIMIT":"MONEY_STORAGE_LIMIT")
+      :state==="22003"?(workflow.startsWith("TRADE")||workflow.startsWith("PROGRESS")?"NUMERIC_STORAGE_LIMIT":"MONEY_STORAGE_LIMIT")
       :["22023","23514","23503","23502","22P02","22007","22008"].includes(state)?"INVALID_REFERENCE":unavailable);
   } finally {await database?.end().catch(()=>{});}
 }
