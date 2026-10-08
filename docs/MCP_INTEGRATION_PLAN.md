@@ -9,8 +9,10 @@ workflows now use shared services. Persisted journal reflections and goal/prop
 commands plus exact shared account-progress metrics, owned tag/instrument
 workflows and audited trade-tag associations now join computed journal summaries,
 performance/behavior analytics, the realized calendar and full filtered CSV export,
-bringing coverage to 54 HTTP tools with snapshot-aware paginated balance-curve
-events. Permanent deletion remains pending. See
+bringing local coverage to 56 HTTP tools with snapshot-aware paginated balance-curve
+events and self-profile preferences. Profile hosted prerequisites are installed
+after explicit approval; deployment/client verification and permanent deletion
+remain pending. See [profile verification](MCP_PROFILE_VERIFICATION.md) and
 [curve verification](MCP_BALANCE_CURVE_VERIFICATION.md). The user-approved read-only reporting migration is
 installed on the hosted project; hosted prerequisites and the verified production
 build pass. Reporting source `e09ca3f` is pushed and its branch preview is READY;

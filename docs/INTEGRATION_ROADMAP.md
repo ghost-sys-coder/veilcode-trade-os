@@ -121,6 +121,25 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-09: after explicit user approval, installed the tested additive profile
+  migration on the correct hosted Trade OS project and aligned only its new
+  history entry to canonical version `20261008220311`. Existing profile fields,
+  accounts/trades/adjustments, grants/resources, MT5 facts/control and audits have
+  identical before/after hashes. Private-function access/version/RLS checks and
+  hosted `build:verified` (24 functions /14 bigint columns) pass. Prepared the
+  requested profile feature-branch push; no master merge, Production promotion,
+  real-user preference change or integration enablement. See
+  [profile rollout evidence](MCP_PROFILE_VERIFICATION.md).
+
+- 2026-10-09: at the user's request, committed/pushed the verified balance-curve
+  increment as `b8f13b7` on the existing MCP branch; its Git-created Vercel Preview
+  is READY. Continued with self-profile preferences, two typed HTTP tools (56
+  total), shared Settings adapters, exact optimistic versions and transactional
+  receipts/audits. The additive profile migration is installed only on disposable
+  local Supabase; hosted approval/release remains pending. No master merge,
+  Production promotion or hosted integration-control change by the agent. See
+  [profile verification](MCP_PROFILE_VERIFICATION.md).
+
 - 2026-10-09: fast-forwarded the existing MCP branch from the user's merged
   master `3a8bef2`. Added `tradeos_analytics_balance_curve` (54 HTTP tools),
   currency-separated bounded pages, fresh authorization and a full-series

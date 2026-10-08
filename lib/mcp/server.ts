@@ -5,6 +5,7 @@ import {analyticsReportSchema,journalReportSchema,calendarReportSchema,journalSu
 import {performanceResultSchema,behaviorResultSchema} from "@/domain/reporting/results";
 import {ReportingConsistencyError} from "@/domain/reporting/rows";
 import {balanceCurveSchema,balanceCurveResultSchema,BalanceCurveCursorError} from "@/domain/reporting/balance-curve";
+import {profileGetSchema,profilePatchSchema,profileRecordSchema,profileResultSchema} from "@/domain/profile/commands";
 import { referenceArchiveSchema,referenceCreateSchema,referencePatchSchema,referenceGetSchema,referenceListSchema,
   referencePageSchema,referenceRecordSchema,referenceResultSchema,tradeTagsListSchema,tradeTagCommandSchema,tradeTagResultSchema,type ReferenceAction } from "@/domain/references/commands";
 import { calculatePositionSize } from "@/domain/trading/position-sizing";
@@ -51,10 +52,11 @@ const referenceToolNames=["tradeos_references_list","tradeos_references_get","tr
   "tradeos_trade_tags_list","tradeos_trade_tags_assign","tradeos_trade_tags_remove"] as const;
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve"] as const;
+const profileToolNames=["tradeos_profile_get","tradeos_profile_patch"] as const;
 const catalog = {
-  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames], resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration/reference permanent deletion","screenshots upload/download","mt5","profile"],
-  status:"HTTP shared workflows include journals and computed summaries, performance/behavior analytics, snapshot-aware paginated balance curves, realized calendar and full filtered CSV exports. Screenshots, integration reads, profile, permanent deletion and local stdio remain pending.",
+  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames], resources:["catalog","domain","money","workflows","reporting"],
+  pendingFamilies:["configuration/reference permanent deletion","screenshots upload/download","mt5"],
+  status:"HTTP shared workflows include journals and computed summaries, performance/behavior analytics, snapshot-aware paginated balance curves, realized calendar, full filtered CSV exports and self-profile preferences. Screenshots, integration reads, permanent deletion and local stdio remain pending.",
 };
 const resources = {
   catalog,
@@ -74,6 +76,7 @@ const resources = {
     outcome:"Classify the normalized final net PnL only after complete closure. Positive wins, negative loses, exact zero BREAK_EVEN. Partial exits select partial labels only at final closure.",
     balance:"Starting balance + closed-trade net PnL + account adjustments. Equity snapshots are optional and do not replace this historical curve." },
   workflows:{ plannedValues:"Locked after OPEN. Recorded-value corrections require an append-only event and meaningful reason. Actual stop movement belongs to management history.",
+    profile:"Self-owned displayName (2–80 Unicode characters, null clears) and timezone only. Omitted patch fields are unchanged; timezone cannot be cleared and is canonicalized from a valid IANA name. Use profile.record_version as expectedVersion and a durable operationId. Timezone changes reporting grouping/bases, not stored trade instants, explicit report timezone or configured prop-firm timezone. No email/password/auth metadata or credential access.",
     reviews:"Placeholder rows and unanswered/null fields are not reviewed evidence. Completion must be explicit; historical rule applicability is immutable.",
     mutations:"Durable operation IDs, atomic request hashes/results/audits and optimistic concurrency are required.",
     deletion:"Referenced configuration archives. Permanent deletion requires exact-target/version one-use browser approval. Financial/audit/correction history cannot be deleted." },
@@ -92,6 +95,8 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  profileGet:(input:unknown)=>Promise<ReturnType<typeof profileRecordSchema.parse>>;
+  profilePatch:(input:unknown)=>Promise<ReturnType<typeof profileResultSchema.parse>>;
   balanceCurve:(input:unknown)=>Promise<ReturnType<typeof balanceCurveResultSchema.parse>>;
   journalSummary:(input:unknown)=>Promise<ReturnType<typeof journalSummaryResultSchema.parse>>;
   analyticsPerformance:(input:unknown)=>Promise<ReturnType<typeof performanceResultSchema.parse>>;
@@ -222,5 +227,7 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_calendar",{description:"Realized daily calendar for YYYY-MM, optionally scoped to one owned account. PnL uses final closed_at in the requested/profile timezone; no open-trade cash enters results. Monetary days are separated by currency. journalDays independently counts journal-date membership. Incomplete closed results are reported.",inputSchema:calendarReportSchema,outputSchema:calendarResultSchema,annotations:readOnly},async input=>guarded(()=>services.calendar(input)));
   server.registerTool("tradeos_journal_export",{description:"Export every canonical journal record matching the supplied active filters/search, not merely a pagination page. Date filters use journal date, not closed_at. CSV includes persisted identifiers/provenance, plan/execution money, fees/credits, outcome, R, tags and review state. Decimal evidence remains strings; free-text formula prefixes are escaped. No write occurs.",inputSchema:journalReportSchema,outputSchema:exportResultSchema,annotations:readOnly},async input=>guarded(()=>services.journalExport(input)));
   server.registerTool("tradeos_analytics_balance_curve",{description:"Page a realized account/portfolio balance curve for one required currencyCode. Only account/accountType/from/to ledger filters are accepted; never filter the balance by strategy/instrument. Maximum 100 points per page. All balances/drawdown use full history before paging; cash-neutral movements shift the high-water basis. closed_at places complete trades, not partial/open cash. Cumulative R has an explicit cumulativeRSample. Incomplete history withholds authoritative money; unclassified OTHER withholds drawdown. Reuse nextCursor with identical scope/timezone; CURVE_CHANGED requires restarting. Every continuation freshly authorizes access; no equity substitution or persistent server session.",inputSchema:balanceCurveSchema,outputSchema:balanceCurveResultSchema,annotations:readOnly},async input=>guarded(()=>services.balanceCurve(input)));
+  server.registerTool("tradeos_profile_get",{description:"Read the verified actor's own display name, journal timezone, timestamps and string record_version. No owner ID input, email, credentials or authentication metadata. Does not create a missing profile.",inputSchema:profileGetSchema,outputSchema:profileRecordSchema,annotations:readOnly},async input=>guarded(()=>services.profileGet(input)));
+  server.registerTool("tradeos_profile_patch",{description:"Patch only your own displayName (2–80 Unicode characters; null clears) and/or valid IANA timezone. Omitted fields stay unchanged; null timezone is invalid. Requires durable operationId and current expectedVersion. Preferences are updated atomically with receipt and before/after audit. Timezone controls default reporting dates, not stored instants, account currency or an explicit firm timezone. No auth/credential changes.",inputSchema:profilePatchSchema,outputSchema:profileResultSchema,annotations:mutation},async input=>guarded(()=>services.profilePatch(input)));
   return server;
 }

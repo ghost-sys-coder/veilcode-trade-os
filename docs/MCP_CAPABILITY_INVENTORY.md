@@ -1,13 +1,17 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-09: stateless HTTP, five contract resources and 54 tools are
+Updated 2026-10-09: stateless HTTP, five contract resources and 56 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries, performance/behavior analytics, the realized calendar
 and complete filtered CSV export now share validated, owner-scoped services.
 Snapshot-aware balance-curve paging now exposes bounded, currency-separated
 events with explicit R samples. See [curve verification](MCP_BALANCE_CURVE_VERIFICATION.md).
+Self-profile get/patch now shares audited/versioned services with the Settings
+form. Hosted profile prerequisites are installed and verified; authenticated
+deployment/client verification remains pending. See
+[profile verification](MCP_PROFILE_VERIFICATION.md).
 Account adjustments/classification, snapshots/lifecycle, canonical
 trades/targets/management/corrections/reviews and read-only trade instruments now
 join account metadata/balances and strategy/setup/rule workflows. Browser actions
@@ -83,7 +87,7 @@ database and protocol evidence before entering the catalog.
 | screenshots.list/upload_request/upload_finish/download/delete | screenshot-uploader; screenshot metadata | screenshotMetadataSchema; private storage ownership | Bounded content/type/size, controlled object IDs, deletion confirmation |
 | integrations.mt5.list/get/preview/review | onboarding, review, symbol-mapping, cash-onboarding services | Existing MT5 domain and private workflows | MCP actor path without browser impersonation; original grant boundaries |
 | integrations.imports.list/get | getImportOverview | imports/provenance; CSV mapping/staging | User/account isolation, errors and unresolved rows exposed honestly |
-| settings.profile.get/patch | saveProfileSettings | profileSettingsSchema | Display name/timezone only; no credentials or auth administration |
+| settings.profile.get/patch (implemented; hosted prerequisites installed) | saveProfileSettings; application/profile | profile/commands; private profile workflows | Self only, display name/timezone only; omitted/null, exact versions, atomic audit/retry, stale browser edits and revocation; no auth administration |
 | operations.get | getIntegrationOperation | Existing operation receipt authorization | Exact operation/purpose/owner binding; unknown retry guidance |
 
 Existing read services accept a browser-authenticated Supabase client. Add verified

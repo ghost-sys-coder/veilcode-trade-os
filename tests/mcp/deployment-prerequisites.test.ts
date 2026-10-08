@@ -15,6 +15,9 @@ describe("shared-workflow deployment guard",()=>{
     expect(APPLICATION_DATABASE_FUNCTIONS).toContain("private.application_reference_write(jsonb)");
     expect(APPLICATION_DATABASE_FUNCTIONS).toContain("private.application_trade_tag_write(jsonb)");
     expect(APPLICATION_DATABASE_FUNCTIONS).toContain("private.application_reporting_data(jsonb)");
+    expect(APPLICATION_DATABASE_FUNCTIONS).toContain("private.application_profile_read(jsonb)");
+    expect(APPLICATION_DATABASE_FUNCTIONS).toContain("private.application_profile_write(jsonb)");
+    expect(APPLICATION_DATABASE_COLUMNS).toContainEqual({table:"profiles",column:"record_version"});
     expect(APPLICATION_DATABASE_COLUMNS).toContainEqual({table:"tags",column:"record_version"});
     expect(APPLICATION_DATABASE_COLUMNS).toContainEqual({table:"instruments",column:"record_version"});
     expect(APPLICATION_DATABASE_COLUMNS).toContainEqual({table:"daily_logs",column:"record_version"});

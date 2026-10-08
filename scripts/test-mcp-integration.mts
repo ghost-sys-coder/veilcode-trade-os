@@ -135,12 +135,57 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,54);assert.equal((await legacy.listTools()).tools.length,54);
+  assert.equal((await modern.listTools()).tools.length,56);assert.equal((await legacy.listTools()).tools.length,56);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 54 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 56 tools and verifies 5.00-lot fixture");
+
+  stage="self-profile audited SDK/browser preferences";
+  const originalProfile=content(await modern.callTool({name:"tradeos_profile_get",arguments:{}}));
+  assert.equal(originalProfile.id,fixtureUser);assert.equal(originalProfile.record_version,"1");
+  assert(!Object.hasOwn(originalProfile,"email")&&!Object.hasOwn(originalProfile,"raw_user_meta_data"));
+  const profileInput={operationId:randomUUID(),expectedVersion:originalProfile.record_version,values:{displayName:"MCP Profile Fixture"}};
+  stage="profile concurrent SDK retry";
+  const profileRacers=await Promise.all([modern,legacy].map(instance=>instance.callTool({name:"tradeos_profile_patch",arguments:profileInput})));
+  assert.deepEqual(content(profileRacers[0]),content(profileRacers[1]));let profile=record(profileRacers[0]);
+  assert.equal(profile.record_version,"2");assert.equal(profile.timezone,originalProfile.timezone);
+  assert.equal((await database.query("select count(*)::integer as n from private.application_operations where owner_id=$1 and operation_id=$2",[fixtureUser,profileInput.operationId])).rows[0].n,1);
+  assert.equal(content(await modern.callTool({name:"tradeos_operation_status",arguments:{operationId:profileInput.operationId}})).status,"COMMITTED");
+  stage="profile rejects caller-supplied identity";
+  const badProfileScope=await modern.callTool({name:"tradeos_profile_get",arguments:{id:randomUUID()}});assert(badProfileScope.isError);
+  const profileConflict=await legacy.callTool({name:"tradeos_profile_patch",arguments:{...profileInput,values:{displayName:"Changed retry"}}});
+  assert(profileConflict.isError&&JSON.stringify(profileConflict.content).includes("OPERATION_CONFLICT"));
+  passed("profile SDK reads self only; concurrent identical retries have one receipt/audit and changed-payload retry is rejected");
+
+  const profileEdits=await Promise.all([modern,legacy].map((instance,index)=>instance.callTool({name:"tradeos_profile_patch",arguments:{operationId:randomUUID(),expectedVersion:profile.record_version,values:{displayName:`Profile race ${index}`}}})));
+  assert.equal(profileEdits.filter(result=>!result.isError).length,1);
+  assert(profileEdits.filter(result=>result.isError).every(result=>JSON.stringify(result.content).includes("VERSION_CONFLICT")));
+  profile=content(await modern.callTool({name:"tradeos_profile_get",arguments:{}}));
+  assert.equal(profile.record_version,"3");
+  await page.goto(`${origin}/settings`);
+  assert.equal(await page.locator('input[name="expectedVersion"]').inputValue(),"3");
+  assert.equal(await page.getByLabel("Display name",{exact:true}).inputValue(),profile.display_name);
+  const beforeProfileAudit=(await database.query("select count(*)::integer as n from private.application_mutation_audits where actor_user_id=$1 and actor_type='BROWSER'",[fixtureUser])).rows[0].n;
+  await page.getByLabel("Display name",{exact:true}).fill("Browser Profile Fixture");await page.getByLabel("Journal timezone",{exact:true}).fill("europe/london");
+  await page.getByRole("button",{name:"Save settings",exact:true}).click();await page.getByText("Workspace settings updated.",{exact:true}).waitFor();
+  profile=content(await modern.callTool({name:"tradeos_profile_get",arguments:{}}));
+  assert.equal(profile.display_name,"Browser Profile Fixture");assert.equal(profile.timezone,"Europe/London");assert.equal(profile.record_version,"4");
+  assert.equal(profile.created_at,originalProfile.created_at);
+  assert.equal((await database.query("select count(*)::integer as n from private.application_mutation_audits where actor_user_id=$1 and actor_type='BROWSER'",[fixtureUser])).rows[0].n,beforeProfileAudit+1);
+  passed("simultaneous profile edits have one winner; real browser preferences use the same versioned audited service and canonical timezone");
+
+  await page.getByLabel("Display name",{exact:true}).fill("Must not overwrite concurrent change");
+  profile=record(await modern.callTool({name:"tradeos_profile_patch",arguments:{operationId:randomUUID(),expectedVersion:profile.record_version,values:{displayName:null}}}));
+  assert.equal(profile.display_name,null);assert.equal(profile.timezone,"Europe/London");
+  await page.getByRole("button",{name:"Save settings",exact:true}).click();await page.getByRole("alert").filter({hasText:"This record changed"}).waitFor();
+  assert.equal(content(await modern.callTool({name:"tradeos_profile_get",arguments:{}})).display_name,null);
+  profile=record(await modern.callTool({name:"tradeos_profile_patch",arguments:{operationId:randomUUID(),expectedVersion:profile.record_version,values:{displayName:originalProfile.display_name,timezone:originalProfile.timezone}}}));
+  assert.equal(profile.timezone,originalProfile.timezone);
+  const forbiddenAuth=await modern.callTool({name:"tradeos_profile_patch",arguments:{operationId:randomUUID(),expectedVersion:profile.record_version,values:{email:"not-an-auth-workflow@example.test"}}});assert(forbiddenAuth.isError);
+  const authIdentity=await browser.auth.getUser();assert(!authIdentity.error&&authIdentity.data.user?.email===email);
+  passed("stale browser form cannot overwrite MCP preferences; null clears only name, auth identity is unchanged and default timezone is restored");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -243,7 +288,7 @@ try {
   await createForm.getByLabel("Strategy name",{exact:true}).fill("Browser shared service");
   await createForm.getByRole("button",{name:"Create strategy",exact:true}).click();
   await page.getByText("Strategy created.",{exact:true}).waitFor();
-  assert.equal((await database.query("select count(*)::integer as count from private.application_mutation_audits where actor_user_id=$1 and actor_type='BROWSER'",[fixtureUser])).rows[0].count,1);
+  assert.equal((await database.query("select count(*)::integer as count from private.application_mutation_audits a join private.application_operations o on o.id=a.operation_receipt_id where a.actor_user_id=$1 and a.actor_type='BROWSER' and o.operation_kind='CONFIGURATION_CREATE'",[fixtureUser])).rows[0].count,1);
   passed("normal browser creation uses the shared audited writer; stale browser edits cannot overwrite MCP changes");
 
   stage="browser account concurrency and shared service";
@@ -657,6 +702,8 @@ try {
   const revoked=await browser.rpc("revoke_integration_grant",{p_grant_id:grant.id,p_expected_version:grant.version});assert(!revoked.error);
   await assert.rejects(modern.listTools());
   await assert.rejects(modern.callTool({name:"tradeos_analytics_balance_curve",arguments:curveNextRequest}));
+  await assert.rejects(modern.callTool({name:"tradeos_profile_get",arguments:{}}));
+  await assert.rejects(modern.callTool({name:"tradeos_profile_patch",arguments:profileInput}));
   const refreshDenied=await fetch(`${issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
     body:new URLSearchParams({grant_type:"refresh_token",client_id:fixtureClient!,refresh_token:tokens.refresh_token,resource}),signal:AbortSignal.timeout(10000)});
   assert(!refreshDenied.ok);
@@ -664,7 +711,8 @@ try {
   passed("server kill switch and grant revocation stop real SDK calls and refresh; no uncaught browser errors");
   console.log(`Local MCP gate: ${checks} checks passed. Real external clients and hosted rollout remain pending.`);
 } catch(error) {
-  console.error(JSON.stringify({stage,failure:error instanceof Error?error.name:"UnknownError"}));
+  const fixtureFrame=error instanceof Error?error.stack?.match(/test-mcp-integration\.mts:\d+:\d+/)?.[0]:undefined;
+  console.error(JSON.stringify({stage,failure:error instanceof Error?error.name:"UnknownError",fixtureFrame}));
   console.error("Local MCP gate failed; provider responses, codes and credentials suppressed.");process.exitCode=1;
 } finally {
   await Promise.all(connected.map(client=>client.close().catch(()=>{})));await ui?.close();
