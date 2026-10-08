@@ -7,7 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountForm } from "@/features/accounts/account-form";
 import { createClient } from "@/lib/supabase/server";
-import { getAccountsWithDerivedBalances } from "@/services/accounts/get-account-balances";
+import { listBrowserAccounts } from "@/services/application/accounts";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { ApplicationWorkflowError } from "@/services/application/transaction";
+import type { ApplicationAccount } from "@/domain/accounts/commands";
 
 interface AccountsPageProps {
   searchParams: Promise<{ error?: string; message?: string }>;
@@ -16,8 +19,10 @@ interface AccountsPageProps {
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const status = await searchParams;
   const supabase = await createClient();
-  const { data, error } = await supabase.from("trading_accounts").select("*").order("created_at");
-  const accounts = data ? await getAccountsWithDerivedBalances(supabase, data) : [];
+  let accounts:ApplicationAccount[]=[];
+  let error:string|null=null;
+  try {accounts=await listBrowserAccounts(await getVerifiedBrowserContext(supabase));}
+  catch(cause) {error=cause instanceof ApplicationWorkflowError?cause.message:"Unable to load accounts. Check your session and reload.";}
   const activeAccounts = accounts.filter((account) => account.status === "ACTIVE").length;
 
   return (
@@ -36,7 +41,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
 
       {status.error || error ? (
         <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
-          {status.error ?? error?.message}
+          {status.error ?? error}
         </p>
       ) : null}
       {status.message ? <p className="rounded-lg border border-profit/25 bg-profit/10 p-4 text-sm text-profit">{status.message}</p> : null}

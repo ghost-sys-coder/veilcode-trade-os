@@ -643,6 +643,8 @@ export type Database = {
           active: boolean
           created_at: string
           updated_at: string
+          record_version: number
+          archived_at: string | null
         }
         Insert: {
           id?: string
@@ -653,6 +655,8 @@ export type Database = {
           active?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Update: {
           id?: string
@@ -663,6 +667,8 @@ export type Database = {
           active?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Relationships: []
       }
@@ -676,6 +682,8 @@ export type Database = {
           is_example: boolean
           created_at: string
           updated_at: string
+          record_version: number
+          archived_at: string | null
         }
         Insert: {
           id?: string
@@ -686,6 +694,8 @@ export type Database = {
           is_example?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Update: {
           id?: string
@@ -696,6 +706,8 @@ export type Database = {
           is_example?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Relationships: []
       }
@@ -1395,6 +1407,7 @@ export type Database = {
           created_at: string
           updated_at: string
           previous_account_id: string | null
+          record_version: number
         }
         Insert: {
           id?: string
@@ -1413,6 +1426,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           previous_account_id?: string | null
+          record_version?: number
         }
         Update: {
           id?: string
@@ -1431,6 +1445,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           previous_account_id?: string | null
+          record_version?: number
         }
         Relationships: []
       }
@@ -1447,6 +1462,8 @@ export type Database = {
           is_example: boolean
           created_at: string
           updated_at: string
+          record_version: number
+          archived_at: string | null
         }
         Insert: {
           id?: string
@@ -1460,6 +1477,8 @@ export type Database = {
           is_example?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Update: {
           id?: string
@@ -1473,6 +1492,8 @@ export type Database = {
           is_example?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Relationships: []
       }

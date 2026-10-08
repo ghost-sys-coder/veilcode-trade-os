@@ -1,11 +1,18 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Status: stateless HTTP foundation implemented on the MCP branch after the focused
-MT5 capture check passed. Hosted MCP remains disabled. Implemented tools are
-`tradeos_capabilities`, `tradeos_position_size` and `tradeos_operation_status`.
-The five contract resources are implemented. All remaining tool families below
-remain pending; local stdio and real-client verification are pending.
+Updated 2026-10-08: stateless HTTP, five contract resources and twelve tools are
+implemented. In addition to capabilities, position sizing and operation status,
+`tradeos_configuration_list/get/create/patch/archive` cover STRATEGY, SETUP and
+RULE. `tradeos_accounts_list/get/create/patch` cover metadata and exact derived
+balance access. Browser account/strategy/setup/rule actions use the same services.
+Account adjustments/snapshots/lifecycle and other families remain pending. See
+[account verification](MCP_ACCOUNTS_VERIFICATION.md).
+Browser strategy/setup/rule actions use the same typed services and
+private transaction. Real local OAuth/browser/HTTP verification passes. Hosted
+MCP stays disabled; permanent deletion, other families, local stdio and real
+external-client verification remain pending. See
+[configuration verification](MCP_CONFIGURATION_VERIFICATION.md).
 
 ## Shared service boundary
 
@@ -24,9 +31,11 @@ Lists need stable bounded pagination; export exhausts all matching pages.
 
 ## Workflow mapping
 
-Names below are proposed tool families, not claims of implementation. Each row
-requires service, schema, authorization, database and protocol tests before it
-becomes available in the catalog.
+Names below describe capability families. Strategy/setup/rule list/get/create/
+patch/archive are implemented through the configuration tools; their permanent
+deletion actions are not exposed yet. Other rows remain proposed unless named
+as implemented above. Every new operation needs service, schema, authorization,
+database and protocol evidence before entering the catalog.
 
 | Tool family / operations | Existing adapter or read service | Validation / domain authority | Required evidence |
 | --- | --- | --- | --- |

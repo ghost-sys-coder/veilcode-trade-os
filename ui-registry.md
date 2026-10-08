@@ -22,6 +22,18 @@ Last updated: 2026-09-23
 
 **Pattern notes:** Use warm porcelain surfaces in light mode and navy-charcoal surfaces in dark mode. Amber denotes focus and active navigation; teal and coral are reserved for profit and loss semantics.
 
+### Configuration forms: concurrency and archival
+
+Files: `features/strategies/strategy-form.tsx`, `features/strategies/setup-form.tsx`, `features/rules/trading-rule-form.tsx`
+Last updated: 2026-10-08
+
+Existing `space-y-4` forms, `space-y-2` field groups, token-based inputs and
+`rounded-lg border border-border/70 bg-muted/35 p-4` active-state panels remain
+unchanged. Hidden operation IDs and expected versions do not alter the layout.
+Archived records use the shared disabled button styling and an explicit
+"Archived strategy/setup/rule" label. Archived parents are not offered for new
+setups; existing historical parent labels remain visible. No new visual tokens.
+
 ### Card
 
 File: `components/ui/card.tsx`
@@ -99,6 +111,11 @@ Last updated: 2026-09-23
 **Pattern notes:** Status labels are compact, uppercase, and squared enough to feel operational rather than promotional.
 
 ### Data form
+
+Account form update (2026-10-08): hidden operation/version fields preserve the
+existing layout. The optional baseline/date correction reason uses the same
+`space-y-2` field group, shared Input/Label, and `text-xs text-muted-foreground`
+help text. Existing grid spacing, card surface and primary button are unchanged.
 
 Files: `features/accounts/account-form.tsx`, `features/strategies/strategy-form.tsx`, `features/rules/trading-rule-form.tsx`
 Last updated: 2026-09-23

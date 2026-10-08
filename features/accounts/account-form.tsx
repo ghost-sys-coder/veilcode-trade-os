@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { saveAccount } from "@/features/accounts/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ACCOUNT_PLATFORMS, ACCOUNT_STATUSES, ACCOUNT_TYPES } from "@/types/domain";
-import type { TradingAccountRow } from "@/types/database-helpers";
+import type { ApplicationAccount } from "@/domain/accounts/commands";
 
 interface AccountFormProps {
-  account?: TradingAccountRow;
+  account?: ApplicationAccount;
 }
 
 const accountTypeItems = ACCOUNT_TYPES.map((value) => ({
@@ -17,11 +18,13 @@ const accountTypeItems = ACCOUNT_TYPES.map((value) => ({
 }));
 
 const platformItems = ACCOUNT_PLATFORMS.map((value) => ({ label: value, value }));
-const statusItems = ACCOUNT_STATUSES.map((value) => ({ label: value, value }));
+const statusItems = ACCOUNT_STATUSES.filter(value=>value!=="FAILED").map((value) => ({ label: value, value }));
 
 export function AccountForm({ account }: AccountFormProps) {
   return (
     <form action={saveAccount} className="grid gap-5 sm:grid-cols-2">
+      <input type="hidden" name="operationId" value={randomUUID()} />
+      {account ? <input type="hidden" name="expectedVersion" value={account.record_version} /> : null}
       {account ? <input type="hidden" name="id" value={account.id} /> : null}
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor={`name-${account?.id ?? "new"}`}>Account name</Label>
@@ -54,7 +57,7 @@ export function AccountForm({ account }: AccountFormProps) {
         <Label>Initial status</Label>
         <Select name="status" defaultValue="ACTIVE" items={statusItems}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>{ACCOUNT_STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+          <SelectContent>{statusItems.map(({value}) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">Later changes use the audited lifecycle workflow on Prop progress.</p>
       </div>}
@@ -85,6 +88,11 @@ export function AccountForm({ account }: AccountFormProps) {
         <Label htmlFor={`notes-${account?.id ?? "new"}`}>Notes</Label>
         <Textarea id={`notes-${account?.id ?? "new"}`} name="notes" defaultValue={account?.notes ?? ""} placeholder="Optional account context" />
       </div>
+      {account ? <div className="space-y-2 sm:col-span-2">
+        <Label htmlFor={`baseline-reason-${account.id}`}>Reason for baseline or date correction</Label>
+        <Input id={`baseline-reason-${account.id}`} name="correctionReason" minLength={5} maxLength={1000} placeholder="Required only when correcting the starting balance or started date" />
+        <p className="text-xs text-muted-foreground">Corrections preserve before/after audit evidence. Currency changes after financial history and mapped-account financial changes require reconciliation.</p>
+      </div> : null}
       <div className="border-t border-border/70 pt-5 sm:col-span-2">
         <Button type="submit" className="w-full sm:w-auto">{account ? "Save account" : "Create account"}</Button>
       </div>
