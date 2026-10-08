@@ -121,6 +121,16 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 
 ## Progress log
 
+- 2026-10-09: fast-forwarded the existing MCP branch from the user's merged
+  master `3a8bef2`. Added `tradeos_analytics_balance_curve` (54 HTTP tools),
+  currency-separated bounded pages, fresh authorization and a full-series
+  content fingerprint that rejects stale continuation. Shared curve fixes
+  preserve local civil-date openings, microsecond event order and per-account
+  adjustment precision, and exclude future account funding from earlier periods.
+  No new migration, deployment or integration-control changes. Verification
+  evidence and remaining client/capability gates are recorded in
+  [curve verification](MCP_BALANCE_CURVE_VERIFICATION.md).
+
 - 2026-10-09: after user approval, added only the verified pooler host/port and
   public CA to `feature/mcp-access` Preview; production settings/credentials
   remained unchanged. Rebuilt pushed reporting commit `e09ca3f` to READY and

@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 
 import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
+import { calendarDateStartUtc, canonicalUtcInstant } from "@/domain/journal/timezone";
 import type {
   AccountType,
   TradeDirection,
@@ -121,6 +122,7 @@ export interface AccountCurvePoint {
   balance: string;
   cumulativePnl: string;
   cumulativeR: string | null;
+  cumulativeRSample: number;
   drawdownAmount: string | null;
   drawdownPercentage: string | null;
 }
@@ -449,6 +451,7 @@ export function holdingDurationDimension(
 
 export function buildAccountCurve(input: {
   account: AnalyticsAccount;
+  timezone?: string;
   trades: readonly Pick<AnalyticsTrade,"id"|"status"|"closedAt"|"netPnl"|"actualR"|"instrument">[];
   adjustments: readonly AnalyticsAdjustment[];
 }): DrawdownResult {
@@ -461,7 +464,7 @@ export function buildAccountCurve(input: {
   const events = [
     ...trades.map((trade) => ({
       id: trade.id,
-      occurredAt: trade.closedAt,
+      occurredAt: canonicalUtcInstant(trade.closedAt),
       kind: "TRADE" as const,
       label: `${trade.instrument} closed`,
       amount: trade.netPnl,
@@ -470,7 +473,7 @@ export function buildAccountCurve(input: {
     })),
     ...input.adjustments.map((adjustment) => ({
       id: adjustment.id,
-      occurredAt: adjustment.occurredAt,
+      occurredAt: canonicalUtcInstant(adjustment.occurredAt),
       kind: "ADJUSTMENT" as const,
       label: adjustment.type.replaceAll("_", " ").toLowerCase(),
       amount: adjustment.amount,
@@ -490,12 +493,14 @@ export function buildAccountCurve(input: {
   let maximumDrawdownPercentage: string | null = highWaterMark.gt(0) ? "0.00" : null;
   const points: AccountCurvePoint[] = [{
     id: `start-${account.id}`,
-    occurredAt: account.startedAt,
+    occurredAt: canonicalUtcInstant(/^\d{4}-\d{2}-\d{2}$/.test(account.startedAt)
+      ? calendarDateStartUtc(account.startedAt, input.timezone ?? "UTC") : account.startedAt),
     kind: "START",
     label: "Starting balance",
     balance: normalizeMoney(balance, account.currencyPrecision),
     cumulativePnl: normalizeMoney(cumulativePnl, account.currencyPrecision),
     cumulativeR: null,
+    cumulativeRSample: 0,
     drawdownAmount: drawdownAvailable ? normalizeMoney("0", account.currencyPrecision) : null,
     drawdownPercentage: drawdownAvailable && highWaterMark.gt(0) ? "0.00" : null,
   }];
@@ -533,6 +538,7 @@ export function buildAccountCurve(input: {
       balance: normalizeMoney(balance, account.currencyPrecision),
       cumulativePnl: normalizeMoney(cumulativePnl, account.currencyPrecision),
       cumulativeR: rSample ? cumulativeR.toFixed(8) : null,
+      cumulativeRSample: rSample,
       drawdownAmount: drawdownAvailable
         ? normalizeMoney(drawdown, account.currencyPrecision)
         : null,
