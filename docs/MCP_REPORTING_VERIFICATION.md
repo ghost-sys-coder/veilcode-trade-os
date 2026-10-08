@@ -5,7 +5,9 @@ Baseline: merged master `425b1a5` (PR #17), fast-forwarded without a new branch.
 This report covers the local reporting increment, not full MCP readiness.
 The initial report preceded source publication. The implementation is now pushed
 as `e09ca3f` and deployed to the READY branch preview described in the follow-up
-below. Authenticated reporting checks pass; production release remains pending.
+below. Authenticated preview reporting checks pass. The user independently
+merged PR #18; the resulting production deployment is READY. A separate
+authenticated production-browser run has not been claimed.
 The user-approved read-only hosted migration is installed and verified.
 The user's untracked reference screenshot
 is preserved and excluded from implementation changes.
@@ -161,7 +163,8 @@ or fake user session was created in production.
 existing strict TLS configuration. The prerequisite gate still rejects future
 code/schema mismatches. Source publication and the branch-preview deployment are
 complete. Authenticated preview reporting verification passes; production release
-remains pending. A local build was not counted as a deployment. Collector controls,
+was independently performed by the user's PR #18 merge. A local build was not
+counted as a deployment. Collector controls,
 credentials and publication policy are unchanged.
 
 Hosted security advisors show no new notices. The existing 23 private-table
@@ -177,7 +180,9 @@ System integrity: PASS for shared services, explicit actor ownership, precision,
 audit/review preservation and existing UI patterns.
 Production readiness: local checks and hosted prerequisite/security validation
 PASS; source publication and the branch-preview build are complete.
-Authenticated preview verification passes; production release remains pending.
+Authenticated preview verification passes. The user's master merge has a READY
+production deployment; the functional browser evidence in this report is from
+the identical application code in Preview, not a separate Production session.
 Do not label the reporting increment released to the production site.
 
 Pending capability families: paginated balance-curve events, browser-confirmed
@@ -259,3 +264,13 @@ and MT5-connection hashes exactly match the pre-check and earlier hosted baselin
 There is still no enabled hosted MCP resource. Verification reads existing data only;
 it does not submit trade/reflection forms, controls or new consent. The user
 screenshot is unchanged and private helpers remain in ignored `.artifacts`.
+
+After the evidence-only follow-up `ee95a81` was pushed, read-only remote inspection
+found the user's independent PR #18 merge at
+`02565eba459dd1d4ad2a6c200e2e536bf66485e2`. Its production deployment
+`dpl_4jqis5kJUiaeFwCwhkQLBxeJetVP` is READY, and inspecting
+`tradeos.veilcode.studio` confirms that domain resolves to this deployment.
+The agent did not merge, promote or change Production settings. The
+documentation-only `ee95a81` preview also reached READY; it changes no application
+code from the verified `e09ca3f` build. Full MCP activation/client readiness
+remains pending regardless of either deployment's build status.

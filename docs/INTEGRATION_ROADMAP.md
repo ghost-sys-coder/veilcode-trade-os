@@ -128,8 +128,10 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   The mapped account's current label is USD100K FTMO ACCOUNT; immutable-ID lookup
   verified twenty closed trades, USD2032.53 profit and USD102032.53 balance.
   Complete CSV, journal/calendar and behavior reads pass. Before/after financial,
-  grant and connection hashes are identical. MCP remains disabled; master merge,
-  production release and remaining MCP capabilities remain pending. See
+  grant and connection hashes are identical. Read-only inspection found the
+  user's independent PR #18 merge at master `02565eb` serving the production
+  domain with a READY build. The agent did not merge/promote Production.
+  MCP remains disabled; remaining capabilities/client gates are pending. See
   [reporting evidence](MCP_REPORTING_VERIFICATION.md).
 
 - 2026-10-08: verified the user's merged master at `425b1a5` and fast-forwarded
