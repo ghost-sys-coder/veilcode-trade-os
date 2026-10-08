@@ -126,8 +126,9 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
   history entry to canonical version `20261008220311`. Existing profile fields,
   accounts/trades/adjustments, grants/resources, MT5 facts/control and audits have
   identical before/after hashes. Private-function access/version/RLS checks and
-  hosted `build:verified` (24 functions /14 bigint columns) pass. Prepared the
-  requested profile feature-branch push; no master merge, Production promotion,
+  hosted `build:verified` (24 functions /14 bigint columns) pass. Pushed profile
+  source `e241586` on the requested feature branch; exact-commit Vercel inspection
+  confirms its Preview deployment is READY. No master merge, Production promotion,
   real-user preference change or integration enablement. See
   [profile rollout evidence](MCP_PROFILE_VERIFICATION.md).
 

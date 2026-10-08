@@ -11,8 +11,9 @@ workflows and audited trade-tag associations now join computed journal summaries
 performance/behavior analytics, the realized calendar and full filtered CSV export,
 bringing local coverage to 56 HTTP tools with snapshot-aware paginated balance-curve
 events and self-profile preferences. Profile hosted prerequisites are installed
-after explicit approval; deployment/client verification and permanent deletion
-remain pending. See [profile verification](MCP_PROFILE_VERIFICATION.md) and
+after explicit approval, and pushed profile source `e241586` has a READY Preview
+build. Authenticated hosted/client verification and permanent deletion remain
+pending. See [profile verification](MCP_PROFILE_VERIFICATION.md) and
 [curve verification](MCP_BALANCE_CURVE_VERIFICATION.md). The user-approved read-only reporting migration is
 installed on the hosted project; hosted prerequisites and the verified production
 build pass. Reporting source `e09ca3f` is pushed and its branch preview is READY;
