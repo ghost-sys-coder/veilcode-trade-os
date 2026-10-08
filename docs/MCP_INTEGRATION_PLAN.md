@@ -5,7 +5,11 @@ focused demo check passed; stateless HTTP and the strategy/setup/rule shared
 list/get/create/patch/archive workflows and account list/get/create/patch with
 exact balance access are implemented. Account adjustments/classification,
 snapshots/lifecycle and canonical trade/target/management/correction/review
-workflows now use shared services. Persisted daily/weekly/monthly reflections add get/list/save tools with the same audited browser writers, for 30 HTTP tools; computed journal summaries remain pending. See [journal and accounts repair verification](MCP_JOURNALS_AND_ACCOUNTS_REPAIR.md). See
+workflows now use shared services. Persisted journal reflections and goal/prop
+commands plus exact shared account-progress metrics bring coverage to 40 HTTP
+tools; computed journal summaries remain pending. See
+[goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md) and
+[journal and accounts repair verification](MCP_JOURNALS_AND_ACCOUNTS_REPAIR.md). See
 [the workflow report](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md). The real local MCP
 OAuth/consent/refresh/revocation gate passes. Remaining application workflows,
 permanent deletion, local stdio, external-client verification and hosted

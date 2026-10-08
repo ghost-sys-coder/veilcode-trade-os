@@ -1,14 +1,16 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and 30 tools are
-implemented. Persisted daily/weekly/monthly journal reflection get/list/save now share audited services with the browser. Computed journal summaries remain pending. Account adjustments/classification, snapshots/lifecycle, canonical
+Updated 2026-10-08: stateless HTTP, five contract resources and 40 tools are
+implemented. Goals, custom evidence, prop configuration and exact account progress
+now share services with the browser, alongside daily/weekly/monthly reflections.
+Computed journal summaries remain pending. Account adjustments/classification, snapshots/lifecycle, canonical
 trades/targets/management/corrections/reviews and read-only trade instruments now
 join account metadata/balances and strategy/setup/rule workflows. Browser actions
 use the same typed services and private transactions. See
 [account-event and trade verification](MCP_ACCOUNT_EVENTS_TRADES_VERIFICATION.md).
 
-Hosted MCP stays disabled. Goals, prop configuration, computed journal summaries, analytics/exports,
+Hosted MCP stays disabled. Computed journal summaries, analytics/exports,
 tags, remaining instrument CRUD, screenshots/file access, MT5/import reads,
 profile settings, permanent deletion, local stdio and external clients remain
 pending. The completed workflow family is not full MCP readiness.
@@ -47,9 +49,9 @@ database and protocol evidence before entering the catalog.
 | rules.list/get/create/patch/archive/delete | rules saveTradingRule | tradingRuleSchema | Historical review snapshots never change |
 | instruments.list/get/create/patch/archive/delete | reference instruments; trade-form references | Instrument ownership and specifications | Keep global references read-only; explicit user-owned instruments |
 | tags.list/create/patch/delete/assign/remove | journal saveTag/assignTag/removeTag | tagSchema; normalized DB uniqueness | Case-insensitive per-owner uniqueness and trade ownership |
-| goals.list/get/create/patch/archive/delete | progress createGoal; getProgressDataset | Goal schema and progress/metrics | Referenced progress preserved; automatic/custom distinctions |
-| goals.progress.list/record | progress recordCustomGoalProgress | Existing append-only goal-progress RPC | Automatic goals reject manual progress; exact decimal values |
-| prop.get/patch/progress | progress savePropConfig; getProgressDataset | Prop schema and progress/metrics | Trading-day zone, account eligibility, cash-neutral drawdown |
+| goals.list/get/create/patch/archive (implemented; permanent delete pending) | progress createGoal/patchGoal/archiveGoal; application/progress | progress/commands and private progress workflows | Ownership, retries, optimistic versions, preserve referenced evidence |
+| goals.progress.list/record (implemented) | progress recordCustomGoalProgress; application/progress | Append-only private workflow; decimal/UTC schemas | Automatic goals reject manual evidence; latest current value, not summed increments |
+| prop.get/save/progress (implemented) | progress savePropConfig; application/progress | progress/commands, progress/dataset, private exact loader | Account eligibility; complete optional groups; cash-free profit, cash-neutral analytics drawdown; unsupported firm mechanics unavailable |
 | trades.list/get/create/patch | saveManualTrade; getManualTradeRecord; getTradeJournalDataset | tradeSchema; financials; lifecycle/protected-plan RPCs | Canonical identity, ownership, open-plan locks, no broker-fact overwrite |
 | trades.open/close/cancel | Lifecycle work inside saveManualTrade | Canonical lifecycle and normalized finalized money | Closed-at attribution, no early realized PnL, terminal-state guards |
 | trades.targets.replace/record_execution | Target workflows inside saveManualTrade | tradeTargetSchema; atomic target RPCs | Planned targets protected after open; actual management distinct |
@@ -78,10 +80,20 @@ access to make these old services work. Preserve each domain algorithm while
 separating the data loader from deterministic calculations.
 
 Some requested CRUD operations do not have an existing UI adapter (for example
-instrument editing, goal editing and configuration deletion). Implement explicit
+instrument editing and configuration deletion). Implement explicit
 domain workflows and archive policy for these; do not claim a wrapper exists.
 
 ## Resources and workflow guidance
+
+The ten goal/prop tools are `tradeos_goals_get/list/create/patch/archive`,
+`tradeos_goal_progress_list/record`, `tradeos_prop_get/save` and
+`tradeos_progress_get` (each slash-delimited name denotes separate tools).
+Progress uses a typed output schema, a repeatable-read snapshot and complete
+account history, without the old Data API row cap. R samples and incomplete
+closed results are explicit. Small positive days below a firm threshold are
+not break-even. Loss-rule handling of cash movements is not inferred from
+generic account analytics: buffers remain unavailable until that firm policy
+is modeled. See [goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md).
 
 - `tradeos://v1/catalog`: versioned capabilities, implemented status and schemas.
 - `tradeos://v1/domain`: relationships, canonical identifiers and enumerations.

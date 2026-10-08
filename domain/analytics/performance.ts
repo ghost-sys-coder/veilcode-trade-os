@@ -452,11 +452,11 @@ export function holdingDurationDimension(
 
 export function buildAccountCurve(input: {
   account: AnalyticsAccount;
-  trades: readonly AnalyticsTrade[];
+  trades: readonly Pick<AnalyticsTrade,"id"|"status"|"closedAt"|"netPnl"|"actualR"|"instrument">[];
   adjustments: readonly AnalyticsAdjustment[];
 }): DrawdownResult {
   const { account } = input;
-  const trades = input.trades.filter(isQualifyingClosedTrade);
+  const trades = input.trades.filter((trade):trade is typeof trade & {closedAt:string;netPnl:string}=>trade.status==="CLOSED" && trade.closedAt!==null && trade.netPnl!==null);
   const unclassifiedAdjustmentCount = input.adjustments.filter(
     (adjustment) => adjustment.type === "OTHER" && adjustment.isPerformanceNeutral === null,
   ).length;

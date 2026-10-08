@@ -28,6 +28,8 @@ export const accountRecordSchema=z.object({id:z.string().uuid(),user_id:z.string
   unclassified_other_count:z.string().regex(/^\d+$/),
 }).strict();
 export const accountWithBalanceSchema=accountRecordSchema.extend({derived_balance:numeric});
+export const accountLedgerRecordsSchema=z.object({account:accountRecordSchema,trades:z.array(z.record(z.string(),z.unknown())),adjustments:z.array(z.record(z.string(),z.unknown())),
+  snapshots:z.array(z.record(z.string(),z.unknown())),classifications:z.array(z.record(z.string(),z.unknown())),instruments:z.array(z.object({id:z.string().uuid(),symbol:z.string()}))});
 export type ApplicationAccount=z.infer<typeof accountWithBalanceSchema>;
 export const accountPageSchema=z.object({records:z.array(accountWithBalanceSchema),nextCursor:z.string().uuid().nullable()}).strict();
 export const accountResultSchema=z.object({action:z.enum(["CREATE","PATCH"]),record:accountWithBalanceSchema}).strict();

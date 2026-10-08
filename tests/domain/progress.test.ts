@@ -77,7 +77,16 @@ describe("Phase 06 progress calculations", () => {
       { id: "2", status: "CLOSED", openedAt: "2026-01-02T00:30:00Z", closedAt: "2026-01-03T02:00:00Z", netPnl: "-50" },
       { id: "3", status: "OPEN", openedAt: "2026-01-04T12:00:00Z", closedAt: null, netPnl: null },
     ], "UTC", "0");
-    expect(result).toEqual({ tradingDays: 3, profitableDays: 0, losingDays: 0, breakEvenDays: 1 });
+    expect(result).toEqual({ tradingDays: 3, profitableDays: 0, losingDays: 0, breakEvenDays: 1, belowThresholdPositiveDays: 0 });
+  });
+
+  it("does not label a small positive day below the firm threshold as break-even", () => {
+    expect(summarizeTradingDays([
+      {id:"1",status:"CLOSED",openedAt:"2026-01-01T00:00:00Z",closedAt:"2026-01-01T12:00:00Z",netPnl:"0.01"},
+      {id:"2",status:"CLOSED",openedAt:"2026-01-02T00:00:00Z",closedAt:"2026-01-02T12:00:00Z",netPnl:"-0.01"},
+      {id:"3",status:"CLOSED",openedAt:"2026-01-03T00:00:00Z",closedAt:"2026-01-03T12:00:00Z",netPnl:"0"},
+      {id:"4",status:"PLANNED",openedAt:"2026-01-04T00:00:00Z",closedAt:null,netPnl:null},
+    ],"UTC","10")).toEqual({tradingDays:3,profitableDays:0,losingDays:1,breakEvenDays:1,belowThresholdPositiveDays:1});
   });
 
   it("caps goal completion while retaining decimal precision", () => {
