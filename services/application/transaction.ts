@@ -26,6 +26,7 @@ export class ApplicationWorkflowError extends Error {
 }
 
 const statements={
+  REPORTING_DATA:"select private.application_reporting_data($1::jsonb) as result",
   REFERENCE_READ:"select private.application_reference_read($1::jsonb) as result",
   REFERENCE_WRITE:"select private.application_reference_write($1::jsonb) as result",
   TRADE_TAG_WRITE:"select private.application_trade_tag_write($1::jsonb) as result",

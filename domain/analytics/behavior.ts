@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 
 import { calculatePerformanceMetrics, isQualifyingClosedTrade, type AnalyticsTrade, type ProfitFactor, type RuleComplianceState } from "@/domain/analytics/performance";
-import { parseDecimal } from "@/domain/money/decimal";
+import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
 import type { StopAction, TradeEmotion, TradeGrade } from "@/types/domain";
 
 export interface ExecutionEvidence {
@@ -169,8 +169,9 @@ export function summarizeBehavioralCohort(trades: readonly BehavioralTrade[]): B
     rExpectancy: averageR,
     rSample: rValues.length,
     currencies: [...byCurrency.entries()].map(([currencyCode, currencyTrades]) => {
-      const precision = currencyTrades[0]?.currencyPrecision ?? 2;
-      const metrics = calculatePerformanceMetrics(currencyTrades, precision);
+      const precision = Math.max(...currencyTrades.map(trade=>trade.currencyPrecision));
+      const metrics = calculatePerformanceMetrics(currencyTrades.map(trade=>({...trade,
+        netPnl:trade.netPnl===null?null:normalizeMoney(trade.netPnl,trade.currencyPrecision)})), precision);
       return { currencyCode, currencyPrecision: precision, trades: metrics.closedTrades, netPnl: metrics.netProfit, profitFactor: metrics.profitFactor };
     }).toSorted((left, right) => left.currencyCode.localeCompare(right.currencyCode)),
   };
@@ -196,7 +197,7 @@ function comparison(
   label: string,
   description: string,
   eligible: readonly BehavioralTrade[],
-  predicate: (trade: BehavioralTrade) => boolean,
+  predicate: (trade: BehavioralTrade) => boolean | null,
   withLabel = `With ${label.toLowerCase()}`,
   withoutLabel = `Without ${label.toLowerCase()}`,
 ): BehavioralComparison {
@@ -204,13 +205,13 @@ function comparison(
     key,
     label,
     description,
-    withBehavior: { key: `${key}-yes`, label: withLabel, metrics: summarizeBehavioralCohort(eligible.filter(predicate)) },
-    withoutBehavior: { key: `${key}-no`, label: withoutLabel, metrics: summarizeBehavioralCohort(eligible.filter((trade) => !predicate(trade))) },
+    withBehavior: { key: `${key}-yes`, label: withLabel, metrics: summarizeBehavioralCohort(eligible.filter(trade=>predicate(trade)===true)) },
+    withoutBehavior: { key: `${key}-no`, label: withoutLabel, metrics: summarizeBehavioralCohort(eligible.filter(trade=>predicate(trade)===false)) },
   };
 }
 
 function ruleComplianceState(trade: BehavioralTrade): RuleComplianceState {
-  if (!trade.ruleReview) return "NOT_REVIEWED";
+  if (!trade.ruleReview?.reviewedAt || trade.ruleReview.items.length!==trade.ruleReview.applicableRuleCount || new Set(trade.ruleReview.items.map(i=>i.ruleId)).size!==trade.ruleReview.applicableRuleCount) return "NOT_REVIEWED";
   return trade.ruleReview.items.some((item) => !item.complied) ? "VIOLATIONS_PRESENT" : "FULLY_COMPLIANT";
 }
 
@@ -218,31 +219,31 @@ export function calculateBehavioralAnalytics(input: readonly BehavioralTrade[]):
   const trades = input.filter(isQualifyingClosedTrade);
   const execution = trades.filter((trade) => trade.execution?.reviewedAt);
   const psychology = trades.filter((trade) => trade.psychology?.reviewedAt);
-  const rules = trades.filter((trade) => trade.ruleReview !== null);
+  const rules = trades.filter((trade) => ruleComplianceState(trade)!=="NOT_REVIEWED");
 
   const executionComparisons: BehavioralComparison[] = [
-    comparison("entry-plan", "Entry according to plan", "Observed results for reviewed trades with and without planned entry execution.", execution, (trade) => trade.execution?.entryAccordingToPlan === true, "Entry followed", "Entry not followed"),
-    comparison("stop-plan", "Stop according to plan", "Observed results for reviewed trades with and without planned initial stop placement.", execution, (trade) => trade.execution?.stopAccordingToPlan === true, "Stop followed", "Stop not followed"),
-    comparison("target-plan", "Target according to plan", "Observed results for reviewed trades with and without planned target selection.", execution, (trade) => trade.execution?.targetAccordingToPlan === true, "Target followed", "Target not followed"),
+    comparison("entry-plan", "Entry according to plan", "Observed results for reviewed trades with and without planned entry execution.", execution, (trade) => (trade.execution?.entryAccordingToPlan ?? null), "Entry followed", "Entry not followed"),
+    comparison("stop-plan", "Stop according to plan", "Observed results for reviewed trades with and without planned initial stop placement.", execution, (trade) => (trade.execution?.stopAccordingToPlan ?? null), "Stop followed", "Stop not followed"),
+    comparison("target-plan", "Target according to plan", "Observed results for reviewed trades with and without planned target selection.", execution, (trade) => (trade.execution?.targetAccordingToPlan ?? null), "Target followed", "Target not followed"),
   ];
 
-  const behaviorDefinitions: Array<[string, string, string, (trade: BehavioralTrade) => boolean]> = [
-    ["entered-early", "Early entry", "Entered before the required confirmation.", (trade) => trade.execution?.enteredEarly === true],
-    ["entered-late", "Late entry", "Entered after the intended opportunity moved away.", (trade) => trade.execution?.enteredLate === true],
-    ["chased-price", "Chased price", "Entered mainly from fear of missing the move.", (trade) => trade.execution?.chasedPrice === true],
-    ["closed-early", "Early exit", "Exited before target or invalidation for discretionary reasons.", (trade) => trade.execution?.closedEarly === true],
-    ["over-risked", "Over-risked", "Risk exceeded the planned or permitted amount.", (trade) => trade.execution?.overRisked === true],
-    ["revenge-trade", "Revenge trade", "Trade was influenced by an urge to recover a previous loss.", (trade) => trade.execution?.revengeTrade === true],
-    ["added-position", "Added to position", "Position size was increased after the initial entry.", (trade) => trade.execution?.addedToPosition === true],
-    ["stop-widened", "Stop widened", "The stop was moved farther from invalidation during management.", (trade) => trade.execution?.stopAction === "WIDENED"],
+  const behaviorDefinitions: Array<[string, string, string, (trade: BehavioralTrade) => boolean | null]> = [
+    ["entered-early", "Early entry", "Entered before the required confirmation.", (trade) => (trade.execution?.enteredEarly ?? null)],
+    ["entered-late", "Late entry", "Entered after the intended opportunity moved away.", (trade) => (trade.execution?.enteredLate ?? null)],
+    ["chased-price", "Chased price", "Entered mainly from fear of missing the move.", (trade) => (trade.execution?.chasedPrice ?? null)],
+    ["closed-early", "Early exit", "Exited before target or invalidation for discretionary reasons.", (trade) => (trade.execution?.closedEarly ?? null)],
+    ["over-risked", "Over-risked", "Risk exceeded the planned or permitted amount.", (trade) => (trade.execution?.overRisked ?? null)],
+    ["revenge-trade", "Revenge trade", "Trade was influenced by an urge to recover a previous loss.", (trade) => (trade.execution?.revengeTrade ?? null)],
+    ["added-position", "Added to position", "Position size was increased after the initial entry.", (trade) => (trade.execution?.addedToPosition ?? null)],
+    ["stop-widened", "Stop widened", "The stop was moved farther from invalidation during management.", (trade) => trade.execution?.stopAction===null || trade.execution?.stopAction===undefined ? null : trade.execution.stopAction === "WIDENED"],
   ];
   executionComparisons.push(...behaviorDefinitions.map(([key, label, description, predicate]) => comparison(key, label, description, execution, predicate)));
 
   const psychologyComparisons: BehavioralComparison[] = [
-    comparison("fomo", "FOMO influence", "Descriptive association among completed psychology reviews.", psychology, (trade) => trade.psychology?.fomoInfluenced === true, "FOMO: yes", "FOMO: no"),
-    comparison("fear", "Fear influence", "Descriptive association among completed psychology reviews.", psychology, (trade) => trade.psychology?.fearInfluenced === true, "Fear: yes", "Fear: no"),
-    comparison("greed", "Greed influence", "Descriptive association among completed psychology reviews.", psychology, (trade) => trade.psychology?.greedInfluenced === true, "Greed: yes", "Greed: no"),
-    comparison("revenge-trade", "Revenge trade", "Descriptive association among completed execution reviews.", execution, (trade) => trade.execution?.revengeTrade === true, "Revenge flag: yes", "Revenge flag: no"),
+    comparison("fomo", "FOMO influence", "Descriptive association among completed psychology reviews.", psychology, (trade) => (trade.psychology?.fomoInfluenced ?? null), "FOMO: yes", "FOMO: no"),
+    comparison("fear", "Fear influence", "Descriptive association among completed psychology reviews.", psychology, (trade) => (trade.psychology?.fearInfluenced ?? null), "Fear: yes", "Fear: no"),
+    comparison("greed", "Greed influence", "Descriptive association among completed psychology reviews.", psychology, (trade) => (trade.psychology?.greedInfluenced ?? null), "Greed: yes", "Greed: no"),
+    comparison("revenge-trade", "Revenge trade", "Descriptive association among completed execution reviews.", execution, (trade) => (trade.execution?.revengeTrade ?? null), "Revenge flag: yes", "Revenge flag: no"),
   ];
 
   const ruleStateGroups = groupBy(rules, (trade) => {
@@ -289,14 +290,14 @@ export function calculateBehavioralAnalytics(input: readonly BehavioralTrade[]):
 
   const mistakes: MistakeStatistic[] = behaviorDefinitions.map(([key, label, description, predicate]) => {
     const result = comparison(key, label, description, execution, predicate);
-    return { ...result, count: result.withBehavior.metrics.trades, eligibleReviewedTrades: execution.length, reviewedShare: percentage(result.withBehavior.metrics.trades, execution.length) };
+    return { ...result, count: result.withBehavior.metrics.trades, eligibleReviewedTrades: result.withBehavior.metrics.trades+result.withoutBehavior.metrics.trades, reviewedShare: percentage(result.withBehavior.metrics.trades, result.withBehavior.metrics.trades+result.withoutBehavior.metrics.trades) };
   });
   for (const [key, label, description, eligible, predicate] of [
-    ["fomo", "FOMO", "Observed association among completed psychology reviews.", psychology, (trade: BehavioralTrade) => trade.psychology?.fomoInfluenced === true],
+    ["fomo", "FOMO", "Observed association among completed psychology reviews.", psychology, (trade: BehavioralTrade) => (trade.psychology?.fomoInfluenced ?? null)],
     ["rule-violation", "Rule violation", "Observed association among completed rule reviews.", rules, (trade: BehavioralTrade) => ruleComplianceState(trade) === "VIOLATIONS_PRESENT"],
   ] as const) {
     const result = comparison(key, label, description, eligible, predicate);
-    mistakes.push({ ...result, count: result.withBehavior.metrics.trades, eligibleReviewedTrades: eligible.length, reviewedShare: percentage(result.withBehavior.metrics.trades, eligible.length) });
+    mistakes.push({ ...result, count: result.withBehavior.metrics.trades, eligibleReviewedTrades: result.withBehavior.metrics.trades+result.withoutBehavior.metrics.trades, reviewedShare: percentage(result.withBehavior.metrics.trades, result.withBehavior.metrics.trades+result.withoutBehavior.metrics.trades) });
   }
 
   return {

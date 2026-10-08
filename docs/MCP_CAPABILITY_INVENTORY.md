@@ -1,10 +1,12 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and 48 tools are
+Updated 2026-10-08: stateless HTTP, five contract resources and 53 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
-Computed journal summaries remain pending. Account adjustments/classification, snapshots/lifecycle, canonical
+Computed journal summaries, performance/behavior analytics, the realized calendar
+and complete filtered CSV export now share validated, owner-scoped services.
+Account adjustments/classification, snapshots/lifecycle, canonical
 trades/targets/management/corrections/reviews and read-only trade instruments now
 join account metadata/balances and strategy/setup/rule workflows. Browser actions
 use the same typed services and private transactions. See
@@ -15,9 +17,12 @@ now share audited, versioned services with browser tag forms. Global instruments
 remain read-only, and referenced specifications are protected. See
 [reference verification](MCP_REFERENCES_VERIFICATION.md).
 
-Hosted MCP stays disabled. Computed journal summaries, analytics/exports,
-reference permanent deletion, screenshots/file access, MT5/import reads,
-profile settings, permanent deletion, local stdio and external clients remain
+See [reporting verification](MCP_REPORTING_VERIFICATION.md) for date boundaries,
+review qualification, exact monetary fixtures and complete export evidence.
+
+Hosted MCP stays disabled. Paginated balance-curve events,
+reference/configuration permanent deletion, screenshots/file access, MT5/import reads,
+profile settings, local stdio and external clients remain
 pending. The completed workflow family is not full MCP readiness.
 
 ## Shared service boundary
@@ -66,12 +71,12 @@ database and protocol evidence before entering the catalog.
 | trades.reviews.psychology.save/complete | saveManualTrade psychology section | psychologyReviewSchema; review RPC | Reviewed false differs from unanswered |
 | trades.reviews.rules.complete/history | saveManualTrade rule section | tradeRuleResultSchema; immutable applicable-rule RPC | Exact applicable IDs/snapshots, completeness and violations |
 | trades.reviews.post_trade.save | saveManualTrade review section | tradeReviewSchema | Five canonical grades retained; account/trade ownership |
-| journal.daily.get/save | daily page; saveDailyLog | dailyLogSchema; journalDate | opened_at then planned_at then created_at; no closed_at substitution |
-| journal.weekly.get/save | weekly page; saveWeeklyReview | weeklyReviewSchema; journal/periods | Explicit account, week and owner; deterministic summaries |
-| journal.monthly.get/save | monthly page; saveMonthlyReview | monthlyReviewSchema; journal/periods | Explicit account/month; preserved persisted review fields |
-| analytics.performance/query/calendar | getPerformanceAnalytics; getTradeJournalDataset; calendar page | analytics/performance; journal/analytics | Closed-only results, R sample sizes, mixed-currency monetary separation |
-| analytics.behavior/query | getBehaviorAnalytics | analytics/behavior | Reviewed cohorts only, descriptive associations and sample sizes |
-| journal.export | trades/export route; matchesJournalFilters | CSV escaping and canonical fields | Same filter semantics; all matching records, CSV formula safety |
+| journal.daily.get/save/summary (implemented) | daily page; saveDailyLog; application/reporting | dailyLogSchema; journalDate; reporting/commands | Decision-date membership is separate from closed-at realized summary; exact account-period balances |
+| journal.weekly.get/save/summary (implemented) | weekly page; saveWeeklyReview; application/reporting | weeklyReviewSchema; journal/periods; reporting/commands | Monday start, explicit owner/account and qualifying R/review samples |
+| journal.monthly.get/save/summary (implemented) | monthly page; saveMonthlyReview; application/reporting | monthlyReviewSchema; journal/periods; reporting/commands | Day-one start, persisted reflection unchanged by read-only summary |
+| analytics.performance/query/calendar (implemented; event-curve pagination pending) | getPerformanceAnalytics; getTradeJournalDataset; application/reporting | analytics/performance; reporting/commands/results | Closed-only results, full ledger independent of trading dimensions, cash-neutral drawdown, currency separation and incomplete-data states |
+| analytics.behavior/query (implemented) | getBehaviorAnalytics; application/reporting | analytics/behavior; reporting/evidence/results | Explicitly reviewed cohorts, exact immutable rule IDs, unanswered exclusion and descriptive sample-qualified associations |
+| journal.export (implemented) | trades/export route; application/reporting; reporting/export | Shared matchesJournalFilters, CSV escaping and canonical fields | Same active filters; all matching records beyond 1,000, string broker IDs and formula-safe free text |
 | calculator.position_size | Public calculator component | trading/position-sizing; instrument specifications | Verified figures, precision/volume steps, anonymous calculator preserved |
 | screenshots.list/upload_request/upload_finish/download/delete | screenshot-uploader; screenshot metadata | screenshotMetadataSchema; private storage ownership | Bounded content/type/size, controlled object IDs, deletion confirmation |
 | integrations.mt5.list/get/preview/review | onboarding, review, symbol-mapping, cash-onboarding services | Existing MT5 domain and private workflows | MCP actor path without browser impersonation; original grant boundaries |
@@ -89,6 +94,15 @@ instrument editing and configuration deletion). Implement explicit
 domain workflows and archive policy for these; do not claim a wrapper exists.
 
 ## Resources and workflow guidance
+
+The five read-only reporting tools are `tradeos_journal_summary`,
+`tradeos_analytics_performance`, `tradeos_analytics_behavior`, `tradeos_calendar`
+and `tradeos_journal_export`. All load one repeatable-read snapshot through a
+fixed private function after fresh actor/grant validation. Inputs cannot supply
+owner IDs, SQL or arbitrary table names. Account selection scopes financial
+facts while retaining all owned account choices for browser filter controls.
+Analytics omit event-curve points; a bounded cursor-based curve tool remains
+pending. CSV exhausts the filtered dataset, not a visible page.
 
 Reference tools are `tradeos_references_list/get/create/patch/archive`, with
 `entity: TAG | INSTRUMENT`, plus `tradeos_trade_tags_list/assign/remove`.
