@@ -383,6 +383,11 @@ try {
   await createGoalForm.getByRole("button",{name:"Create goal",exact:true}).click();
   await page.getByText("Goal created.",{exact:true}).waitFor();
   assert((content(await modern.callTool({name:"tradeos_goals_list",arguments:{accountId:funded.id}})).records as Array<Record<string,unknown>>).some(item=>item.title==="Browser research sample"));
+  const moneyGoal=record(await modern.callTool({name:"tradeos_goals_create",arguments:{operationId:randomUUID(),accountId:funded.id,values:{title:"Currency display fixture",goal_type:"ACCOUNT_BALANCE",target_value:"10001.005",target_date:null,custom_unit:null,notes:null,active:true}}}));
+  assert.equal(moneyGoal.target_value,"10001.01000000");
+  await page.goto(`${origin}/goals?account=${funded.id}`);
+  await page.getByText("Target USD 10001.01",{exact:true}).waitFor();
+  passed("monetary goal targets normalize half-up and display at account precision rather than numeric storage scale");
   await page.goto(`${origin}/prop?account=${funded.id}`);
   const propForm=page.locator("form").filter({has:page.getByRole("button",{name:"Save configured rules",exact:true})});
   await propForm.locator('fieldset[data-mutation-ready="true"]').waitFor();

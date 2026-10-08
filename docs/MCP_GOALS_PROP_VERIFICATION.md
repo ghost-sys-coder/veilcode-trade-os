@@ -27,6 +27,8 @@ repeatable-read snapshot; the old thousand-row Data API cap is removed. The
 account ledger and progress calculations are pure domain utilities shared by
 browser/MCP. Ordinary configuration, login, trading and journal semantics remain
 unchanged. The UI reuses existing theme tokens, Cards and the aligned toolbar;
+monetary goal displays use the central account-precision normalizer, not the
+database numeric column's padded storage scale.
 native disclosures expose edits/archival. A shared hydration/pending fieldset
 protects both progress and journal forms. Timestamp controls explicitly say UTC.
 Imprint and React review preserved the existing design language.
@@ -67,7 +69,7 @@ is not currency-rounded. Unrepresentable persisted scales reject, never truncate
 | --- | --- |
 | `npm test` | PASS650 tests /47 files |
 | `node .artifacts/mt5-pilot/local_database_hints.mjs --test --npm` | PASS717 assertions /19 rollback-isolated suites (unchanged npm test:db runner) |
-| `npm run test:mcp-integration` | PASS26 real local OAuth/SDK/browser checks, including all goal/prop tools and browser workflows |
+| `npm run test:mcp-integration` | PASS27 real local OAuth/SDK/browser checks, including all goal/prop tools, browser workflows and monetary display precision |
 | `npm run test:integration-browser` | PASS53 real local MT5/auth/browser checks |
 | `npm run test:mt5-python` | PASS176 tests |
 | `npm run check:mt5-python` | PASS |
@@ -98,7 +100,7 @@ The local HTTP fixture independently reproduces finalized profit10.00, a single
 qualifying R sample and1.00% of a10%-of10000 profit target. Browser append records
 current custom progress10 after the prior5 (not15), then edit/archive retains both
 events. Browser goal creation and prop edits use the same receipts/audits/versions.
-All26 MCP checks finish with zero uncaught browser errors; disposable fixture
+All27 MCP checks finish with zero uncaught browser errors; disposable fixture
 users, clients and custom events are cleaned up. Runtime: Node25.1.0, Python3.13.2,
 Next16.3.6, official MCP SDK2.3.1 and Chrome154.0.8037.93.
 
