@@ -1407,6 +1407,7 @@ export type Database = {
           created_at: string
           updated_at: string
           previous_account_id: string | null
+          record_version: number
         }
         Insert: {
           id?: string
@@ -1425,6 +1426,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           previous_account_id?: string | null
+          record_version?: number
         }
         Update: {
           id?: string
@@ -1443,6 +1445,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           previous_account_id?: string | null
+          record_version?: number
         }
         Relationships: []
       }

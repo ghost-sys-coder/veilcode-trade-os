@@ -1,75 +1,30 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-
 import { tradingAccountSchema } from "@/domain/validation/schemas";
 import { firstValidationError, redirectWithStatus } from "@/lib/action-errors";
-import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { writeAccount } from "@/services/application/accounts";
+import { configurationFormError } from "@/services/application/form-error";
 
-export async function saveAccount(formData: FormData): Promise<void> {
-  const result = tradingAccountSchema.safeParse({
-    id: formData.get("id") ?? "",
-    name: formData.get("name"),
-    accountType: formData.get("accountType"),
-    brokerName: formData.get("brokerName") ?? "",
-    platform: formData.get("platform"),
-    currencyCode: formData.get("currencyCode"),
-    currencyPrecision: formData.get("currencyPrecision"),
-    startingBalance: formData.get("startingBalance"),
-    leverage: formData.get("leverage") ?? "",
-    startedAt: formData.get("startedAt"),
-    status: formData.get("status"),
-    notes: formData.get("notes") ?? "",
-  });
-
-  if (!result.success) {
-    redirectWithStatus("/accounts", "error", firstValidationError(result.error));
-  }
-
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const values = result.data;
-  const payload = {
-    name: values.name,
-    account_type: values.accountType,
-    broker_name: values.brokerName ?? null,
-    platform: values.platform,
-    currency_code: values.currencyCode,
-    currency_precision: values.currencyPrecision,
-    starting_balance: values.startingBalance,
-    leverage: values.leverage ?? null,
-    started_at: values.startedAt,
-    notes: values.notes ?? null,
-  };
-
-  if (values.id) {
-    const { data, error } = await supabase
-      .from("trading_accounts")
-      .update(payload)
-      .eq("id", values.id)
-      .eq("user_id", userId)
-      .select("id")
-      .maybeSingle();
-
-    if (error) {
-      redirectWithStatus("/accounts", "error", error.message);
-    }
-
-    if (!data) {
-      redirectWithStatus("/accounts", "error", "Account not found or no longer available.");
-    }
-  } else {
-    const { error } = await supabase
-      .from("trading_accounts")
-      .insert({ ...payload, status: values.status, user_id: userId });
-
-    if (error) {
-      redirectWithStatus("/accounts", "error", error.message);
-    }
-  }
-
-  revalidatePath("/accounts");
-  revalidatePath("/dashboard");
-  redirectWithStatus("/accounts", "message", values.id ? "Account updated." : "Account created.");
+export async function saveAccount(formData:FormData):Promise<void> {
+  const result=tradingAccountSchema.safeParse({id:formData.get("id")??"",name:formData.get("name"),accountType:formData.get("accountType"),
+    brokerName:formData.get("brokerName")??"",platform:formData.get("platform"),currencyCode:formData.get("currencyCode"),
+    currencyPrecision:formData.get("currencyPrecision"),startingBalance:formData.get("startingBalance"),leverage:formData.get("leverage")??"",
+    startedAt:formData.get("startedAt"),status:formData.get("status"),notes:formData.get("notes")??""});
+  if(!result.success)redirectWithStatus("/accounts","error",firstValidationError(result.error));
+  const value=result.data;
+  const reason=String(formData.get("correctionReason")??"").trim();
+  try {
+    const context=await getVerifiedBrowserContext(await createClient());
+    await writeAccount(context,value.id?"PATCH":"CREATE",{operationId:formData.get("operationId"),
+      ...(value.id?{id:value.id,expectedVersion:formData.get("expectedVersion"),...(reason?{reason}:{})}:{}),
+      values:{name:value.name,account_type:value.accountType,broker_name:value.brokerName??null,platform:value.platform,
+        currency_code:value.currencyCode,currency_precision:value.currencyPrecision,starting_balance:value.startingBalance,
+        leverage:value.leverage??null,started_at:value.startedAt,notes:value.notes??null,...(value.id?{}:{status:value.status})}});
+  } catch(error) {redirectWithStatus("/accounts","error",configurationFormError(error));}
+  revalidatePath("/accounts");revalidatePath("/dashboard");revalidatePath("/analytics","layout");
+  if(value.id)revalidatePath(`/accounts/${value.id}`);
+  redirectWithStatus("/accounts","message",value.id?"Account updated.":"Account created.");
 }

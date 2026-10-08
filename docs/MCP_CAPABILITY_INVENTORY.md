@@ -1,10 +1,14 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and eight tools are
+Updated 2026-10-08: stateless HTTP, five contract resources and twelve tools are
 implemented. In addition to capabilities, position sizing and operation status,
 `tradeos_configuration_list/get/create/patch/archive` cover STRATEGY, SETUP and
-RULE. Browser strategy/setup/rule actions now use the same typed services and
+RULE. `tradeos_accounts_list/get/create/patch` cover metadata and exact derived
+balance access. Browser account/strategy/setup/rule actions use the same services.
+Account adjustments/snapshots/lifecycle and other families remain pending. See
+[account verification](MCP_ACCOUNTS_VERIFICATION.md).
+Browser strategy/setup/rule actions use the same typed services and
 private transaction. Real local OAuth/browser/HTTP verification passes. Hosted
 MCP stays disabled; permanent deletion, other families, local stdio and real
 external-client verification remain pending. See

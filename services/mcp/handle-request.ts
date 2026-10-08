@@ -6,6 +6,7 @@ import { getIntegrationConfig } from "@/config/integrations";
 import { integrationErrorResponse } from "@/lib/integrations/http";
 import { createTradeOsMcpServer } from "@/lib/mcp/server";
 import { getConfiguration, listConfiguration, writeConfiguration } from "@/services/application/configuration";
+import { getAccount, listAccounts, writeAccount } from "@/services/application/accounts";
 
 /** No cookie login, in-memory session map, or caller-submitted owner identity. */
 export async function handleMcpRequest(request:Request):Promise<Response> {
@@ -24,7 +25,8 @@ export async function handleMcpRequest(request:Request):Promise<Response> {
     if(request.method!=="POST")return new Response(null,{status:405,headers:{Allow:"POST","Cache-Control":"no-store"}});
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:id=>getIntegrationOperation(context,id),
       configurationList:input=>listConfiguration(context,input), configurationGet:input=>getConfiguration(context,input),
-      configurationWrite:(action,input)=>writeConfiguration(context,action,input)}),
+      configurationWrite:(action,input)=>writeConfiguration(context,action,input), accountsList:input=>listAccounts(context,input),
+      accountsGet:input=>getAccount(context,input), accountsWrite:(action,input)=>writeAccount(context,action,input)}),
       {responseMode:"json",legacy:"stateless",maxRequestBodySize:1_048_576,maxSubscriptions:0});
     try {
       const response=await handler.fetch(request);

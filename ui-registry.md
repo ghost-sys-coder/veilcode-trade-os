@@ -112,6 +112,11 @@ Last updated: 2026-09-23
 
 ### Data form
 
+Account form update (2026-10-08): hidden operation/version fields preserve the
+existing layout. The optional baseline/date correction reason uses the same
+`space-y-2` field group, shared Input/Label, and `text-xs text-muted-foreground`
+help text. Existing grid spacing, card surface and primary button are unchanged.
+
 Files: `features/accounts/account-form.tsx`, `features/strategies/strategy-form.tsx`, `features/rules/trading-rule-form.tsx`
 Last updated: 2026-09-23
 

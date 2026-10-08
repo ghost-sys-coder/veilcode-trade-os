@@ -130,12 +130,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,8);assert.equal((await legacy.listTools()).tools.length,8);
+  assert.equal((await modern.listTools()).tools.length,12);assert.equal((await legacy.listTools()).tools.length,12);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers eight tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers twelve tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -185,6 +185,43 @@ try {
   assert.deepEqual(ids,allIds);
   passed("all stable pages contain only the owner and no duplicated/omitted strategy IDs");
 
+  stage="account CRUD and financial fixtures";
+  const accountOperation=randomUUID();
+  const accountInput={operationId:accountOperation,values:{name:"MCP gate account",account_type:"DEMO",broker_name:"Fixture broker",platform:"OTHER",
+    currency_code:"USD",currency_precision:2,starting_balance:"100000.005",leverage:null,started_at:"2026-09-01",status:"ACTIVE",notes:"Original notes"}};
+  const accountCreation=await modern.callTool({name:"tradeos_accounts_create",arguments:accountInput});const account=record(accountCreation);
+  assert.equal(account.starting_balance,"100000.01");assert.equal(account.derived_balance,"100000.01");assert.equal(account.record_version,"1");
+  assert.deepEqual(content(await legacy.callTool({name:"tradeos_accounts_create",arguments:accountInput})),content(accountCreation));
+  assert.equal(content(await modern.callTool({name:"tradeos_operation_status",arguments:{operationId:accountOperation}})).status,"COMMITTED");
+  const accountPatch=record(await modern.callTool({name:"tradeos_accounts_patch",arguments:{operationId:randomUUID(),id:account.id,expectedVersion:"1",values:{broker_name:null}}}));
+  assert.equal(accountPatch.record_version,"2");assert.equal(accountPatch.broker_name,null);assert.equal(accountPatch.notes,"Original notes");
+  const jpy=record(await modern.callTool({name:"tradeos_accounts_create",arguments:{operationId:randomUUID(),values:{...accountInput.values,
+    name:"MCP JPY fixture",currency_code:"JPY",currency_precision:0,starting_balance:"1000.5"}}}));assert.equal(jpy.derived_balance,"1001");
+  // Deterministic manual financial fixtures only; trade-write tools are still
+  // pending. Never create broker orders or touch a hosted user's financial data.
+  const instrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
+  await database.query("insert into public.trades(user_id,account_id,instrument_id,status,direction,opened_at,net_pnl) values($1,$2,$3,'OPEN','BUY',clock_timestamp(),999)",[fixtureUser,account.id,instrument]);
+  await database.query("insert into public.trades(user_id,account_id,instrument_id,status,direction,opened_at,closed_at,gross_pnl,net_pnl,outcome) values($1,$2,$3,'CLOSED','BUY',clock_timestamp()-interval '1 hour',clock_timestamp(),1.005,1.005,'WIN'),($1,$2,$3,'CLOSED','BUY',clock_timestamp()-interval '1 hour',clock_timestamp(),-.005,-.005,'LOSS')",[fixtureUser,account.id,instrument]);
+  await database.query("insert into public.account_adjustments(user_id,account_id,type,amount,occurred_at) values($1,$2,'DEPOSIT',50,clock_timestamp()),($1,$2,'WITHDRAWAL',-10,clock_timestamp())",[fixtureUser,account.id]);
+  await database.query("insert into public.account_adjustments(user_id,account_id,type,amount,occurred_at,is_performance_neutral,classification_reason) values($1,$2,'OTHER',5,clock_timestamp(),false,'Explicit fixture classification')",[fixtureUser,account.id]);
+  await database.query("insert into public.account_snapshots(user_id,account_id,captured_at,balance,equity,unrealized_pnl) values($1,$2,clock_timestamp(),999000,1000000,1000)",[fixtureUser,account.id]);
+  const accountLedger=content(await modern.callTool({name:"tradeos_accounts_get",arguments:{id:account.id}}));
+  assert.equal(accountLedger.closed_trade_net_pnl,"1.00");assert.equal(accountLedger.account_adjustments_total,"45.00");
+  assert.equal(accountLedger.derived_balance,"100046.01");assert.equal(accountLedger.closed_trade_count,"2");
+  const historyChange=await modern.callTool({name:"tradeos_accounts_patch",arguments:{operationId:randomUUID(),id:account.id,expectedVersion:"2",values:{currency_code:"GBP"}}});
+  assert(historyChange.isError && JSON.stringify(historyChange.content).includes("INVALID_REFERENCE"));
+  const baselineChange=await modern.callTool({name:"tradeos_accounts_patch",arguments:{operationId:randomUUID(),id:account.id,expectedVersion:"2",values:{starting_balance:"110000"}}});
+  assert(baselineChange.isError && JSON.stringify(baselineChange.content).includes("INVALID_REFERENCE"));
+  passed("real account tools preserve exact ledger balance, exclude open PnL/snapshots and reject silent financial reinterpretation");
+  const accountIds:string[]=[];let accountCursor:string|undefined;
+  do {
+    const accountPage=content(await modern.callTool({name:"tradeos_accounts_list",arguments:{limit:1,...(accountCursor?{afterId:accountCursor}:{})}}));
+    const accountRows=accountPage.records as Array<{id:string;user_id:string}>;assert(accountRows.every(item=>item.user_id===fixtureUser));
+    accountIds.push(...accountRows.map(item=>item.id));accountCursor=accountPage.nextCursor as string|undefined;assert(accountIds.length<100);
+  } while(accountCursor);
+  assert.deepEqual(accountIds,(await database.query("select id::text from public.trading_accounts where user_id=$1 order by id",[fixtureUser])).rows.map(item=>item.id));
+  passed("owner-scoped account pagination returns every account without mixing account currencies");
+
   stage="browser configuration regression and simultaneous edit";
   await page.goto(`${origin}/strategies`);
   const edit=page.locator(`#edit-strategy-${strategy.id}`);await edit.locator("summary").click();
@@ -202,6 +239,20 @@ try {
   await page.getByText("Strategy created.",{exact:true}).waitFor();
   assert.equal((await database.query("select count(*)::integer as count from private.application_mutation_audits where actor_user_id=$1 and actor_type='BROWSER'",[fixtureUser])).rows[0].count,1);
   passed("normal browser creation uses the shared audited writer; stale browser edits cannot overwrite MCP changes");
+
+  stage="browser account concurrency and shared service";
+  await page.goto(`${origin}/accounts`);
+  const accountEdit=page.locator("details").filter({has:page.locator(`input[name="id"][value="${account.id}"]`)});
+  await accountEdit.locator("summary").click();assert.equal(await accountEdit.locator('input[name="expectedVersion"]').inputValue(),"2");
+  const newerAccount=record(await modern.callTool({name:"tradeos_accounts_patch",arguments:{operationId:randomUUID(),id:account.id,expectedVersion:"2",values:{name:"Newer MCP account"}}}));
+  assert.equal(newerAccount.record_version,"3");await accountEdit.getByLabel("Account name",{exact:true}).fill("Stale browser account");
+  await accountEdit.getByRole("button",{name:"Save account",exact:true}).click();await page.getByRole("alert").filter({hasText:"This record changed"}).waitFor();
+  await page.goto(`${origin}/accounts`);await accountEdit.locator("summary").click();
+  await accountEdit.getByLabel("Notes",{exact:true}).fill("Browser shared account workflow");
+  await accountEdit.getByRole("button",{name:"Save account",exact:true}).click();await page.getByText("Account updated.",{exact:true}).waitFor();
+  const savedAccount=content(await modern.callTool({name:"tradeos_accounts_get",arguments:{id:account.id}}));
+  assert.equal(savedAccount.name,"Newer MCP account");assert.equal(savedAccount.notes,"Browser shared account workflow");assert.equal(savedAccount.derived_balance,"100046.01");
+  passed("browser account edits share the audited service, reject stale versions and preserve authoritative balance");
 
   stage="archival and preserved references";
   const archived=record(await modern.callTool({name:"tradeos_configuration_archive",arguments:{entity:"STRATEGY",operationId:randomUUID(),id:strategy.id,expectedVersion:"3",reason:"Retire referenced methodology"}}));

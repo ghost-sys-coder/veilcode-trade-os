@@ -2,7 +2,8 @@
 
 Branch: `feature/mcp-access`. Status: updated from master `32306e5` after the
 focused demo check passed; stateless HTTP and the strategy/setup/rule shared
-list/get/create/patch/archive workflows are implemented. The real local MCP
+list/get/create/patch/archive workflows and account list/get/create/patch with
+exact balance access are implemented. The real local MCP
 OAuth/consent/refresh/revocation gate passes. Remaining application workflows,
 permanent deletion, local stdio, external-client verification and hosted
 activation remain pending. See
