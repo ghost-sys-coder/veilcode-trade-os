@@ -3,9 +3,11 @@
 Date: 2026-10-08. Branch: `feature/mcp-access`.
 Baseline: merged master `425b1a5` (PR #17), fast-forwarded without a new branch.
 This report covers the local reporting increment, not full MCP readiness.
-The code changes are not committed, pushed or deployed at the time of this
-report. The user subsequently approved the read-only hosted migration, which
-is now installed and verified. The user's untracked reference screenshot
+The initial report preceded source publication. The implementation is now pushed
+as `e09ca3f` and deployed to the READY branch preview described in the follow-up
+below. Authenticated reporting checks pass; production release remains pending.
+The user-approved read-only hosted migration is installed and verified.
+The user's untracked reference screenshot
 is preserved and excluded from implementation changes.
 
 ## Delivered capabilities
@@ -157,9 +159,10 @@ or fake user session was created in production.
 
 `npm run check:application-db` and `npm run build:verified` both pass with the
 existing strict TLS configuration. The prerequisite gate still rejects future
-code/schema mismatches. Hosted code publication and authenticated browser
-verification of this new increment remain pending; a local build is not a
-deployment. Collector controls, credentials and publication policy are unchanged.
+code/schema mismatches. Source publication and the branch-preview deployment are
+complete. Authenticated preview reporting verification passes; production release
+remains pending. A local build was not counted as a deployment. Collector controls,
+credentials and publication policy are unchanged.
 
 Hosted security advisors show no new notices. The existing 23 private-table
 [RLS-without-policy informational notices](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
@@ -173,8 +176,9 @@ Plan alignment: PASS for this reporting increment; full MCP scope incomplete.
 System integrity: PASS for shared services, explicit actor ownership, precision,
 audit/review preservation and existing UI patterns.
 Production readiness: local checks and hosted prerequisite/security validation
-PASS; source publication and hosted deployment/browser verification remain
-pending. Do not label the new hosted reporting adapters deployed yet.
+PASS; source publication and the branch-preview build are complete.
+Authenticated preview verification passes; production release remains pending.
+Do not label the reporting increment released to the production site.
 
 Pending capability families: paginated balance-curve events, browser-confirmed
 permanent deletion, private screenshot upload/download, MT5/import access and
@@ -186,7 +190,72 @@ Complete-history aggregate/CSV responses remain subject to the existing 15-secon
 database and 20-second client query limits and host response/runtime limits.
 Oversized or timed-out reports fail explicitly rather than returning a silently
 truncated result. Large-scale response handling and paginated event curves are
-not claimed by this increment. No integration activation, commit, push, merge,
+not claimed by this increment. No integration activation, master merge,
 production fixture, broker order or terminal/startup change was performed.
-The approved read-only hosted function and its own migration-history alignment
-are the only external mutations in this reporting increment.
+External changes are the approved read-only hosted function/history alignment,
+feature-branch commit/push, approved preview-only settings and rebuild below.
+
+## Hosted preview follow-up: 8–9 October 2026
+
+Implementation commit: `e09ca3f4b3445fe01ffcf27a4f843f3803c993d7`, verified against
+GitHub's `feature/mcp-access` head. The original preview failed at the database
+prerequisite connection with `ENETUNREACH`, before application compilation.
+Environment metadata showed that the shared database URL already applied to
+Preview, while the pooler host/port and public CA were Production-only.
+
+The user approved three **Preview + `feature/mcp-access` only** additions:
+`SUPABASE_DATABASE_POOLER_HOST`, `SUPABASE_DATABASE_POOLER_PORT` and
+`SUPABASE_DATABASE_CA_CERT`. The existing strict configuration verified the
+official session pooler, port 5432, correct project-qualified username and CA.
+Values were supplied through stdin, never process arguments/logs. Existing
+database credentials and all Production variable metadata remained unchanged.
+TLS and hostname checks were not weakened; integration flags were not enabled.
+
+The exact reviewed Git deployment was rebuilt successfully:
+
+- Deployment: `dpl_AKiPhcaXZ63gMpvTnM3dDD8Jxiks`.
+- URL: https://trade-c2zurhuvi-ghostsyscoders-projects.vercel.app
+- Environment/status: Preview / READY; no production promotion.
+- Commit/framework: `e09ca3f` / Next.js 16.3.6.
+- Duration: approximately 75 seconds, with a clean dependency/build cache.
+- Hosted prerequisite check: PASS, 22 functions / 13 version-order columns.
+- Compilation/typecheck/static generation: PASS, 32 pages.
+
+The connected-browser runtime failed twice before selecting a browser. Existing
+Playwright/Chrome instead provided an isolated visible verification window with
+short-lived Vercel access held only in memory, restricted to this exact preview
+origin and removed from all other origins. Deployment Protection stayed enabled;
+no passwords/tokens or browser authentication state were logged or persisted.
+
+Fourteen distinct hosted read-only checks pass after the user's normal sign-in:
+anonymous calculator rendering, anonymous journal protection, signed-in workspace,
+scoped performance/account choices, complete CSV, daily/weekly/monthly journals,
+calendar, execution/rule/psychology/mistake analytics and filtered browser journal.
+The retained-window run emitted 16 PASS lines because the performance check was
+repeated during harness diagnostics; these are not 16 distinct checks. It exited
+zero, with no uncaught page errors or application 5xx responses.
+
+The failed lookup was a harness assumption, not an application defect: the mapped
+account is now labelled **USD100K FTMO ACCOUNT**, not the original USD100K DEMO.
+The test was corrected to use the existing connection's immutable account ID,
+verified as present in the signed-in account choices. No name, owner or mapping
+changed. Two additional harness-only scope errors were fixed without application
+changes; the same signed-in browser was retained for subsequent read-only retries.
+The bounded server error-log scan returned no errors. The public calculator's
+actual heading was used rather than assuming a literal route-name heading.
+
+Browser analytics show USD 2032.53 net trading PnL and USD 102032.53 ledger balance.
+CSV with `status=CLOSED&page=99` returns all 20 unique mapped MT5 closed trades,
+retains source identifiers as strings and sums exactly to USD 2032.53 through the
+central decimal utilities. Daily summary and selected calendar day agree with the
+independent CSV closure-date cohort in Africa/Kampala. Selected-account analytics
+retain every owned account option, and behavioral pages load without completing
+placeholder reviews. Reflection forms and financial/control mutations were not
+submitted. Full remote MCP tools remain disabled and are not claimed by this test.
+
+Independent pre-check: five accounts, 21 trades, zero adjustments, 20 demo closed
+trades, USD 2032.53 final net PnL. Post-verification account/trade/adjustment, grant
+and MT5-connection hashes exactly match the pre-check and earlier hosted baseline.
+There is still no enabled hosted MCP resource. Verification reads existing data only;
+it does not submit trade/reflection forms, controls or new consent. The user
+screenshot is unchanged and private helpers remain in ignored `.artifacts`.
