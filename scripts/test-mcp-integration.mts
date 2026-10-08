@@ -135,12 +135,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,48);assert.equal((await legacy.listTools()).tools.length,48);
+  assert.equal((await modern.listTools()).tools.length,53);assert.equal((await legacy.listTools()).tools.length,53);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 48 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 53 tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -315,6 +315,33 @@ try {
   assert.equal((reviewed.ruleReviewItems as unknown[]).length,1);assert.equal((reviewed.corrections as unknown[]).length,1);
   assert.equal((await database.query("select count(*)::integer as count from public.trades where user_id=$1 and id=$2",[fixtureUser,canonical.id])).rows[0].count,1);
   passed("canonical retry, locked plan, actual management, partial closure, exact financials and immutable reviews work atomically");
+
+  stage="shared computed reporting over authenticated MCP";
+  const reportScope={filters:{account:funded.id},timezone:"UTC"};
+  const performance=content(await modern.callTool({name:"tradeos_analytics_performance",arguments:reportScope}));
+  assert.deepEqual(performance,content(await legacy.callTool({name:"tradeos_analytics_performance",arguments:reportScope})));
+  const money=(performance.currencies as Array<Record<string,unknown>>)[0];
+  assert.equal((money.metrics as Record<string,unknown>).netProfit,"10.00");assert.equal((performance.unitlessMetrics as Record<string,unknown>).rSample,1);
+  assert(!Object.hasOwn(performance.unitlessMetrics as object,"netProfit"));assert(!Object.hasOwn(money.curve as object,"points"));
+  const summary=content(await modern.callTool({name:"tradeos_journal_summary",arguments:{kind:"DAILY",accountId:funded.id,period:"2026-10-08",timezone:"UTC"}}));
+  assert.equal((summary.summary as Record<string,unknown>).netPnl,"10.00");assert.equal((summary.outcomes as Record<string,unknown>).PARTIAL_WIN,1);
+  const calendar=content(await modern.callTool({name:"tradeos_calendar",arguments:{accountId:funded.id,month:"2026-10",timezone:"UTC"}}));
+  const day=(calendar.currencies as Array<{days:Array<Record<string,unknown>>}>)[0].days[0];assert.equal(day.date,"2026-10-08");
+  assert.equal((day.summary as Record<string,unknown>).rSample,1);
+  const behavior=content(await modern.callTool({name:"tradeos_analytics_behavior",arguments:reportScope}));
+  assert.equal(behavior.psychologyReviewedTrades,1);assert.equal(behavior.ruleReviewedTrades,1);assert.equal(behavior.executionReviewedTrades,0);
+  passed("all reporting MCP tools return hand-calculated 10.00 partial win, 0.10R and explicit reviewed samples through modern/legacy OAuth");
+  const exported=content(await modern.callTool({name:"tradeos_journal_export",arguments:{filters:{account:funded.id,status:"CLOSED"},timezone:"UTC"}}));
+  assert.equal(exported.recordCount,1);const [csvHeader,csvTrade]=String(exported.csv).replace(/^\uFEFF/,"").split("\r\n").map(line=>line.split(","));
+  assert.equal(csvTrade[csvHeader.indexOf("account_id")],funded.id);assert.equal(csvTrade[csvHeader.indexOf("id")],canonical.id);assert.equal(csvTrade[csvHeader.indexOf("net_pnl")],"10");
+  // Downloads are checked through the authenticated browser context request so
+  // navigation never leaves an unhandled attachment event.
+  const browserCsv=await page.request.get(`${origin}/trades/export?account=${funded.id}&status=CLOSED&page=99`);
+  assert.equal(browserCsv.status(),200);assert.equal((await browserCsv.text()).replace(/^\uFEFF/,""),String(exported.csv).replace(/^\uFEFF/,""));
+  await page.goto(`${origin}/analytics?account=${funded.id}`);
+  assert.equal(await page.locator(`select[name="account"] option[value="${account.id}"]`).count(),1);
+  assert.equal(await page.locator(`select[name="account"] option[value="${funded.id}"]`).count(),1);
+  passed("browser and MCP CSV exports match exactly and ignore pagination; selected-account filters retain other owned choices");
 
   stage="reference tools and simultaneous retries";
   const tagOperation=randomUUID();

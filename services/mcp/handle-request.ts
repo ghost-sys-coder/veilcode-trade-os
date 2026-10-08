@@ -1,4 +1,6 @@
 import "server-only";
+import {summarizeJournal,queryPerformance,queryBehavior,queryCalendar,exportJournal} from "@/services/application/reporting";
+import {performanceReport,behaviorResultSchema} from "@/domain/reporting/results";
 import {getReference,listReferences,writeReference,listTradeTags,writeTradeTag} from "@/services/application/references";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { getIntegrationContext, verifiedIntegrationClaims } from "@/services/integrations/actor-context";
@@ -29,6 +31,8 @@ export async function handleMcpRequest(request:Request):Promise<Response> {
     verifiedIntegrationClaims(context);
     if(request.method!=="POST")return new Response(null,{status:405,headers:{Allow:"POST","Cache-Control":"no-store"}});
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:id=>getIntegrationOperation(context,id),
+      journalSummary:input=>summarizeJournal(context,input),analyticsPerformance:async input=>performanceReport(await queryPerformance(context,input)),
+      analyticsBehavior:async input=>behaviorResultSchema.parse(await queryBehavior(context,input)),calendar:input=>queryCalendar(context,input),journalExport:input=>exportJournal(context,input),
       referencesList:input=>listReferences(context,input),referencesGet:input=>getReference(context,input),referencesWrite:(action,input)=>writeReference(context,action,input),
       tradeTagsList:input=>listTradeTags(context,input),tradeTagsWrite:(action,input)=>writeTradeTag(context,action,input),
       configurationList:input=>listConfiguration(context,input), configurationGet:input=>getConfiguration(context,input),

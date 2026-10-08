@@ -1,6 +1,9 @@
 import "server-only";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import {analyticsReportSchema,journalReportSchema,calendarReportSchema,journalSummarySchema,journalSummaryResultSchema,calendarResultSchema,exportResultSchema} from "@/domain/reporting/commands";
+import {performanceResultSchema,behaviorResultSchema} from "@/domain/reporting/results";
+import {ReportingConsistencyError} from "@/domain/reporting/rows";
 import { referenceArchiveSchema,referenceCreateSchema,referencePatchSchema,referenceGetSchema,referenceListSchema,
   referencePageSchema,referenceRecordSchema,referenceResultSchema,tradeTagsListSchema,tradeTagCommandSchema,tradeTagResultSchema,type ReferenceAction } from "@/domain/references/commands";
 import { calculatePositionSize } from "@/domain/trading/position-sizing";
@@ -46,10 +49,11 @@ const toolNames = ["tradeos_capabilities", "tradeos_position_size", "tradeos_ope
 const referenceToolNames=["tradeos_references_list","tradeos_references_get","tradeos_references_create","tradeos_references_patch","tradeos_references_archive",
   "tradeos_trade_tags_list","tradeos_trade_tags_assign","tradeos_trade_tags_remove"] as const;
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
+const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export"] as const;
 const catalog = {
-  version:"1", tools:[...toolNames,...referenceToolNames], resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration/reference permanent deletion","computed journal summaries","analytics","exports","screenshots upload/download","mt5","profile"],
-  status:"HTTP plus accounts/events/lifecycle, canonical trades/reviews, strategies/setups/rules, journals, goals and prop progress. Owned tags/instruments and audited trade-tag associations are available; global instruments are read-only. Computed summaries, other workflows, permanent deletion and local stdio are pending.",
+  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames], resources:["catalog","domain","money","workflows","reporting"],
+  pendingFamilies:["configuration/reference permanent deletion","paginated balance curve","screenshots upload/download","mt5","profile"],
+  status:"HTTP shared workflows include journals and computed summaries, performance/behavior analytics, realized calendar and full filtered CSV exports. Screenshots, integration reads, profile, permanent deletion and local stdio remain pending.",
 };
 const resources = {
   catalog,
@@ -73,6 +77,7 @@ const resources = {
     mutations:"Durable operation IDs, atomic request hashes/results/audits and optimistic concurrency are required.",
     deletion:"Referenced configuration archives. Permanent deletion requires exact-target/version one-use browser approval. Financial/audit/correction history cannot be deleted." },
   reporting:{ journalDate:"opened_at -> planned_at -> created_at", realizedDate:"closed_at", winRate:"(WIN + PARTIAL_WIN) / all winning and losing trades; BREAK_EVEN reported separately.",
+    filters:"Journal/CSV from/to use journal date. Analytics/behavior/calendar realized results use closed_at. Trading dimensions never filter account ledger history. CSV ignores pagination and includes all filtered records; spreadsheet formula prefixes in free text are escaped.",
     rExpectancy:"Average valid actual_r; expose qualifying sample count. Missing R is not zero R.",
     currencyAggregation:"Keep monetary results separated by account currency. Aggregate unitless results using underlying trades.",
     behavior:"Reviewed cohorts only; mistake differences are descriptive associations, not causal losses." },
@@ -85,6 +90,11 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  journalSummary:(input:unknown)=>Promise<ReturnType<typeof journalSummaryResultSchema.parse>>;
+  analyticsPerformance:(input:unknown)=>Promise<ReturnType<typeof performanceResultSchema.parse>>;
+  analyticsBehavior:(input:unknown)=>Promise<ReturnType<typeof behaviorResultSchema.parse>>;
+  calendar:(input:unknown)=>Promise<ReturnType<typeof calendarResultSchema.parse>>;
+  journalExport:(input:unknown)=>Promise<ReturnType<typeof exportResultSchema.parse>>;
   referencesList:(input:unknown)=>Promise<ReturnType<typeof referencePageSchema.parse>>;
   referencesGet:(input:unknown)=>Promise<ReturnType<typeof referenceRecordSchema.parse>>;
   referencesWrite:(action:ReferenceAction,input:unknown)=>Promise<ReturnType<typeof referenceResultSchema.parse>>;
@@ -135,7 +145,7 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     });
   const guarded = async (work:()=>Promise<Record<string,unknown>>) => {
     try {return result(await work());}
-    catch(error) {return failure(error instanceof ApplicationWorkflowError?`${error.code}: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
+    catch(error) {return failure(error instanceof ApplicationWorkflowError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
   };
   server.registerTool("tradeos_configuration_list",{description:"List owner-owned STRATEGY, SETUP or RULE records in stable ID order. Continue using nextCursor as afterId; archived records are excluded by default.",
     inputSchema:configurationListSchema,outputSchema:configurationPageSchema,annotations:readOnly},
@@ -203,5 +213,10 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_trade_tags_list",{description:"List tags assigned to one owned trade with bounded ID cursors, including archived tags retained as historical labels.",inputSchema:tradeTagsListSchema,outputSchema:referencePageSchema,annotations:readOnly},async input=>guarded(()=>services.tradeTagsList(input)));
   server.registerTool("tradeos_trade_tags_assign",{description:"Assign an active owned tag to an owned canonical trade. Requires durable operationId, expectedVersion from trade.record_version and expectedTagVersion from tag.record_version. Returns the new tradeVersion. Does not alter broker execution facts or complete any review.",inputSchema:tradeTagCommandSchema,outputSchema:tradeTagResultSchema,annotations:mutation},async input=>guarded(()=>services.tradeTagsWrite("ASSIGN",input)));
   server.registerTool("tradeos_trade_tags_remove",{description:"Remove a tag association, not the tag itself or financial history. Archived tags may be removed. Requires operationId and both current trade/tag versions. Retains the before/after association audit and returns tradeVersion.",inputSchema:tradeTagCommandSchema,outputSchema:tradeTagResultSchema,annotations:mutation},async input=>guarded(()=>services.tradeTagsWrite("REMOVE",input)));
+  server.registerTool("tradeos_journal_summary",{description:"Compute DAILY/WEEKLY/MONTHLY results for an owned account and calendar period. Weekly starts Monday; monthly starts day one. Realized PnL uses final closed_at; journalTrades uses opened_at→planned_at→created_at. Exact money, R samples, all five outcomes and incomplete-data warnings are explicit. Does not mark reflections/reviews complete.",inputSchema:journalSummarySchema,outputSchema:journalSummaryResultSchema,annotations:readOnly},async input=>guarded(()=>services.journalSummary(input)));
+  server.registerTool("tradeos_analytics_performance",{description:"Realized performance from complete, consistent owner history. Dates use closed_at. Money is separated by currency; unitless rates use underlying trades. Trading profit excludes adjustments. Cash-neutral drawdown uses full account history independent of trade dimensions; unclassified OTHER withholds drawdown. Aggregate metrics/breakdowns only, not an event curve. Missing R is excluded with sample counts.",inputSchema:analyticsReportSchema,outputSchema:performanceResultSchema,annotations:readOnly},async input=>guarded(()=>services.analyticsPerformance(input)));
+  server.registerTool("tradeos_analytics_behavior",{description:"Descriptive behavioral associations among qualifying closed trades. Only explicitly reviewed execution/psychology and complete immutable rule snapshots count. Null is unanswered, not no. Currency results and R qualifying samples are explicit. All five grades remain in detail; A/B and D/F are summary groups. No causal/counterfactual loss claim.",inputSchema:analyticsReportSchema,outputSchema:behaviorResultSchema,annotations:readOnly},async input=>guarded(()=>services.analyticsBehavior(input)));
+  server.registerTool("tradeos_calendar",{description:"Realized daily calendar for YYYY-MM, optionally scoped to one owned account. PnL uses final closed_at in the requested/profile timezone; no open-trade cash enters results. Monetary days are separated by currency. journalDays independently counts journal-date membership. Incomplete closed results are reported.",inputSchema:calendarReportSchema,outputSchema:calendarResultSchema,annotations:readOnly},async input=>guarded(()=>services.calendar(input)));
+  server.registerTool("tradeos_journal_export",{description:"Export every canonical journal record matching the supplied active filters/search, not merely a pagination page. Date filters use journal date, not closed_at. CSV includes persisted identifiers/provenance, plan/execution money, fees/credits, outcome, R, tags and review state. Decimal evidence remains strings; free-text formula prefixes are escaped. No write occurs.",inputSchema:journalReportSchema,outputSchema:exportResultSchema,annotations:readOnly},async input=>guarded(()=>services.journalExport(input)));
   return server;
 }

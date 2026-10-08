@@ -352,17 +352,14 @@ export function groupPerformance(
       || left.label.localeCompare(right.label));
 }
 
+const timezoneFormatters=new Map<string,Intl.DateTimeFormat>();
 function timezoneParts(value: string, timezone: string): Record<string, string> {
+  let formatter=timezoneFormatters.get(timezone);
+  if(!formatter){formatter=new Intl.DateTimeFormat("en-US", {
+    timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",weekday:"short",hour:"2-digit",hourCycle:"h23",
+  });if(timezoneFormatters.size>=32)timezoneFormatters.delete(timezoneFormatters.keys().next().value!);timezoneFormatters.set(timezone,formatter);}
   return Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      weekday: "short",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(value)).map((part) => [part.type, part.value]),
+    formatter.formatToParts(new Date(value)).map((part) => [part.type, part.value]),
   );
 }
 

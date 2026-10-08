@@ -51,13 +51,17 @@ export function journalDate(trade: { openedAt?: string | null; plannedAt?: strin
   return trade.openedAt ?? trade.plannedAt ?? trade.createdAt;
 }
 
+const dateFormatters=new Map<string,Intl.DateTimeFormat>();
 export function dateKey(value: string, timezone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  let formatter=dateFormatters.get(timezone);
+  if(!formatter){formatter=new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date(value));
+  });if(dateFormatters.size>=32)dateFormatters.delete(dateFormatters.keys().next().value!);dateFormatters.set(timezone,formatter);}
+  // Cache only immutable locale formatters, never user records or date values.
+  const parts = formatter.formatToParts(new Date(value));
   const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${byType.year}-${byType.month}-${byType.day}`;
 }
@@ -135,7 +139,11 @@ export function groupRealizedTradesByDate(trades: readonly RealizedTradeMetric[]
 }
 
 export function escapeCsv(value: unknown): string {
-  const text = value === null || value === undefined ? "" : String(value);
+  const original = value === null || value === undefined ? "" : String(value);
+  // Spreadsheet formula injection: preserve valid signed decimal evidence,
+  // but make executable/free-text prefixes literal, including leading controls.
+  const decimal=/^-?\d+(?:\.\d+)?$/;
+  const text = !decimal.test(original) && (/^[\t\r\n]/.test(original) || /^[\s]*[=+@-]/.test(original)) ? `'${original}` : original;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 

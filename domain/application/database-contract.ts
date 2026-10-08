@@ -1,5 +1,6 @@
 /** Fixed release prerequisites for the adapted browser and MCP services. */
 export const APPLICATION_DATABASE_FUNCTIONS = [
+  "private.application_reporting_data(jsonb)",
   "private.application_reference_read(jsonb)","private.application_reference_write(jsonb)","private.application_trade_tag_write(jsonb)",
   "private.configuration_read(jsonb)", "private.configuration_write(jsonb)",
   "private.application_account_read(jsonb)", "private.application_account_write(jsonb)",

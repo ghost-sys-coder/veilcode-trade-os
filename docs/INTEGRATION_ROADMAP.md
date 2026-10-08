@@ -70,7 +70,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account/symbol mapping, explicit cash attribution, captured-history snapshot approval, balance bridge, monitoring, fenced controls and publication pass local browser checks; source/manual financial-conflict resolution and real demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
-| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: accounts/events/lifecycle, canonical trades/reviews, configuration, persisted journals, goals and prop progress share audited services. Owned tag/instrument workflows and trade-tag associations bring coverage to 48 HTTP tools. Computed summaries, other families and permanent deletion remain pending; see MCP_REFERENCES_VERIFICATION.md |
+| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: accounts/events/lifecycle, canonical trades/reviews, configuration, persisted journals, goals/prop progress, references and trade tags share services. Computed summaries, performance/behavior analytics, realized calendar and full filtered CSV export bring coverage to 53 HTTP tools. Paginated event curves, remaining families and permanent deletion are pending; see MCP_REPORTING_VERIFICATION.md |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | In progress: official SDK stateless HTTP and real local browser consent/S256/refresh/resource binding/revocation pass; local stdio and hosted activation pending |
 | MCP-3 | Client verification and readiness | Required client matrix plus regression checks | In progress: modern/legacy SDK and existing browser regression pass; requested real external clients pending |
 
@@ -120,6 +120,19 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 - [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth)
 
 ## Progress log
+
+- 2026-10-08: verified the user's merged master at `425b1a5` and fast-forwarded
+  the existing MCP branch. Added five shared reporting tools and exact schemas,
+  owner-scoped complete history reads and the shared browser/MCP CSV builder.
+  Corrected incomplete rule-review qualification, unanswered behavioral cohorts,
+  account-filter choices, dimension-independent ledgers and incomplete-result
+  balance/drawdown states. Local security, financial, real OAuth/browser and
+  regression gates pass. After user approval, the private read-only reporting
+  migration was installed on the correct hosted project; prerequisites and
+  `build:verified` pass. Account/trade/adjustment and integration-control hashes
+  are unchanged. No collector or integration enablement changed. Local stdio,
+  remaining capability families and external-client verification remain pending.
+  See [reporting evidence](MCP_REPORTING_VERIFICATION.md).
 
 - 2026-10-08: merged the latest verified MT5 fix/evidence to master `32306e5`
   and updated the existing MCP branch. Added the official SDK2.3.1 stateless

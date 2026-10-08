@@ -1,14 +1,19 @@
 # Trade OS MCP Access Implementation Plan
 
-Branch: `feature/mcp-access`. Status: updated from master `32306e5` after the
+Branch: `feature/mcp-access`. Status: updated from master `425b1a5` after the
 focused demo check passed; stateless HTTP and the strategy/setup/rule shared
 list/get/create/patch/archive workflows and account list/get/create/patch with
 exact balance access are implemented. Account adjustments/classification,
 snapshots/lifecycle and canonical trade/target/management/correction/review
 workflows now use shared services. Persisted journal reflections and goal/prop
 commands plus exact shared account-progress metrics, owned tag/instrument
-workflows and audited trade-tag associations bring coverage to 48 HTTP
-tools; computed journal summaries and permanent deletion remain pending. See
+workflows and audited trade-tag associations now join computed journal summaries,
+performance/behavior analytics, the realized calendar and full filtered CSV export,
+bringing coverage to 53 HTTP tools. Paginated balance-curve events and permanent
+deletion remain pending. The user-approved read-only reporting migration is
+installed on the hosted project; hosted prerequisites and the verified production
+build pass. Reporting code publication/deployment remains pending. See
+[reporting verification](MCP_REPORTING_VERIFICATION.md),
 [reference verification](MCP_REFERENCES_VERIFICATION.md),
 [goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md) and
 [journal and accounts repair verification](MCP_JOURNALS_AND_ACCOUNTS_REPAIR.md). See
