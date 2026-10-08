@@ -13,12 +13,14 @@ import { monthBounds } from "@/domain/journal/periods";
 import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
 import { ReviewNavigation } from "@/features/journal/review-navigation";
 import { SelectField } from "@/features/trades/select-field";
+import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTradeJournalDataset } from "@/services/journal/get-trade-journal";
 
 interface CalendarPageProps { searchParams: Promise<{ account?: string; month?: string; day?: string }> }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+  await requireUserId();
   const [query, supabase] = await Promise.all([searchParams, createClient()]);
   const { data: profile } = await supabase.from("profiles").select("timezone").maybeSingle();
   const timezone = profile?.timezone ?? "Africa/Kampala";

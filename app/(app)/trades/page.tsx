@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { saveTag } from "@/features/journal/actions";
 import { TradeFilters } from "@/features/journal/trade-filters";
+import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTradeJournalDataset, type JournalFilters } from "@/services/journal/get-trade-journal";
 
@@ -33,6 +34,7 @@ function filtersFrom(params: SearchParams): JournalFilters {
 }
 
 export default async function TradesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  await requireUserId();
   const params = await searchParams;
   const supabase = await createClient();
   const { data: profile } = await supabase.from("profiles").select("timezone").maybeSingle();
