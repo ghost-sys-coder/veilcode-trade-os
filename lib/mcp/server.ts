@@ -4,6 +4,7 @@ import { z } from "zod";
 import {analyticsReportSchema,journalReportSchema,calendarReportSchema,journalSummarySchema,journalSummaryResultSchema,calendarResultSchema,exportResultSchema} from "@/domain/reporting/commands";
 import {performanceResultSchema,behaviorResultSchema} from "@/domain/reporting/results";
 import {ReportingConsistencyError} from "@/domain/reporting/rows";
+import {balanceCurveSchema,balanceCurveResultSchema,BalanceCurveCursorError} from "@/domain/reporting/balance-curve";
 import { referenceArchiveSchema,referenceCreateSchema,referencePatchSchema,referenceGetSchema,referenceListSchema,
   referencePageSchema,referenceRecordSchema,referenceResultSchema,tradeTagsListSchema,tradeTagCommandSchema,tradeTagResultSchema,type ReferenceAction } from "@/domain/references/commands";
 import { calculatePositionSize } from "@/domain/trading/position-sizing";
@@ -49,11 +50,11 @@ const toolNames = ["tradeos_capabilities", "tradeos_position_size", "tradeos_ope
 const referenceToolNames=["tradeos_references_list","tradeos_references_get","tradeos_references_create","tradeos_references_patch","tradeos_references_archive",
   "tradeos_trade_tags_list","tradeos_trade_tags_assign","tradeos_trade_tags_remove"] as const;
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
-const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export"] as const;
+const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve"] as const;
 const catalog = {
   version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames], resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration/reference permanent deletion","paginated balance curve","screenshots upload/download","mt5","profile"],
-  status:"HTTP shared workflows include journals and computed summaries, performance/behavior analytics, realized calendar and full filtered CSV exports. Screenshots, integration reads, profile, permanent deletion and local stdio remain pending.",
+  pendingFamilies:["configuration/reference permanent deletion","screenshots upload/download","mt5","profile"],
+  status:"HTTP shared workflows include journals and computed summaries, performance/behavior analytics, snapshot-aware paginated balance curves, realized calendar and full filtered CSV exports. Screenshots, integration reads, profile, permanent deletion and local stdio remain pending.",
 };
 const resources = {
   catalog,
@@ -80,7 +81,8 @@ const resources = {
     filters:"Journal/CSV from/to use journal date. Analytics/behavior/calendar realized results use closed_at. Trading dimensions never filter account ledger history. CSV ignores pagination and includes all filtered records; spreadsheet formula prefixes in free text are escaped.",
     rExpectancy:"Average valid actual_r; expose qualifying sample count. Missing R is not zero R.",
     currencyAggregation:"Keep monetary results separated by account currency. Aggregate unitless results using underlying trades.",
-    behavior:"Reviewed cohorts only; mistake differences are descriptive associations, not causal losses." },
+    behavior:"Reviewed cohorts only; mistake differences are descriptive associations, not causal losses.",
+    balanceCurve:"tradeos_analytics_balance_curve requires one currencyCode; accepts only account/accountType/from/to ledger filters, optional timezone and pageSize 1..100. Use nextCursor unchanged with the same scope. Every page recomputes full history and freshly checks the grant; CURVE_CHANGED requires restarting. Cumulative PnL/R and cumulativeRSample are lifetime-to-point, not page/period totals. START may be a period-opening basis. Unknown OTHER withholds drawdown; incomplete closed history withholds balances/PnL. Equity is never substituted." },
 };
 
 function result(value: Record<string, unknown>) {
@@ -90,6 +92,7 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  balanceCurve:(input:unknown)=>Promise<ReturnType<typeof balanceCurveResultSchema.parse>>;
   journalSummary:(input:unknown)=>Promise<ReturnType<typeof journalSummaryResultSchema.parse>>;
   analyticsPerformance:(input:unknown)=>Promise<ReturnType<typeof performanceResultSchema.parse>>;
   analyticsBehavior:(input:unknown)=>Promise<ReturnType<typeof behaviorResultSchema.parse>>;
@@ -145,7 +148,7 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     });
   const guarded = async (work:()=>Promise<Record<string,unknown>>) => {
     try {return result(await work());}
-    catch(error) {return failure(error instanceof ApplicationWorkflowError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
+    catch(error) {return failure(error instanceof ApplicationWorkflowError || error instanceof BalanceCurveCursorError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
   };
   server.registerTool("tradeos_configuration_list",{description:"List owner-owned STRATEGY, SETUP or RULE records in stable ID order. Continue using nextCursor as afterId; archived records are excluded by default.",
     inputSchema:configurationListSchema,outputSchema:configurationPageSchema,annotations:readOnly},
@@ -218,5 +221,6 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_analytics_behavior",{description:"Descriptive behavioral associations among qualifying closed trades. Only explicitly reviewed execution/psychology and complete immutable rule snapshots count. Null is unanswered, not no. Currency results and R qualifying samples are explicit. All five grades remain in detail; A/B and D/F are summary groups. No causal/counterfactual loss claim.",inputSchema:analyticsReportSchema,outputSchema:behaviorResultSchema,annotations:readOnly},async input=>guarded(()=>services.analyticsBehavior(input)));
   server.registerTool("tradeos_calendar",{description:"Realized daily calendar for YYYY-MM, optionally scoped to one owned account. PnL uses final closed_at in the requested/profile timezone; no open-trade cash enters results. Monetary days are separated by currency. journalDays independently counts journal-date membership. Incomplete closed results are reported.",inputSchema:calendarReportSchema,outputSchema:calendarResultSchema,annotations:readOnly},async input=>guarded(()=>services.calendar(input)));
   server.registerTool("tradeos_journal_export",{description:"Export every canonical journal record matching the supplied active filters/search, not merely a pagination page. Date filters use journal date, not closed_at. CSV includes persisted identifiers/provenance, plan/execution money, fees/credits, outcome, R, tags and review state. Decimal evidence remains strings; free-text formula prefixes are escaped. No write occurs.",inputSchema:journalReportSchema,outputSchema:exportResultSchema,annotations:readOnly},async input=>guarded(()=>services.journalExport(input)));
+  server.registerTool("tradeos_analytics_balance_curve",{description:"Page a realized account/portfolio balance curve for one required currencyCode. Only account/accountType/from/to ledger filters are accepted; never filter the balance by strategy/instrument. Maximum 100 points per page. All balances/drawdown use full history before paging; cash-neutral movements shift the high-water basis. closed_at places complete trades, not partial/open cash. Cumulative R has an explicit cumulativeRSample. Incomplete history withholds authoritative money; unclassified OTHER withholds drawdown. Reuse nextCursor with identical scope/timezone; CURVE_CHANGED requires restarting. Every continuation freshly authorizes access; no equity substitution or persistent server session.",inputSchema:balanceCurveSchema,outputSchema:balanceCurveResultSchema,annotations:readOnly},async input=>guarded(()=>services.balanceCurve(input)));
   return server;
 }

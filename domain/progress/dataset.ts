@@ -166,7 +166,7 @@ export function buildProgressDataset(input:unknown,now=new Date().toISOString())
   const incomplete=records.trades.filter(trade=>trade.status==="CLOSED" && (!trade.closed_at || trade.net_pnl===null)).length;
   const instrumentNames=new Map(records.instruments.map(item=>[item.id,item.symbol]));
   const instrumentsByTrade=new Map(records.trades.map(trade=>[trade.id,trade.instrument_id]));
-  const curve=buildAccountCurve({account:{id:account.id,name:account.name,accountType:account.account_type,currencyCode:account.currency_code,currencyPrecision:precision,startingBalance:account.starting_balance,startedAt:account.started_at},
+  const curve=buildAccountCurve({timezone,account:{id:account.id,name:account.name,accountType:account.account_type,currencyCode:account.currency_code,currencyPrecision:precision,startingBalance:account.starting_balance,startedAt:account.started_at},
     trades:trades.map(trade=>({...trade,actualR:trade.actualR??null, instrument:instrumentNames.get(instrumentsByTrade.get(trade.id)!)??"Trade"})),
     adjustments:ledger.adjustments.map(item=>({id:item.id,accountId:account.id,occurredAt:item.occurred_at,amount:item.amount,type:item.type,isPerformanceNeutral:item.is_performance_neutral}))});
   const drawdown={value:incomplete===0 && curve.available?curve.maximumAmount:null,percentage:incomplete===0 && curve.available?curve.maximumPercentage:null,

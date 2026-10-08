@@ -23,7 +23,7 @@ const origin="http://127.0.0.1:3100", resource=`${origin}/mcp`, callback="http:/
 function passed(message:string) {console.log(`PASS ${++checks}: ${message}`);}
 function content(result:Awaited<ReturnType<Client["callTool"]>>):Record<string,unknown> {
   if(result.isError) {
-    const known=["VERSION_CONFLICT","OPERATION_CONFLICT","READ_UNAVAILABLE","SCHEMA_NOT_READY","ACCESS_DENIED","INVALID_REFERENCE","APPLICATION_WORKFLOW_UNAVAILABLE"];
+    const known=["VERSION_CONFLICT","CURVE_CHANGED","INVALID_CURSOR","OPERATION_CONFLICT","READ_UNAVAILABLE","SCHEMA_NOT_READY","ACCESS_DENIED","INVALID_REFERENCE","APPLICATION_WORKFLOW_UNAVAILABLE"];
     const code=known.find(code=>result.content?.some(item=>item.type==="text" && item.text.startsWith(code)));
     if(code)console.error(`Fixture tool error code: ${code}`);
   }
@@ -135,12 +135,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,53);assert.equal((await legacy.listTools()).tools.length,53);
+  assert.equal((await modern.listTools()).tools.length,54);assert.equal((await legacy.listTools()).tools.length,54);
   assert.equal((await modern.listResources()).resources.length,5);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 53 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 54 tools and verifies 5.00-lot fixture");
 
   stage="configuration commands and receipts";
   const operationId=randomUUID();
@@ -342,6 +342,40 @@ try {
   assert.equal(await page.locator(`select[name="account"] option[value="${account.id}"]`).count(),1);
   assert.equal(await page.locator(`select[name="account"] option[value="${funded.id}"]`).count(),1);
   passed("browser and MCP CSV exports match exactly and ignore pagination; selected-account filters retain other owned choices");
+
+  stage="snapshot-aware balance curve paging";
+  const curveRequest={currencyCode:"USD",filters:{account:funded.id},timezone:"UTC",pageSize:1};
+  const curveFirst=content(await modern.callTool({name:"tradeos_analytics_balance_curve",arguments:curveRequest}));
+  assert.equal(curveFirst.totalPoints,2);assert.equal(curveFirst.currentBalance,money.currentBalance);assert(curveFirst.nextCursor);
+  const curveNextRequest={...curveRequest,cursor:curveFirst.nextCursor};
+  const curveSecond=content(await legacy.callTool({name:"tradeos_analytics_balance_curve",arguments:curveNextRequest}));
+  assert.deepEqual(curveSecond,content(await modern.callTool({name:"tradeos_analytics_balance_curve",arguments:curveNextRequest})));
+  assert.equal(curveSecond.snapshotId,curveFirst.snapshotId);assert.equal(curveSecond.nextCursor,null);
+  assert.deepEqual((curveSecond.points as Array<Record<string,unknown>>).map(point=>[point.cumulativePnl,point.cumulativeR,point.cumulativeRSample]),[["10.00","0.10000000",1]]);
+  const foreignCurve=await modern.callTool({name:"tradeos_analytics_balance_curve",arguments:{...curveRequest,filters:{account:randomUUID()}}});
+  assert(foreignCurve.isError&&JSON.stringify(foreignCurve.content).includes("NOT_FOUND"));
+  passed("modern/legacy bounded balance pages replay exactly, preserve full balance/0.10R sample and reject unavailable account scope");
+
+  const curveAccount=record(await modern.callTool({name:"tradeos_accounts_create",arguments:{operationId:randomUUID(),values:{...accountInput.values,name:"MCP curve fault fixture",starting_balance:"110000"}}}));
+  await database.query("insert into public.trades(user_id,account_id,instrument_id,status,direction,opened_at,closed_at,gross_pnl,net_pnl,outcome) values($1,$2,$3,'CLOSED','BUY','2026-09-02T08:00:00Z','2026-09-02T10:00:00Z',-5000,-5000,'LOSS'),($1,$2,$3,'CLOSED','BUY','2026-09-04T08:00:00Z','2026-09-04T10:00:00Z',50,50,'WIN')",[fixtureUser,curveAccount.id,instrument]);
+  await modern.callTool({name:"tradeos_adjustment_create",arguments:{operationId:randomUUID(),accountId:curveAccount.id,type:"WITHDRAWAL",amount:"-10000",occurredAt:"2026-09-03T10:00:00Z"}}).then(content);
+  const faultScope={currencyCode:"USD",filters:{account:curveAccount.id},timezone:"UTC",pageSize:1};
+  const faultFirst=content(await modern.callTool({name:"tradeos_analytics_balance_curve",arguments:faultScope}));
+  assert.equal(faultFirst.currentBalance,"95050.00");assert.equal((faultFirst.drawdown as Record<string,unknown>).maximumAmount,"5000.00");assert(faultFirst.nextCursor);
+  const faultPoints:Array<Record<string,unknown>>=[...(faultFirst.points as Array<Record<string,unknown>>)];let faultCursor:unknown=faultFirst.nextCursor;
+  while(faultCursor){const next=content(await legacy.callTool({name:"tradeos_analytics_balance_curve",arguments:{...faultScope,cursor:faultCursor}}));faultPoints.push(...next.points as Array<Record<string,unknown>>);faultCursor=next.nextCursor;assert(faultPoints.length<=4);}
+  assert.equal(faultPoints.length,4);assert.deepEqual(faultPoints.slice(1).map(point=>point.drawdownAmount),["5000.00","5000.00","4950.00"]);
+  const periodCurve=content(await modern.callTool({name:"tradeos_analytics_balance_curve",arguments:{...faultScope,filters:{account:curveAccount.id,from:"2026-09-04",to:"2026-09-04"},timezone:"Africa/Kampala"}}));
+  assert.equal((periodCurve.points as Array<Record<string,unknown>>)[0].occurredAt,"2026-09-03T21:00:00.000000000Z");
+  assert.equal((periodCurve.points as Array<Record<string,unknown>>)[0].drawdownAmount,"5000.00");
+  passed("real SQL-backed curve preserves 5000.00 drawdown across withdrawal, 95050.00 balance and pre-period high-water basis/local midnight");
+
+  await modern.callTool({name:"tradeos_adjustment_create",arguments:{operationId:randomUUID(),accountId:curveAccount.id,type:"DEPOSIT",amount:"1",occurredAt:"2026-09-05T10:00:00Z"}}).then(content);
+  const staleCurve=await legacy.callTool({name:"tradeos_analytics_balance_curve",arguments:{...faultScope,cursor:faultFirst.nextCursor}});
+  assert(staleCurve.isError&&JSON.stringify(staleCurve.content).includes("CURVE_CHANGED"));
+  const malformedCurve=await modern.callTool({name:"tradeos_analytics_balance_curve",arguments:{...faultScope,cursor:"e30"}});
+  assert(malformedCurve.isError&&JSON.stringify(malformedCurve.content).includes("INVALID_CURSOR"));
+  passed("committed concurrent cash changes reject stale continuation; malformed cursor is an explicit safe tool error");
 
   stage="reference tools and simultaneous retries";
   const tagOperation=randomUUID();
@@ -622,6 +656,7 @@ try {
   await database.query("update private.integration_resources set enabled=true where purpose='MCP'");
   const revoked=await browser.rpc("revoke_integration_grant",{p_grant_id:grant.id,p_expected_version:grant.version});assert(!revoked.error);
   await assert.rejects(modern.listTools());
+  await assert.rejects(modern.callTool({name:"tradeos_analytics_balance_curve",arguments:curveNextRequest}));
   const refreshDenied=await fetch(`${issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
     body:new URLSearchParams({grant_type:"refresh_token",client_id:fixtureClient!,refresh_token:tokens.refresh_token,resource}),signal:AbortSignal.timeout(10000)});
   assert(!refreshDenied.ok);

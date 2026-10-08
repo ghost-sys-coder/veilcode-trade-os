@@ -21,6 +21,7 @@ import {
   type PerformanceMetrics,
 } from "@/domain/analytics/performance";
 import { dateKey } from "@/domain/journal/analytics";
+import { calendarDateStartUtc, canonicalUtcInstant } from "@/domain/journal/timezone";
 import { normalizeMoney, parseDecimal } from "@/domain/money/decimal";
 import { normalizeSupabaseNumeric } from "@/lib/supabase/numeric";
 import type { AccountType, TradeDirection, TradingSession } from "@/types/domain";
@@ -139,7 +140,7 @@ function windowCurve(
       visible.unshift({
         ...preceding,
         id: `period-opening-${preceding.id}`,
-        occurredAt: `${filters.from}T00:00:00.000Z`,
+        occurredAt: canonicalUtcInstant(calendarDateStartUtc(filters.from, timezone)),
         kind: "START",
         label: "Period opening basis",
       });
@@ -220,6 +221,7 @@ export function buildPerformanceAnalytics(rows:ReportingRows,filters:AnalyticsFi
   const selectedAccounts = accounts.filter((account) => {
     if (filters.account && account.id !== filters.account) return false;
     if (filters.accountType && account.accountType !== filters.accountType) return false;
+    if (filters.to && account.startedAt > filters.to) return false;
     return true;
   });
   const selectedAccountIds = selectedAccounts.map((account) => account.id);
@@ -307,11 +309,12 @@ export function buildPerformanceAnalytics(rows:ReportingRows,filters:AnalyticsFi
     return endExclusive ? dateKey(trade.closedAt, timezone) < endExclusive : true;
   });
   const allAdjustments: AnalyticsAdjustment[] = adjustmentRows
+    .filter((item) => accountById.has(item.account_id))
     .map((item) => ({
       id: item.id,
       accountId: item.account_id,
       occurredAt: item.occurred_at,
-      amount: normalizeSupabaseNumeric(item.amount),
+      amount: normalizeMoney(item.amount, accountById.get(item.account_id)!.currencyPrecision),
       type: item.type,
       isPerformanceNeutral: item.is_performance_neutral,
     }))
@@ -333,7 +336,7 @@ export function buildPerformanceAnalytics(rows:ReportingRows,filters:AnalyticsFi
     const accountOpeningAdjustments: AnalyticsAdjustment[] = orderedAccounts.slice(1).map((item) => ({
       id: `account-opening-${item.id}`,
       accountId: item.id,
-      occurredAt: item.startedAt,
+      occurredAt: calendarDateStartUtc(item.startedAt, timezone),
       amount: normalizeMoney(item.startingBalance, precision),
       type: "DEPOSIT",
       isPerformanceNeutral: true,
@@ -349,6 +352,7 @@ export function buildPerformanceAnalytics(rows:ReportingRows,filters:AnalyticsFi
     };
     const fullCurve = buildAccountCurve({
       account: portfolioAccount,
+      timezone,
       trades: historyTrades,
       adjustments: [...accountOpeningAdjustments, ...adjustments],
     });

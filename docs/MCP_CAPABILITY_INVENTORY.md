@@ -1,11 +1,13 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-08: stateless HTTP, five contract resources and 53 tools are
+Updated 2026-10-09: stateless HTTP, five contract resources and 54 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries, performance/behavior analytics, the realized calendar
 and complete filtered CSV export now share validated, owner-scoped services.
+Snapshot-aware balance-curve paging now exposes bounded, currency-separated
+events with explicit R samples. See [curve verification](MCP_BALANCE_CURVE_VERIFICATION.md).
 Account adjustments/classification, snapshots/lifecycle, canonical
 trades/targets/management/corrections/reviews and read-only trade instruments now
 join account metadata/balances and strategy/setup/rule workflows. Browser actions
@@ -74,7 +76,7 @@ database and protocol evidence before entering the catalog.
 | journal.daily.get/save/summary (implemented) | daily page; saveDailyLog; application/reporting | dailyLogSchema; journalDate; reporting/commands | Decision-date membership is separate from closed-at realized summary; exact account-period balances |
 | journal.weekly.get/save/summary (implemented) | weekly page; saveWeeklyReview; application/reporting | weeklyReviewSchema; journal/periods; reporting/commands | Monday start, explicit owner/account and qualifying R/review samples |
 | journal.monthly.get/save/summary (implemented) | monthly page; saveMonthlyReview; application/reporting | monthlyReviewSchema; journal/periods; reporting/commands | Day-one start, persisted reflection unchanged by read-only summary |
-| analytics.performance/query/calendar (implemented; event-curve pagination pending) | getPerformanceAnalytics; getTradeJournalDataset; application/reporting | analytics/performance; reporting/commands/results | Closed-only results, full ledger independent of trading dimensions, cash-neutral drawdown, currency separation and incomplete-data states |
+| analytics.performance/query/calendar/balance_curve (implemented) | getPerformanceAnalytics; getTradeJournalDataset; application/reporting | analytics/performance; reporting/commands/results/balance-curve | Closed-only results, full ledger independent of trading dimensions, cash-neutral drawdown, currency separation, incomplete-data states, bounded snapshot-aware continuation and fresh authorization |
 | analytics.behavior/query (implemented) | getBehaviorAnalytics; application/reporting | analytics/behavior; reporting/evidence/results | Explicitly reviewed cohorts, exact immutable rule IDs, unanswered exclusion and descriptive sample-qualified associations |
 | journal.export (implemented) | trades/export route; application/reporting; reporting/export | Shared matchesJournalFilters, CSV escaping and canonical fields | Same active filters; all matching records beyond 1,000, string broker IDs and formula-safe free text |
 | calculator.position_size | Public calculator component | trading/position-sizing; instrument specifications | Verified figures, precision/volume steps, anonymous calculator preserved |
@@ -101,8 +103,12 @@ and `tradeos_journal_export`. All load one repeatable-read snapshot through a
 fixed private function after fresh actor/grant validation. Inputs cannot supply
 owner IDs, SQL or arbitrary table names. Account selection scopes financial
 facts while retaining all owned account choices for browser filter controls.
-Analytics omit event-curve points; a bounded cursor-based curve tool remains
-pending. CSV exhausts the filtered dataset, not a visible page.
+Aggregate analytics omit event-curve points. `tradeos_analytics_balance_curve`
+accepts a required currencyCode, account/accountType/from/to, optional timezone,
+pageSize (1–100) and cursor. Return nextCursor unchanged with the same scope;
+CURVE_CHANGED requires restarting. Every page freshly checks authorization and
+calculates full-history financial bases. CSV exhausts the filtered dataset, not
+a visible page. See [curve contract and limitations](MCP_BALANCE_CURVE_VERIFICATION.md).
 
 Reference tools are `tradeos_references_list/get/create/patch/archive`, with
 `entity: TAG | INSTRUMENT`, plus `tradeos_trade_tags_list/assign/remove`.
