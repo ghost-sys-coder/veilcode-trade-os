@@ -138,6 +138,8 @@ export type Database = {
           title: string
           active: boolean
           custom_unit: string | null
+          record_version: number
+          archived_at: string | null
         }
         Insert: {
           id?: string
@@ -153,6 +155,8 @@ export type Database = {
           title: string
           active?: boolean
           custom_unit?: string | null
+          record_version?: number
+          archived_at?: string | null
         }
         Update: {
           id?: string
@@ -168,6 +172,8 @@ export type Database = {
           title?: string
           active?: boolean
           custom_unit?: string | null
+          record_version?: number
+          archived_at?: string | null
         }
         Relationships: []
       }
@@ -264,6 +270,7 @@ export type Database = {
           notes: string | null
           created_at: string
           updated_at: string
+          record_version: number
         }
         Insert: {
           id?: string
@@ -282,6 +289,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Update: {
           id?: string
@@ -300,6 +308,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Relationships: []
       }
@@ -449,6 +458,8 @@ export type Database = {
           active: boolean
           created_at: string
           updated_at: string
+          record_version: number
+          archived_at: string | null
         }
         Insert: {
           id?: string
@@ -463,6 +474,8 @@ export type Database = {
           active?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Update: {
           id?: string
@@ -477,6 +490,8 @@ export type Database = {
           active?: boolean
           created_at?: string
           updated_at?: string
+          record_version?: number
+          archived_at?: string | null
         }
         Relationships: []
       }
@@ -493,6 +508,7 @@ export type Database = {
           notes: string | null
           created_at: string
           updated_at: string
+          record_version: number
         }
         Insert: {
           id?: string
@@ -506,6 +522,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Update: {
           id?: string
@@ -519,6 +536,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Relationships: []
       }
@@ -529,6 +547,7 @@ export type Database = {
           timezone: string
           created_at: string
           updated_at: string
+          record_version: number
         }
         Insert: {
           id: string
@@ -536,6 +555,7 @@ export type Database = {
           timezone?: string
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Update: {
           id?: string
@@ -543,6 +563,7 @@ export type Database = {
           timezone?: string
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Relationships: []
       }
@@ -575,6 +596,7 @@ export type Database = {
           trading_day_basis: Database["public"]["Enums"]["prop_trading_day_basis"]
           trading_day_timezone: string
           profitable_day_min_pnl: string
+          record_version: number
         }
         Insert: {
           id?: string
@@ -604,6 +626,7 @@ export type Database = {
           trading_day_basis?: Database["public"]["Enums"]["prop_trading_day_basis"]
           trading_day_timezone?: string
           profitable_day_min_pnl?: string
+          record_version?: number
         }
         Update: {
           id?: string
@@ -633,6 +656,7 @@ export type Database = {
           trading_day_basis?: Database["public"]["Enums"]["prop_trading_day_basis"]
           trading_day_timezone?: string
           profitable_day_min_pnl?: string
+          record_version?: number
         }
         Relationships: []
       }
@@ -723,6 +747,8 @@ export type Database = {
           created_at: string
           updated_at: string
           normalized_name: string | null
+          record_version: number
+          archived_at: string | null
         }
         Insert: {
           id?: string
@@ -732,6 +758,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           normalized_name?: string | null
+          record_version?: number
+          archived_at?: string | null
         }
         Update: {
           id?: string
@@ -741,6 +769,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           normalized_name?: string | null
+          record_version?: number
+          archived_at?: string | null
         }
         Relationships: []
       }
@@ -1517,6 +1547,7 @@ export type Database = {
           notes: string | null
           created_at: string
           updated_at: string
+          record_version: number
         }
         Insert: {
           id?: string
@@ -1531,6 +1562,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Update: {
           id?: string
@@ -1545,6 +1577,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          record_version?: number
         }
         Relationships: []
       }

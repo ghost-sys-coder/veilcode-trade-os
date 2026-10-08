@@ -72,7 +72,7 @@ describe("official SDK interoperability",()=>{
       "tradeos_account_events_list","tradeos_adjustment_create","tradeos_adjustment_classify","tradeos_snapshot_record","tradeos_account_transition","tradeos_account_link_funded",
       "tradeos_trades_list","tradeos_trades_get","tradeos_trades_create","tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments","tradeos_journals_get","tradeos_journals_list","tradeos_journals_save","tradeos_goals_get","tradeos_goals_list","tradeos_goals_create","tradeos_goals_patch","tradeos_goals_archive","tradeos_goal_progress_list","tradeos_goal_progress_record","tradeos_prop_get","tradeos_prop_save","tradeos_progress_get",
       "tradeos_references_list","tradeos_references_get","tradeos_references_create","tradeos_references_patch","tradeos_references_archive","tradeos_trade_tags_list","tradeos_trade_tags_assign","tradeos_trade_tags_remove",
-      "tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve"]);
+      "tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve","tradeos_profile_get","tradeos_profile_patch"]);
     const contracts=await client.listResources();expect(contracts.resources).toHaveLength(5);
     const money=await client.readResource({uri:"tradeos://v1/money"});expect(money.contents[0]).toMatchObject({mimeType:"application/json"});
     const calculation=await client.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
@@ -87,7 +87,7 @@ describe("official SDK interoperability",()=>{
   },15000);
   it("supports legacy stateless MCP and rejects numeric monetary inputs and secret-bearing errors",async()=>{
     const unavailableService=async()=>{throw new Error("PRIVATE_TEST_VALUE");};
-    const handler=createMcpHandler(()=>createTradeOsMcpServer({balanceCurve:unavailableService,journalSummary:unavailableService,analyticsPerformance:unavailableService,analyticsBehavior:unavailableService,calendar:unavailableService,journalExport:unavailableService,referencesList:unavailableService,referencesGet:unavailableService,referencesWrite:unavailableService,tradeTagsList:unavailableService,tradeTagsWrite:unavailableService,operationStatus:unavailableService,configurationList:unavailableService,
+    const handler=createMcpHandler(()=>createTradeOsMcpServer({profileGet:unavailableService,profilePatch:unavailableService,balanceCurve:unavailableService,journalSummary:unavailableService,analyticsPerformance:unavailableService,analyticsBehavior:unavailableService,calendar:unavailableService,journalExport:unavailableService,referencesList:unavailableService,referencesGet:unavailableService,referencesWrite:unavailableService,tradeTagsList:unavailableService,tradeTagsWrite:unavailableService,operationStatus:unavailableService,configurationList:unavailableService,
       configurationGet:unavailableService,configurationWrite:unavailableService,accountsList:unavailableService,accountsGet:unavailableService,accountsWrite:unavailableService,
       accountEventsList:unavailableService,accountEventsWrite:unavailableService,tradesList:unavailableService,tradesGet:unavailableService,tradesWrite:unavailableService,tradeInstruments:unavailableService,journalsGet:unavailableService,journalsList:unavailableService,journalsSave:unavailableService,goalsGet:unavailableService,goalsList:unavailableService,goalProgressList:unavailableService,propGet:unavailableService,progressWrite:unavailableService,progressGet:unavailableService}),{responseMode:"json"});
     try {
@@ -95,7 +95,7 @@ describe("official SDK interoperability",()=>{
         headers:{"content-type":"application/json",accept:"application/json, text/event-stream","mcp-protocol-version":"2025-11-25"},
         body:JSON.stringify({jsonrpc:"2.0",id,method,params})}));
       const responseJson=async(response:Response)=>{const body=await response.text();return JSON.parse(response.headers.get("content-type")?.includes("text/event-stream")?body.split("\n").find(line=>line.startsWith("data: "))!.slice(6):body);};
-      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(54);
+      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(56);
       const rejected=await responseJson(await request(2,"tools/call",{name:"tradeos_position_size",arguments:{balance:100000,currency:"USD",currencyPrecision:2,
         riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.10000",stopLossPrice:"1.09800"}}));
       expect(rejected.result?.isError||rejected.error).toBeTruthy();
