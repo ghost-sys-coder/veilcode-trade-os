@@ -15,7 +15,7 @@ try {
       SUPABASE_URL: status.API_URL, NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
       SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY,
       TRADE_OS_LOCAL_DATABASE_URL: status.DB_URL,
-      TRADE_OS_INTEGRATION_ORIGIN:"http://127.0.0.1:3100", TRADE_OS_MT5_ENABLED:"true", TRADE_OS_MCP_ENABLED:"false", TRADE_OS_LOCAL_TEST_APP:"true",
+      TRADE_OS_INTEGRATION_ORIGIN:"http://127.0.0.1:3100", TRADE_OS_MT5_ENABLED:"true", TRADE_OS_MCP_ENABLED:"true", TRADE_OS_LOCAL_TEST_APP:"true",
     },
   });
   child.on("error",()=>{ console.error("Local integration app could not start."); process.exitCode=1; });

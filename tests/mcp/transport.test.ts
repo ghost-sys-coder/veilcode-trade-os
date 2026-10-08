@@ -33,10 +33,15 @@ describe("MCP foundation authorization boundary",()=>{
     expect(authenticate).toHaveBeenCalledWith(expect.any(Request),"MCP");expect(lookup).not.toHaveBeenCalled();
   });
   it("rejects wrong hosts and cross-origin calls before authorization",async()=>{
-    configure();for(const request of [new Request("https://wrong.example/mcp"),new Request(`${origin}/mcp`,{headers:{origin:"https://wrong.example"}})]) {
+    configure();for(const request of [new Request("https://wrong.example/mcp"),new Request(`${origin}/mcp`,{headers:{origin:"https://wrong.example"}}),
+      new Request(`${origin}/mcp`,{headers:{host:"wrong.example","x-forwarded-host":"trade.example"}})]) {
       expect((await handleMcpRequest(request)).status).toBe(403);
     }
     expect(authenticate).not.toHaveBeenCalled();
+  });
+  it("validates the actual Host when Next normalizes a loopback request URL",async()=>{
+    configure();const response=await handleMcpRequest(new Request("http://localhost:3100/mcp",{headers:{host:"trade.example"}}));
+    expect(response.status).toBe(405);expect(authenticate).toHaveBeenCalledOnce();
   });
   it("does not turn a provider outage into token rejection or expose private errors",async()=>{
     configure();authenticate.mockRejectedValue(new IntegrationUnavailableError());
@@ -61,7 +66,8 @@ describe("official SDK interoperability",()=>{
       const response=await handleMcpRequest(new Request(input,init));responses.push(response.clone());return response;
     }});
     await client.connect(transport);
-    const tools=await client.listTools();expect(tools.tools.map(tool=>tool.name)).toEqual(["tradeos_capabilities","tradeos_position_size","tradeos_operation_status"]);
+    const tools=await client.listTools();expect(tools.tools.map(tool=>tool.name)).toEqual(["tradeos_capabilities","tradeos_position_size","tradeos_operation_status",
+      "tradeos_configuration_list","tradeos_configuration_get","tradeos_configuration_create","tradeos_configuration_patch","tradeos_configuration_archive"]);
     const contracts=await client.listResources();expect(contracts.resources).toHaveLength(5);
     const money=await client.readResource({uri:"tradeos://v1/money"});expect(money.contents[0]).toMatchObject({mimeType:"application/json"});
     const calculation=await client.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
@@ -75,13 +81,15 @@ describe("official SDK interoperability",()=>{
     await expect(client.callTool({name:"tradeos_operation_status",arguments:{operationId}})).rejects.toThrow();
   });
   it("supports legacy stateless MCP and rejects numeric monetary inputs and secret-bearing errors",async()=>{
-    const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:async()=>{throw new Error("PRIVATE_TEST_VALUE");}}),{responseMode:"json"});
+    const unavailableService=async()=>{throw new Error("PRIVATE_TEST_VALUE");};
+    const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:unavailableService,configurationList:unavailableService,
+      configurationGet:unavailableService,configurationWrite:unavailableService}),{responseMode:"json"});
     try {
       const request=(id:number,method:string,params:object)=>handler.fetch(new Request(`${origin}/mcp`,{method:"POST",
         headers:{"content-type":"application/json",accept:"application/json, text/event-stream","mcp-protocol-version":"2025-11-25"},
         body:JSON.stringify({jsonrpc:"2.0",id,method,params})}));
       const responseJson=async(response:Response)=>{const body=await response.text();return JSON.parse(response.headers.get("content-type")?.includes("text/event-stream")?body.split("\n").find(line=>line.startsWith("data: "))!.slice(6):body);};
-      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(3);
+      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(8);
       const rejected=await responseJson(await request(2,"tools/call",{name:"tradeos_position_size",arguments:{balance:100000,currency:"USD",currencyPrecision:2,
         riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.10000",stopLossPrice:"1.09800"}}));
       expect(rejected.result?.isError||rejected.error).toBeTruthy();

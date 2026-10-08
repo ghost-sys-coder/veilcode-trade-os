@@ -17,6 +17,7 @@
     "replay:local-db": "node scripts/replay-local-test-database.mjs",
     "test:integration-auth": "node --experimental-strip-types scripts/test-integration-oauth.mts",
     "test:integration-browser": "node --experimental-strip-types scripts/test-integration-oauth.mts --browser",
+    "test:mcp-integration": "node --experimental-strip-types scripts/test-mcp-integration.mts",
     "dev:integration": "node scripts/start-local-integration-app.mjs",
     "check:integration-auth": "node --experimental-strip-types scripts/check-integration-auth.mts",
     "db:types": "node scripts/generate-database-types.mjs",

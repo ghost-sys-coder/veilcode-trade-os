@@ -70,9 +70,9 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account/symbol mapping, explicit cash attribution, captured-history snapshot approval, balance bridge, monitoring, fenced controls and publication pass local browser checks; source/manual financial-conflict resolution and real demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
-| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | Parked |
-| MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | Parked |
-| MCP-3 | Client verification and readiness | Required client matrix plus regression checks | Parked |
+| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: inventory, shared strategy/setup/rule commands, paginated reads, versions and atomic receipts/audits pass; other families and permanent deletion pending |
+| MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | In progress: official SDK stateless HTTP and real local browser consent/S256/refresh/resource binding/revocation pass; local stdio and hosted activation pending |
+| MCP-3 | Client verification and readiness | Required client matrix plus regression checks | In progress: modern/legacy SDK and existing browser regression pass; requested real external clients pending |
 
 Authentication is an early hard gate. Verify the configured provider's
 discovery, PKCE S256, renewable tokens, resource binding, revocation and

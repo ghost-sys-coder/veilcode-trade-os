@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,8 @@ import type { StrategyRow } from "@/types/database-helpers";
 export function StrategyForm({ strategy }: { strategy?: StrategyRow }) {
   return (
     <form action={saveStrategy} className="space-y-4">
+      <input type="hidden" name="operationId" value={randomUUID()} />
+      {strategy ? <input type="hidden" name="expectedVersion" value={Number.isSafeInteger(strategy.record_version) ? String(strategy.record_version) : ""} /> : null}
       {strategy ? <input type="hidden" name="id" value={strategy.id} /> : null}
       <div className="space-y-2">
         <Label htmlFor={`strategy-name-${strategy?.id ?? "new"}`}>Strategy name</Label>
@@ -22,7 +25,7 @@ export function StrategyForm({ strategy }: { strategy?: StrategyRow }) {
         <div><Label htmlFor={`strategy-active-${strategy?.id ?? "new"}`}>Active</Label><p className="text-xs text-muted-foreground">Active strategies appear in trade-entry choices.</p></div>
         <Switch id={`strategy-active-${strategy?.id ?? "new"}`} name="active" defaultChecked={strategy?.active ?? true} />
       </div>
-      <Button type="submit" className="w-full sm:w-auto">{strategy ? "Save strategy" : "Create strategy"}</Button>
+      <Button type="submit" className="w-full sm:w-auto" disabled={Boolean(strategy?.archived_at)}>{strategy?.archived_at ? "Archived strategy" : strategy ? "Save strategy" : "Create strategy"}</Button>
     </form>
   );
 }

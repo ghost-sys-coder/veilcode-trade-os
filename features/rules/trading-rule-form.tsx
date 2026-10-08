@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,8 @@ export function TradingRuleForm({ accounts, rule }: TradingRuleFormProps) {
 
   return (
     <form action={saveTradingRule} className="space-y-4">
+      <input type="hidden" name="operationId" value={randomUUID()} />
+      {rule ? <input type="hidden" name="expectedVersion" value={Number.isSafeInteger(rule.record_version) ? String(rule.record_version) : ""} /> : null}
       {rule ? <input type="hidden" name="id" value={rule.id} /> : null}
       <div className="space-y-2">
         <Label htmlFor={`rule-name-${rule?.id ?? "new"}`}>Rule name</Label>
@@ -60,7 +63,7 @@ export function TradingRuleForm({ accounts, rule }: TradingRuleFormProps) {
         <div><Label htmlFor={`rule-active-${rule?.id ?? "new"}`}>Active</Label><p className="text-xs text-muted-foreground">Only active rules are reviewed against new trades.</p></div>
         <Switch id={`rule-active-${rule?.id ?? "new"}`} name="active" defaultChecked={rule?.active ?? true} />
       </div>
-      <Button type="submit" className="w-full sm:w-auto">{rule ? "Save rule" : "Create rule"}</Button>
+      <Button type="submit" className="w-full sm:w-auto" disabled={Boolean(rule?.archived_at)}>{rule?.archived_at ? "Archived rule" : rule ? "Save rule" : "Create rule"}</Button>
     </form>
   );
 }

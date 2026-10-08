@@ -2,6 +2,9 @@
 
 Date: 2026-10-08. Branch: `feature/mcp-access`.
 Status: initial foundation, not MCP feature completion or hosted activation.
+Later work and real MCP provider/configuration evidence are recorded in
+[the configuration checkpoint](MCP_CONFIGURATION_VERIFICATION.md); counts and
+pending items below describe this original checkpoint only.
 
 ## Implemented
 

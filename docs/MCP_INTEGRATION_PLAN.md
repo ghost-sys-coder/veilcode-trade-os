@@ -1,9 +1,11 @@
 # Trade OS MCP Access Implementation Plan
 
 Branch: `feature/mcp-access`. Status: updated from master `32306e5` after the
-focused demo check passed; workflow inventory and the initial authenticated
-stateless HTTP foundation are implemented. Application CRUD, local stdio,
-full MCP consent/client verification and activation remain pending. See
+focused demo check passed; stateless HTTP and the strategy/setup/rule shared
+list/get/create/patch/archive workflows are implemented. The real local MCP
+OAuth/consent/refresh/revocation gate passes. Remaining application workflows,
+permanent deletion, local stdio, external-client verification and hosted
+activation remain pending. See
 [capability inventory](MCP_CAPABILITY_INVENTORY.md).
 The user requested same-day MT5/MCP delivery on 2026-10-05 and removed the mandatory
 48-hour soak wait. MT5 correctness/security and focused demo checks remain required;

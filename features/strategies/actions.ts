@@ -1,113 +1,38 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-
 import { setupSchema, strategySchema } from "@/domain/validation/schemas";
 import { firstValidationError, redirectWithStatus } from "@/lib/action-errors";
-import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedBrowserContext } from "@/services/integrations/browser-context";
+import { writeConfiguration } from "@/services/application/configuration";
+import { configurationFormError } from "@/services/application/form-error";
 
-export async function saveStrategy(formData: FormData): Promise<void> {
-  const result = strategySchema.safeParse({
-    id: formData.get("id") ?? "",
-    name: formData.get("name"),
-    description: formData.get("description") ?? "",
-    active: formData.get("active") === "on",
-  });
-
-  if (!result.success) {
-    redirectWithStatus("/strategies", "error", firstValidationError(result.error));
-  }
-
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const values = result.data;
-  const payload = {
-    name: values.name,
-    description: values.description ?? null,
-    active: values.active,
-    is_example: false,
-  };
-  if (values.id) {
-    const { data, error } = await supabase
-      .from("strategies")
-      .update(payload)
-      .eq("id", values.id)
-      .eq("user_id", userId)
-      .select("id")
-      .maybeSingle();
-
-    if (error) {
-      redirectWithStatus("/strategies", "error", error.message);
-    }
-
-    if (!data) {
-      redirectWithStatus("/strategies", "error", "Strategy not found or no longer available.");
-    }
-  } else {
-    const { error } = await supabase
-      .from("strategies")
-      .insert({ ...payload, user_id: userId });
-
-    if (error) {
-      redirectWithStatus("/strategies", "error", error.message);
-    }
-  }
-
+async function persist(formData:FormData,entity:"STRATEGY"|"SETUP",id:string|undefined,values:object) {
+  try {
+    const context=await getVerifiedBrowserContext(await createClient());
+    await writeConfiguration(context,id?"PATCH":"CREATE",{
+      entity,operationId:formData.get("operationId"),values,
+      ...(id?{id,expectedVersion:formData.get("expectedVersion")}:{}),
+    });
+  } catch(error) {redirectWithStatus("/strategies","error",configurationFormError(error));}
   revalidatePath("/strategies");
   revalidatePath("/dashboard");
-  redirectWithStatus("/strategies", "message", values.id ? "Strategy updated." : "Strategy created.");
+  redirectWithStatus("/strategies","message",`${entity==="STRATEGY"?"Strategy":"Setup"} ${id?"updated":"created"}.`);
 }
 
-export async function saveSetup(formData: FormData): Promise<void> {
-  const result = setupSchema.safeParse({
-    id: formData.get("id") ?? "",
-    strategyId: formData.get("strategyId"),
-    name: formData.get("name"),
-    description: formData.get("description") ?? "",
-    active: formData.get("active") === "on",
-  });
+export async function saveStrategy(formData:FormData):Promise<void> {
+  const result=strategySchema.safeParse({id:formData.get("id")??"",name:formData.get("name"),
+    description:formData.get("description")??"",active:formData.get("active")==="on"});
+  if(!result.success)redirectWithStatus("/strategies","error",firstValidationError(result.error));
+  const values=result.data;
+  await persist(formData,"STRATEGY",values.id,{name:values.name,description:values.description??null,active:values.active});
+}
 
-  if (!result.success) {
-    redirectWithStatus("/strategies", "error", firstValidationError(result.error));
-  }
-
-  const userId = await requireUserId();
-  const supabase = await createClient();
-  const values = result.data;
-  const payload = {
-    strategy_id: values.strategyId,
-    name: values.name,
-    description: values.description ?? null,
-    active: values.active,
-  };
-  if (values.id) {
-    const { data, error } = await supabase
-      .from("setups")
-      .update(payload)
-      .eq("id", values.id)
-      .eq("user_id", userId)
-      .select("id")
-      .maybeSingle();
-
-    if (error) {
-      redirectWithStatus("/strategies", "error", error.message);
-    }
-
-    if (!data) {
-      redirectWithStatus("/strategies", "error", "Setup not found or no longer available.");
-    }
-  } else {
-    const { error } = await supabase
-      .from("setups")
-      .insert({ ...payload, user_id: userId });
-
-    if (error) {
-      redirectWithStatus("/strategies", "error", error.message);
-    }
-  }
-
-  revalidatePath("/strategies");
-  revalidatePath("/dashboard");
-  redirectWithStatus("/strategies", "message", values.id ? "Setup updated." : "Setup created.");
+export async function saveSetup(formData:FormData):Promise<void> {
+  const result=setupSchema.safeParse({id:formData.get("id")??"",strategyId:formData.get("strategyId"),
+    name:formData.get("name"),description:formData.get("description")??"",active:formData.get("active")==="on"});
+  if(!result.success)redirectWithStatus("/strategies","error",firstValidationError(result.error));
+  const values=result.data;
+  await persist(formData,"SETUP",values.id,{name:values.name,description:values.description??null,active:values.active,strategy_id:values.strategyId});
 }
