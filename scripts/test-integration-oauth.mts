@@ -122,6 +122,14 @@ try {
     assert.equal(unauthenticated.status,401);
     assert(unauthenticated.headers.get("www-authenticate")?.includes("resource_metadata="));
     passed("public resource discovery and unauthenticated API challenge are correct");
+    stage = "protected read-page redirects";
+    for (const path of ["/journal/daily", "/journal/weekly", "/journal/monthly", "/calendar", "/trades", "/analytics/overview"]) {
+      const response = await fetch(uiOrigin + path, { redirect: "manual", signal: AbortSignal.timeout(30000) });
+      assert.equal(response.status, 307);
+      assert((response.headers.get("location") ?? "").startsWith("/login"));
+      await response.body?.cancel();
+      passed(`anonymous ${path} redirects to login`);
+    }
     stage = "actual browser login";
     await page.goto(`${uiOrigin}/login?next=${encodeURIComponent("/settings/integrations")}`);
     await page.getByLabel("Email address",{ exact: true }).fill(email);
@@ -137,6 +145,18 @@ try {
     await page.getByRole("button",{ name: "Open dashboard", exact: true }).waitFor();
     assert.equal(await page.getByRole("button",{ name: "Sign in", exact: true }).count(),0);
     passed("logged-in public calculator does not show a sign-in button");
+    stage = "authenticated journal and analytics reads";
+    for (const [path, heading] of [
+      ["/journal/daily", "Daily journal"], ["/journal/weekly", "Weekly review"],
+      ["/journal/monthly", "Monthly review"], ["/calendar", "Trading calendar"],
+      ["/trades", "Canonical trades"], ["/analytics/overview", "Performance analytics"],
+    ]) {
+      const response = await page.goto(uiOrigin + path);
+      assert.equal(response?.status(), 200);
+      assert.equal(new URL(page.url()).pathname, path);
+      await page.getByRole("heading", { name: heading, exact: true }).waitFor();
+      passed(`authenticated ${path} retains its normal read workflow`);
+    }
   }
 
   function pythonOAuth(action: string, extra: Record<string,unknown> = {}) {

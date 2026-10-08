@@ -15,6 +15,7 @@ import { saveWeeklyReview } from "@/features/journal/actions";
 import { PeriodSummary } from "@/features/journal/period-summary";
 import { ReviewNavigation } from "@/features/journal/review-navigation";
 import { SelectField } from "@/features/trades/select-field";
+import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountLedger } from "@/services/accounts/get-account-ledger";
 import { getTradeJournalDataset } from "@/services/journal/get-trade-journal";
@@ -41,6 +42,7 @@ function setupByAverageR(trades: Array<{ setupName: string | null; actualR: stri
 }
 
 export default async function WeeklyJournalPage({ searchParams }: WeeklyPageProps) {
+  await requireUserId();
   const [query, supabase] = await Promise.all([searchParams, createClient()]);
   const { data: profile } = await supabase.from("profiles").select("timezone").maybeSingle();
   const timezone = profile?.timezone ?? "Africa/Kampala";

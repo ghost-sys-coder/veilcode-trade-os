@@ -14,12 +14,14 @@ import { PeriodSummary } from "@/features/journal/period-summary";
 import { ReviewNavigation } from "@/features/journal/review-navigation";
 import { saveDailyLog } from "@/features/journal/actions";
 import { SelectField } from "@/features/trades/select-field";
+import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTradeJournalDataset } from "@/services/journal/get-trade-journal";
 
 interface DailyPageProps { searchParams: Promise<{ account?: string; date?: string; error?: string; message?: string }> }
 
 export default async function DailyJournalPage({ searchParams }: DailyPageProps) {
+  await requireUserId();
   const [query, supabase] = await Promise.all([searchParams, createClient()]);
   const { data: profile } = await supabase.from("profiles").select("timezone").maybeSingle();
   const timezone = profile?.timezone ?? "Africa/Kampala";

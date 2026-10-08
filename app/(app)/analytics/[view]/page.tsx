@@ -8,6 +8,7 @@ import { AnalyticsContent } from "@/features/analytics/analytics-content";
 import { AnalyticsFilters } from "@/features/analytics/analytics-filters";
 import { ANALYTICS_VIEWS, AnalyticsNavigation, type AnalyticsView } from "@/features/analytics/analytics-navigation";
 import { parseAnalyticsFilters, serializeAnalyticsFilters, type RawSearchParams } from "@/features/analytics/query";
+import { requireUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPerformanceAnalytics } from "@/services/analytics/get-performance-analytics";
 import { getBehaviorAnalytics } from "@/services/analytics/get-behavior-analytics";
@@ -32,6 +33,7 @@ interface AnalyticsPageProps {
 }
 
 export default async function AnalyticsPage({ params, searchParams }: AnalyticsPageProps) {
+  await requireUserId();
   const [{ view: rawView }, rawFilters, supabase] = await Promise.all([params, searchParams, createClient()]);
   if (!ANALYTICS_VIEWS.some((item) => item.id === rawView)) notFound();
   const view = rawView as AnalyticsView;
