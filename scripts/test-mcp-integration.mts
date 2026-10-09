@@ -136,12 +136,12 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,65);assert.equal((await legacy.listTools()).tools.length,65);
+  assert.equal((await modern.listTools()).tools.length,73);assert.equal((await legacy.listTools()).tools.length,73);
   assert.equal((await modern.listResources()).resources.length,6);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 65 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 73 tools and verifies 5.00-lot fixture");
 
   if(process.argv.includes("--integration-access-only")) {
     const instrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;

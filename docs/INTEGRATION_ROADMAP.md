@@ -70,7 +70,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account/symbol mapping, explicit cash attribution, captured-history snapshot approval, balance bridge, monitoring, fenced controls and publication pass local browser checks; source/manual financial-conflict resolution and real demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
-| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: 65 HTTP tools / six resources cover accounts/events/lifecycle, trades/reviews, configuration, journals, progress, references/tags, reporting/export, snapshot-aware balance curves, profile and MT5/import reads/review. Integration controls/mapping/approval/policy, files and permanent deletion remain pending; see MCP_CAPABILITY_INVENTORY.md |
+| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: 73 HTTP tools / six resources cover accounts/events/lifecycle, trades/reviews, configuration, journals, progress, references/tags, reporting/export, snapshot-aware balance curves, profile and MT5/import reads/review plus mapping/cash/publication/approval/policy/control. Hosted workflow prerequisites verified; files and permanent deletion remain pending; see MCP_CAPABILITY_INVENTORY.md |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | In progress: official SDK stateless HTTP and real local browser consent/S256/refresh/resource binding/revocation pass; local stdio and hosted activation pending |
 | MCP-3 | Client verification and readiness | Required client matrix plus regression checks | In progress: modern/legacy SDK and existing browser regression pass; requested real external clients pending |
 
@@ -120,6 +120,17 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 - [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth)
 
 ## Progress log
+
+- 2026-10-09: at the user's request to complete one group at a time, implemented
+  the remaining eight overlapping MT5 workflow adapters, reusing existing cores.
+  Catalog is now 73 tools/six resources. Local 884 unit tests, 984 database
+  assertions, 51 full MCP checks, 65 browser checks and 176 Python tests pass,
+  with static checks/build and schema replay. After user approval, installed the
+  exact hosted migration, aligned its new history entry to `20261009010947` and
+  verified 54 unchanged application table fingerprints, eleven private function
+  gates and the 30-function/14-column hosted verified build. MCP stays disabled;
+  no real collector or hosted data changed. See
+  [workflow verification](MCP_MT5_WORKFLOW_VERIFICATION.md).
 
 - 2026-10-09: on the user's requested push/completion outline, installed only
   the tested integration-access private migration on the identified hosted

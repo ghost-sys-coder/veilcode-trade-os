@@ -9,6 +9,16 @@ import {mt5ConnectionViewSchema,buildMt5OnboardingPreview} from "@/domain/mt5/on
 import {decodeMt5Snapshot} from "@/domain/mt5/snapshot";
 import {mt5ReviewRequestSchema} from "@/domain/mt5/review";
 import {prepareMt5Review} from "@/domain/mt5/prepare-review";
+import {mt5WorkflowRequestSchema,mt5GrantListSchema,mt5GrantPageSchema,mt5WorkflowResultSchemas,prepareMt5Workflow,type Mt5WorkflowRequest} from "@/domain/mt5/workflow-commands";
+
+export async function listMt5Grants(context:ApplicationContext,input:unknown) {
+  return mt5GrantPageSchema.parse(await applicationTransaction(context,"MT5_GRANTS_READ",mt5GrantListSchema.parse(input)));
+}
+export async function writeMt5Workflow(context:ApplicationContext,kind:Mt5WorkflowRequest["kind"],input:unknown) {
+  if(!getIntegrationConfig("MT5").enabled)throw new ApplicationWorkflowError("ACCESS_DENIED");
+  const request=mt5WorkflowRequestSchema.parse({kind,command:input});
+  return mt5WorkflowResultSchemas[request.kind].parse(await applicationTransaction(context,"MT5_WORKFLOW_WRITE",request,raw=>prepareMt5Workflow(request,raw)));
+}
 
 export async function listMt5(context:ApplicationContext,input:unknown) {
   return connectionPageSchema.parse(await applicationTransaction(context,"INTEGRATION_READ",{action:"MT5_LIST",...mt5ConnectionsSchema.parse(input)}));

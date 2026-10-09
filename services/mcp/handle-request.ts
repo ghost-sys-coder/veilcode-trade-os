@@ -1,5 +1,5 @@
 import "server-only";
-import {listMt5,getMt5,previewMt5,listMt5Sources,listMt5Matches,reviewMt5,listImports,getImport,listImportRows} from "@/services/application/integrations";
+import {listMt5,getMt5,previewMt5,listMt5Sources,listMt5Matches,reviewMt5,listImports,getImport,listImportRows,listMt5Grants,writeMt5Workflow} from "@/services/application/integrations";
 import {getProfile,patchProfile} from "@/services/application/profile";
 import {summarizeJournal,queryPerformance,queryBalanceCurve,queryBehavior,queryCalendar,exportJournal} from "@/services/application/reporting";
 import {performanceReport,behaviorResultSchema} from "@/domain/reporting/results";
@@ -33,6 +33,10 @@ export async function handleMcpRequest(request:Request):Promise<Response> {
     verifiedIntegrationClaims(context);
     if(request.method!=="POST")return new Response(null,{status:405,headers:{Allow:"POST","Cache-Control":"no-store"}});
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:id=>getIntegrationOperation(context,id),
+      mt5Grants:input=>listMt5Grants(context,input),mt5MapAccount:input=>writeMt5Workflow(context,"REGISTER",input),
+      mt5SymbolMap:input=>writeMt5Workflow(context,"SYMBOL_MAPPING",input),mt5CashClassify:input=>writeMt5Workflow(context,"CASH",input),
+      mt5Publish:input=>writeMt5Workflow(context,"PUBLICATION",input),mt5OnboardingApprove:input=>writeMt5Workflow(context,"ONBOARDING",input),
+      mt5PublicationPolicy:input=>writeMt5Workflow(context,"POLICY",input),mt5Control:input=>writeMt5Workflow(context,"CONTROL",input),
       mt5Matches:input=>listMt5Matches(context,input),mt5List:input=>listMt5(context,input),mt5Get:input=>getMt5(context,input),mt5Preview:input=>previewMt5(context,input),
       mt5Sources:input=>listMt5Sources(context,input),mt5Review:input=>reviewMt5(context,input),importsList:input=>listImports(context,input),
       importsGet:input=>getImport(context,input),importRows:input=>listImportRows(context,input),

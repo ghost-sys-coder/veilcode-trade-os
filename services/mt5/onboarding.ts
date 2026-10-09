@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { buildMt5OnboardingPreview, mt5ConnectionViewSchema, mt5StoredSourceSchema } from "@/domain/mt5/onboarding";
-import { mt5IdentitySchema } from "@/domain/mt5/source";
 import {mt5SymbolMappingSchema} from "@/domain/mt5/symbol-mapping";
 import {mt5CashDecisionSchema} from "@/domain/mt5/cash";
 import {mt5SourcePageSchema as sourcePageSchema} from "@/domain/mt5/snapshot";
+import {mt5RegisterRequestSchema,mt5ControlRequestSchema} from "@/domain/mt5/workflow-commands";
 import { prepareMt5OnboardingApproval } from "@/domain/mt5/onboarding-approval";
 import { verifyDirectBrowser } from "@/services/integrations/grant-management";
 import type { IntegrationDatabase } from "@/types/integration-database";
@@ -25,7 +25,11 @@ export async function listMt5Connections(client: Client) {
 export async function registerMt5Connection(client: Client, input: unknown) {
   await verifyDirectBrowser(client);
   if (!getIntegrationConfig("MT5").enabled) throw new Mt5OnboardingError();
-  const data = z.object({ grantId: z.string().uuid(),operationId: z.string().uuid(),identity: mt5IdentitySchema }).parse(input);
+  let data:z.infer<typeof mt5RegisterRequestSchema>;
+  try {data=mt5RegisterRequestSchema.parse(input);} catch(error) {
+    if(error instanceof z.ZodError&&error.issues.some(issue=>issue.message==="Demo identity required"))throw new Mt5OnboardingError("INVALID");
+    throw error;
+  }
   if (data.identity.accountKind !== "DEMO") throw new Mt5OnboardingError("INVALID");
   const result = await client.rpc("mt5_register_connection",{ p_grant_id: data.grantId,p_operation_id: data.operationId,p_identity: data.identity });
   if (result.error) throw new Mt5OnboardingError(result.error.code === "23505" ? "CONFLICT" : "UNAVAILABLE");
@@ -35,8 +39,7 @@ export async function registerMt5Connection(client: Client, input: unknown) {
 export async function controlMt5Connection(client: Client, input: unknown) {
   await verifyDirectBrowser(client);
   if (!getIntegrationConfig("MT5").enabled) throw new Mt5OnboardingError();
-  const data = z.object({ connectionId: z.string().uuid(),version,operationId: z.string().uuid(),
-    action: z.enum(["PAUSE","RESUME"]),reason: z.string().trim().min(8).max(1000) }).parse(input);
+  const data = mt5ControlRequestSchema.parse(input);
   const result = await client.rpc("mt5_set_connection_state",{ p_connection_id: data.connectionId,p_expected_version: data.version,
     p_operation_id: data.operationId,p_action: data.action,p_reason: data.reason });
   if (result.error) throw new Mt5OnboardingError(["40001","23505"].includes(result.error.code) ? "CONFLICT" : "UNAVAILABLE");

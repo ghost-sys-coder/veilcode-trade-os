@@ -9,14 +9,18 @@ workflows now use shared services. Persisted journal reflections and goal/prop
 commands plus exact shared account-progress metrics, owned tag/instrument
 workflows and audited trade-tag associations now join computed journal summaries,
 performance/behavior analytics, the realized calendar and full filtered CSV export,
-bringing local coverage to 65 HTTP tools and six resources with snapshot-aware
+bringing local coverage to 73 HTTP tools and six resources with snapshot-aware
 paginated balance-curve events, self-profile preferences and MT5/import access.
 The nine integration tools reuse existing broker reconstruction/finance and
 SOURCE/DISTINCT/LINK/REOPEN/CASH review rather than rebuilding MT5. Health,
 raw revision history, complete preview, manual fingerprints and import staging
 are owner-scoped; review additionally checks the active account-bound MT5 grant.
-Controls, initial mapping, onboarding approval and publication policy remain
-unexposed. See [integration verification](MCP_INTEGRATION_ACCESS_VERIFICATION.md).
+Controls, initial mapping/cash classification, selected publication, onboarding
+approval and publication policy now have eight strict MCP adapters, verified
+locally as one overlapping workflow group. Its approved hosted prerequisites are
+installed and verified, preserving all 54 application table fingerprints and
+leaving MCP disabled. See [workflow verification](MCP_MT5_WORKFLOW_VERIFICATION.md) and
+[integration verification](MCP_INTEGRATION_ACCESS_VERIFICATION.md).
 The tested private integration migration is now installed and verified on the
 correct hosted project, with 12 unchanged data fingerprints and MCP disabled.
 The remaining capability/client/release gates are listed in

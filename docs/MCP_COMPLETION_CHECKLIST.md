@@ -9,7 +9,7 @@ it is not a plan to rebuild the completed integrations or core workflows.
 
 - Stateless remote HTTP `/mcp`, public discovery, resource-bound Supabase OAuth,
   browser consent, renewable credentials, immediate revocation and operation lookup.
-- 65 HTTP tools and six resources: accounts/balances/events/lifecycle,
+- 73 HTTP tools and six resources: accounts/balances/events/lifecycle,
   strategies/setups/rules, instruments/tags, goals/prop progress, canonical
   trades/management/corrections/reviews, journals, analytics/calendar/export,
   position sizing, self-profile, MT5/import reads and explicit conflict review.
@@ -32,6 +32,10 @@ that every requested real AI client has connected successfully.
    No terminal-switching, capture/lease impersonation or broker-execution tools.
    Existing MT5 implementations are reused; they are not missing MT5 features.
    Audit any user-facing import conflict action against the capability inventory.
+   **Complete:** eight typed tools pass local unit/database/provider/browser gates;
+   the user-approved hosted prerequisite rollout passes with all 54 application
+   table fingerprints unchanged and MCP still disabled. See
+   [workflow evidence](MCP_MT5_WORKFLOW_VERIFICATION.md). Do not rebuild this group.
 2. **Controlled screenshots/private files.** Metadata/list plus controlled
    upload-request, validated upload-finish and bounded private download. Preserve
    owner/trade relations, content/size/type limits, exact object IDs, retry/audit
@@ -58,7 +62,7 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Recommended build order is 1, 2, 3, 4, 5, 6. File deletion cannot ship before
+Item 1 is delivered; next build is item 2, followed by 3, 4, 5, 6. File deletion cannot ship before
 its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.
 
