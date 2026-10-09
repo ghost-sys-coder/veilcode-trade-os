@@ -1,5 +1,6 @@
 /** Fixed release prerequisites for the adapted browser and MCP services. */
 export const APPLICATION_DATABASE_FUNCTIONS = [
+  "private.application_file_read(jsonb)","private.application_file_prepare(jsonb)","private.application_file_write(jsonb,jsonb)",
   "private.application_mt5_grants(jsonb)","private.application_mt5_workflow_prepare(jsonb)","private.application_mt5_workflow_write(jsonb,jsonb)",
   "private.application_integration_read(jsonb)","private.application_mt5_review_prepare(jsonb)","private.application_mt5_review_write(jsonb,jsonb)",
   "private.application_profile_read(jsonb)","private.application_profile_write(jsonb)",

@@ -1,4 +1,6 @@
 import "server-only";
+import {screenshotsListSchema,screenshotGetSchema,uploadRequestSchema,uploadStatusSchema,uploadChunkSchema,uploadFinishSchema,
+  screenshotDownloadSchema,screenshotPageSchema,screenshotRecordSchema,uploadRecordSchema,fileResultSchema,fileDownloadResultSchema,PrivateFileError} from "@/domain/files/commands";
 import {mt5RegisterRequestSchema,mt5ControlRequestSchema,mt5GrantListSchema,mt5WorkflowResultSchemas,mt5GrantPageSchema} from "@/domain/mt5/workflow-commands";
 import {mt5SymbolMappingRequestSchema} from "@/domain/mt5/symbol-mapping";
 import {mt5CashRequestSchema} from "@/domain/mt5/cash";
@@ -63,16 +65,23 @@ const referenceToolNames=["tradeos_references_list","tradeos_references_get","tr
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve"] as const;
 const profileToolNames=["tradeos_profile_get","tradeos_profile_patch"] as const;
+const fileToolNames=["tradeos_screenshots_list","tradeos_screenshots_get","tradeos_screenshot_upload_request","tradeos_screenshot_upload_status",
+  "tradeos_screenshot_upload_chunk","tradeos_screenshot_upload_finish","tradeos_screenshot_download"] as const;
 const integrationToolNames=["tradeos_mt5_list","tradeos_mt5_get","tradeos_mt5_preview","tradeos_mt5_sources","tradeos_mt5_review",
   "tradeos_imports_list","tradeos_imports_get","tradeos_import_rows","tradeos_mt5_matches",
   "tradeos_mt5_grants","tradeos_mt5_map_account","tradeos_mt5_symbol_map","tradeos_mt5_cash_classify","tradeos_mt5_publish","tradeos_mt5_onboarding_approve","tradeos_mt5_publication_policy","tradeos_mt5_control"] as const;
 const catalog = {
-  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames,...integrationToolNames], resources:["catalog","domain","money","workflows","reporting","integrations"],
-  pendingFamilies:["configuration/reference permanent deletion","screenshots upload/download","local stdio"],
-  status:"73 HTTP tools include explicit MT5 mapping/cash/publication/onboarding/policy/control workflows plus existing application features. Files, permanent deletion, stdio and external-client verification remain pending.",
+  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames,...integrationToolNames,...fileToolNames], resources:["catalog","domain","money","workflows","reporting","integrations","files"],
+  pendingFamilies:["configuration/reference/file permanent deletion","local stdio"],
+  status:"80 HTTP tools include authenticated, chunked private screenshot uploads/downloads, existing MT5 and application workflows. Permanent deletion, stdio and external-client verification remain pending.",
 };
 const resources = {
   catalog,
+  files:{scope:"Private screenshot evidence for owned canonical trades. Metadata/list includes legacy attachments. No arbitrary local paths, remote URLs, public bucket, credentials or permanent deletion.",
+    upload:"Request with expectedTradeVersion, complete file SHA-256, byteLength, declared PNG/JPEG/WebP type and category/timeframe/caption/capturedAt metadata. Reservation is not evidence. Upload canonical base64 chunks of exactly chunkBytes (393216), except the final remainder, using each returned upload.version. Chunks may arrive out of order. Resume via upload_status; use identical operation IDs after uncertain responses. Staging expires after 24 hours; expired uploads require a new request. At most 10 MiB and 16 million decoded pixels; single-frame images only.",
+    finish:"After all chunks, reload trade record_version and finish with current upload and trade versions. Full byte hash/type/size and compressed-pixel decoding are verified, then metadata/receipt/audit commit atomically. No overwrite. An audit or version failure leaves unpublished staging retryable, not attached evidence.",
+    download:"Bounded base64 chunks, at most 393216 bytes each. Continue with nextOffset and the same expectedSha256; changed bytes reject continuation. Every request checks active grant/ownership before and after Storage I/O. No signed URLs. Legacy images are validated on read, not claimed to have an original captured hash.",
+    security:"The privileged Storage key is server-only. OAuth direct workspace/Storage policies remain denied. Managed evidence cannot be overwritten through legacy browser APIs. Temporary chunks remain private for resumability and retained manifests; deletion is a separate confirmed workflow."},
   integrations:{reads:"Owned connections and import batches/rows use bounded cursors. MT5 sources expose append-only raw broker revisions with string identifiers; observations are not original plans or completed reviews.",
     preview:"Complete consistent history feeds the existing reconstruction and balance bridge before episode paging. Reuse cursor unchanged for the same connection. VERSION_CONFLICT requires a fresh preview. problemCount is total; problemsTruncated warns about bounded problem detail. A heartbeat is not proof of reconciliation.",
     review:"SOURCE/DISTINCT/LINK/REOPEN/CASH require operationId, connection version, source snapshot and ledger tokens, and a meaningful reason. Manual decisions also require tradeToken. LINK reuses the canonical financial writer and preserves the original manual plan/reviews. SOURCE approval does not publish changed finances. CASH handles reviewed revisions of already classified cash, not first-time ambiguous movements.",
@@ -113,6 +122,13 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  screenshotsList:(input:unknown)=>Promise<ReturnType<typeof screenshotPageSchema.parse>>;
+  screenshotsGet:(input:unknown)=>Promise<ReturnType<typeof screenshotRecordSchema.parse>>;
+  screenshotUploadRequest:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
+  screenshotUploadStatus:(input:unknown)=>Promise<ReturnType<typeof uploadRecordSchema.parse>>;
+  screenshotUploadChunk:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
+  screenshotUploadFinish:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
+  screenshotDownload:(input:unknown)=>Promise<ReturnType<typeof fileDownloadResultSchema.parse>>;
   mt5Grants:(input:unknown)=>Promise<ReturnType<typeof integrationPageSchema.parse>>;
   mt5MapAccount:(input:unknown)=>Promise<Record<string,unknown>>;
   mt5SymbolMap:(input:unknown)=>Promise<Record<string,unknown>>;
@@ -188,7 +204,7 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     });
   const guarded = async (work:()=>Promise<Record<string,unknown>>) => {
     try {return result(await work());}
-    catch(error) {return failure(error instanceof ApplicationWorkflowError || error instanceof BalanceCurveCursorError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
+    catch(error) {return failure(error instanceof ApplicationWorkflowError || error instanceof BalanceCurveCursorError || error instanceof PrivateFileError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
   };
   server.registerTool("tradeos_configuration_list",{description:"List owner-owned STRATEGY, SETUP or RULE records in stable ID order. Continue using nextCursor as afterId; archived records are excluded by default.",
     inputSchema:configurationListSchema,outputSchema:configurationPageSchema,annotations:readOnly},
@@ -197,6 +213,13 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     inputSchema:configurationGetSchema,outputSchema:configurationRecordSchema,annotations:readOnly},
     async input=>guarded(()=>services.configurationGet(input)));
   const mutation = {readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false};
+  server.registerTool("tradeos_screenshots_list",{description:"List owned trade screenshot metadata in bounded UUID-keyset pages, including legacy evidence. No file URLs or secrets.",inputSchema:screenshotsListSchema,outputSchema:screenshotPageSchema,annotations:readOnly},input=>guarded(()=>services.screenshotsList(input)));
+  server.registerTool("tradeos_screenshots_get",{description:"Read one owned screenshot's metadata and known original content facts. Null legacy hashes are unknown, not fabricated evidence.",inputSchema:screenshotGetSchema,outputSchema:screenshotRecordSchema,annotations:readOnly},input=>guarded(()=>services.screenshotsGet(input)));
+  server.registerTool("tradeos_screenshot_upload_request",{description:"Reserve an exact private screenshot upload with current trade version, complete SHA-256, byte length and metadata. Not published evidence; no signed URL. Read the files resource before upload.",inputSchema:uploadRequestSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadRequest(input)));
+  server.registerTool("tradeos_screenshot_upload_status",{description:"Inspect owned client-bound upload state, version, expiry and received chunk indices for resumable recovery. Does not interpret placeholder/staged bytes as evidence.",inputSchema:uploadStatusSchema,outputSchema:uploadRecordSchema,annotations:readOnly},input=>guarded(()=>services.screenshotUploadStatus(input)));
+  server.registerTool("tradeos_screenshot_upload_chunk",{description:"Upload one canonical base64 chunk of 393216 bytes or the exact final remainder. Use the current upload version and durable operation ID. No local path or external URL; raw content never enters audit receipts.",inputSchema:uploadChunkSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadChunk(input)));
+  server.registerTool("tradeos_screenshot_upload_finish",{description:"Validate all staged bytes and full image decoding, then atomically attach evidence and audit it. Requires current upload/trade versions; stale/audit failure publishes no metadata. Exact retries recover receipts without rewriting images.",inputSchema:uploadFinishSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadFinish(input)));
+  server.registerTool("tradeos_screenshot_download",{description:"Read a bounded authenticated base64 chunk of owned private evidence. Continue with nextOffset and expectedSha256; grant revocation or changed content rejects every new chunk. No public/signed URL.",inputSchema:screenshotDownloadSchema,outputSchema:fileDownloadResultSchema,annotations:readOnly},input=>guarded(()=>services.screenshotDownload(input)));
   server.registerTool("tradeos_configuration_create",{description:"Create a strategy, setup or rule. Required operationId is durable: retry the identical payload with the same ID after an uncertain response. Never submit an owner ID. Numeric limits are decimal strings.",
     inputSchema:configurationCreateSchema,outputSchema:configurationResultSchema,annotations:mutation},
     async input=>guarded(()=>services.configurationWrite("CREATE",input)));

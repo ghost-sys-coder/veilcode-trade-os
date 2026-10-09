@@ -9,10 +9,11 @@ it is not a plan to rebuild the completed integrations or core workflows.
 
 - Stateless remote HTTP `/mcp`, public discovery, resource-bound Supabase OAuth,
   browser consent, renewable credentials, immediate revocation and operation lookup.
-- 73 HTTP tools and six resources: accounts/balances/events/lifecycle,
+- 80 HTTP tools and seven resources: accounts/balances/events/lifecycle,
   strategies/setups/rules, instruments/tags, goals/prop progress, canonical
   trades/management/corrections/reviews, journals, analytics/calendar/export,
-  position sizing, self-profile, MT5/import reads and explicit conflict review.
+  position sizing, self-profile, MT5/import reads and explicit conflict review,
+  screenshot metadata and controlled private upload/download.
 - Verified shared services, central decimal calculations, private transactions,
   durable retries, optimistic concurrency and immutable mutation evidence.
 - MT5 health, complete preview/balance bridge, broker revisions, exact manual
@@ -40,6 +41,12 @@ that every requested real AI client has connected successfully.
    upload-request, validated upload-finish and bounded private download. Preserve
    owner/trade relations, content/size/type limits, exact object IDs, retry/audit
    contracts and revocation. No arbitrary URL fetching or local-path access.
+   **Complete for this increment:** seven tools, exact-byte image validation, resumable immutable
+   chunks, atomic attachment/audits and legacy compatibility. Local 59-check
+   OAuth/SDK gate passes. Approved hosted prerequisites preserve all 54 existing
+   application tables; the sensitive secret is scoped only to the MCP-branch
+   Preview, with MCP disabled. See [private-file evidence](MCP_PRIVATE_FILES_VERIFICATION.md)
+   for deployment evidence and explicit retention/client limitations.
 3. **Permanent deletion safeguards.** One-use browser approval bound to owner,
    client, entity, exact target/version and expiry. Delete only unused eligible
    configuration; archive referenced strategies/setups/rules/goals and report
@@ -62,7 +69,7 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Item 1 is delivered; next build is item 2, followed by 3, 4, 5, 6. File deletion cannot ship before
+Items 1 and 2 are implemented; next build is item 3, followed by 4, 5, 6. File deletion cannot ship before
 its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.
 

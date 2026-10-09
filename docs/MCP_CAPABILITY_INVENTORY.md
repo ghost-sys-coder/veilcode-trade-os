@@ -1,7 +1,7 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-09: stateless HTTP, six contract resources and 73 tools are
+Updated 2026-10-09: stateless HTTP, seven contract resources and 80 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries, performance/behavior analytics, the realized calendar
@@ -37,8 +37,10 @@ real-provider/SDK and browser verification passes. See
 [workflow verification](MCP_MT5_WORKFLOW_VERIFICATION.md).
 
 Hosted MCP stays disabled. This increment's approved hosted prerequisites pass
-with 54 unchanged application table fingerprints; reference/configuration permanent deletion, screenshots/file
-access, local stdio and external clients remain pending. This is not full MCP
+with 54 unchanged application table fingerprints. Screenshot metadata and controlled
+private transfers are now implemented; see [private-file verification](MCP_PRIVATE_FILES_VERIFICATION.md).
+Reference/configuration/file permanent deletion, local stdio and external clients
+remain pending. This is not full MCP
 readiness. Balance-curve events,
 self-profile preferences and position sizing are already implemented.
 
@@ -95,7 +97,7 @@ database and protocol evidence before entering the catalog.
 | analytics.behavior/query (implemented) | getBehaviorAnalytics; application/reporting | analytics/behavior; reporting/evidence/results | Explicitly reviewed cohorts, exact immutable rule IDs, unanswered exclusion and descriptive sample-qualified associations |
 | journal.export (implemented) | trades/export route; application/reporting; reporting/export | Shared matchesJournalFilters, CSV escaping and canonical fields | Same active filters; all matching records beyond 1,000, string broker IDs and formula-safe free text |
 | calculator.position_size (implemented) | Public calculator component and MCP pure-domain adapter | trading/position-sizing; instrument specifications | Verified figures, precision/volume steps, anonymous calculator preserved |
-| screenshots.list/upload_request/upload_finish/download/delete | screenshot-uploader; screenshot metadata | screenshotMetadataSchema; private storage ownership | Bounded content/type/size, controlled object IDs, deletion confirmation |
+| screenshots.list/get/upload_request/upload_status/upload_chunk/upload_finish/download (implemented; delete pending) | application/files; files/storage and content; existing screenshot browser | files/commands; private reservation/chunk/finish transactions | Exact owned objects; full byte/hash/type/pixel validation; retries/audits/version/revocation; no signed URLs or arbitrary paths |
 | integrations.mt5.list/get/preview/sources/matches/review (implemented) | application/integrations; shared mt5/snapshot and prepare-review; existing browser adapters | Existing reconstruction/finance, SOURCE/DISTINCT/LINK/REOPEN/CASH review, private transactional writer | Actual MCP actor; separate active collector grant for writes; full bridge before bounded paging; history, exact tokens, retries and stale rejection |
 | integrations.imports.list/get/rows (implemented) | application/integrations; existing import staging tables | Private owner-derived read, wire decimal/ID strings | User/account isolation; paging; failed batches and unresolved rows retained; no import activation |
 | integrations.mt5.grants/map_account/symbol_map/cash_classify/publish/onboarding_approve/publication_policy/control (implemented; hosted prerequisites verified) | application/integrations; existing shared private/browser workflows | mt5/workflow-commands and existing cash/publication/onboarding/fencing algorithms | Explicit schemas, actual MCP receipts/audits, two-grant authority, source/ledger/version, no baseline double-count, approval before policy, fenced control and real local protocol/browser regression |
@@ -154,6 +156,8 @@ is modeled. See [goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md).
   denominator, break-even rate, R qualification and mixed-currency aggregation.
 - `tradeos://v1/integrations`: owned health/provenance, complete-source previews,
   explicit review kinds, separate MCP/collector grants and approved workflow controls.
+- `tradeos://v1/files`: exact upload intent, 384 KiB chunks, status/version/retry
+  flow, full image validation, bounded downloads and explicit legacy integrity.
 
 Authenticated resources must not return other owners' data. Public discovery and
 generic schemas may be public; no user records are included in discovery.

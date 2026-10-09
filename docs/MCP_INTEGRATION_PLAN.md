@@ -9,8 +9,11 @@ workflows now use shared services. Persisted journal reflections and goal/prop
 commands plus exact shared account-progress metrics, owned tag/instrument
 workflows and audited trade-tag associations now join computed journal summaries,
 performance/behavior analytics, the realized calendar and full filtered CSV export,
-bringing local coverage to 73 HTTP tools and six resources with snapshot-aware
-paginated balance-curve events, self-profile preferences and MT5/import access.
+bringing local coverage to 80 HTTP tools and seven resources with snapshot-aware
+paginated balance-curve events, self-profile preferences, MT5/import access and
+controlled screenshot metadata/upload/download. The private-file increment
+preserves legacy browser attachments, denies direct OAuth Storage access and
+uses server-only credentials; see [private-file verification](MCP_PRIVATE_FILES_VERIFICATION.md).
 The nine integration tools reuse existing broker reconstruction/finance and
 SOURCE/DISTINCT/LINK/REOPEN/CASH review rather than rebuilding MT5. Health,
 raw revision history, complete preview, manual fingerprints and import staging

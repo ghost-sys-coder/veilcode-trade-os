@@ -102,15 +102,20 @@ CSV, MT4, MT5, and broker data must pass through an account-scoped batch and row
 
 The commit UI and broker adapters remain intentionally disabled until a real provider export is reviewed. Imports may enrich execution facts but cannot silently replace manual thesis, psychology, screenshots, rule evidence, reviews, grades, or lessons. See [Future imports](docs/FUTURE_IMPORTS.md).
 
-## Integration development (not operationally released)
+## Integration status
 
-MT5 is being built on `feature/mt5-sync`; `feature/mcp-access` remains parked until
-the MT5 release gates pass. Local OAuth consent, account-bound grants, fenced source
-capture, durable Python upload recovery, user-protected renewable credentials,
-bounded Windows worker supervision and a fixture-tested polling coordinator exist.
-No real terminal is attached and staging does not yet publish canonical trades.
-An operational consent/startup entry point, Task Scheduler installation, approved
-onboarding, reconciliation and the 48-hour multi-account demo soak remain required.
+The focused MT5 demo rollout was accepted before MCP implementation began. Account
+isolation, reconstruction, reconciliation, publication, conflict review and protected
+restart recovery are built. Broader terminal/VPS/startup limits and the user-deferred
+extended soak remain documented, not reported as passed.
+
+`feature/mcp-access` implements 80 stateless HTTP tools and seven resources using
+resource-bound OAuth and verified shared services. Controlled private screenshots
+require server-only `SUPABASE_SECRET_KEY` (never `NEXT_PUBLIC_*`). Permanent deletion,
+local stdio, actual external-client checks and hosted activation remain separate
+gates. Hosted MCP stays disabled. See the
+[completion checklist](docs/MCP_COMPLETION_CHECKLIST.md) and
+[private-file verification](docs/MCP_PRIVATE_FILES_VERIFICATION.md).
 
 Run `npm run test:mt5-python` and `npm run check:mt5-python` using the
 [Python development setup](integrations/mt5/README.md). Local-only browser/API tests
@@ -130,7 +135,8 @@ See [integration roadmap](docs/INTEGRATION_ROADMAP.md) and the current
 
 ## Known limitations
 
-- No automated execution, signals, live broker connection, or operational MT4/MT5 terminal bridge.
+- No automated execution, signals, live-account activation or operational MT4 bridge.
+- Private upload staging currently retains temporary bytes; expiry is not automatic garbage collection.
 - CSV commit is not exposed until a broker-specific mapping can be validated safely.
 - Equity and unrealized PnL are manual snapshots; realized balance remains authoritative.
 - Monetary aggregation across currencies requires a future explicit FX-conversion layer.
