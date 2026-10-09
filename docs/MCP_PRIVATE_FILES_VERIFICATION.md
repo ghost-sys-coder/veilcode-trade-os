@@ -125,7 +125,13 @@ Final tests passed after those fixes, not merely before them.
   Vercel metadata confirms `SUPABASE_SECRET_KEY`, type **sensitive**, target
   **Preview only**, branch **feature/mcp-access**, correct project/team. The value
   was passed by stdin, never command arguments, chat, Git or a credential artifact.
-- Source push and exact Preview READY evidence are recorded below after deployment.
+- Source **df971b0118a213ee0b6a2704e290b98a1bbb2794** is committed and pushed.
+  Vercel Preview **dpl_2FYydtx4DxzhYAbK35wSV1NXW2cH** is **READY**, project
+  `prj_J06NUbnHQj38DhAK4YX5poGV5ytz`, team `team_24dtIFqfL1X7RkcGc6gVif0X`,
+  framework Next.js, exact source SHA and branch `feature/mcp-access`, target null
+  (Preview, not Production). URL:
+  [private-file Preview](https://trade-ixlqkvxse-ghostsyscoders-projects.vercel.app).
+  This proves the build/deployment, not hosted authenticated file-tool acceptance.
 
 Hosted advisors report no ERROR. Existing
 [leaked-password protection warning](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
