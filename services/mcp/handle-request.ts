@@ -1,4 +1,5 @@
 import "server-only";
+import {listMt5,getMt5,previewMt5,listMt5Sources,listMt5Matches,reviewMt5,listImports,getImport,listImportRows} from "@/services/application/integrations";
 import {getProfile,patchProfile} from "@/services/application/profile";
 import {summarizeJournal,queryPerformance,queryBalanceCurve,queryBehavior,queryCalendar,exportJournal} from "@/services/application/reporting";
 import {performanceReport,behaviorResultSchema} from "@/domain/reporting/results";
@@ -32,6 +33,9 @@ export async function handleMcpRequest(request:Request):Promise<Response> {
     verifiedIntegrationClaims(context);
     if(request.method!=="POST")return new Response(null,{status:405,headers:{Allow:"POST","Cache-Control":"no-store"}});
     const handler=createMcpHandler(()=>createTradeOsMcpServer({operationStatus:id=>getIntegrationOperation(context,id),
+      mt5Matches:input=>listMt5Matches(context,input),mt5List:input=>listMt5(context,input),mt5Get:input=>getMt5(context,input),mt5Preview:input=>previewMt5(context,input),
+      mt5Sources:input=>listMt5Sources(context,input),mt5Review:input=>reviewMt5(context,input),importsList:input=>listImports(context,input),
+      importsGet:input=>getImport(context,input),importRows:input=>listImportRows(context,input),
       profileGet:input=>getProfile(context,input),profilePatch:input=>patchProfile(context,input),
       balanceCurve:input=>queryBalanceCurve(context,input),journalSummary:input=>summarizeJournal(context,input),analyticsPerformance:async input=>performanceReport(await queryPerformance(context,input)),
       analyticsBehavior:async input=>behaviorResultSchema.parse(await queryBehavior(context,input)),calendar:input=>queryCalendar(context,input),journalExport:input=>exportJournal(context,input),

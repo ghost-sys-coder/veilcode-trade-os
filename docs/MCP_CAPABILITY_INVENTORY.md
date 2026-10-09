@@ -1,7 +1,7 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-09: stateless HTTP, five contract resources and 56 tools are
+Updated 2026-10-09: stateless HTTP, six contract resources and 65 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries, performance/behavior analytics, the realized calendar
@@ -26,10 +26,16 @@ remain read-only, and referenced specifications are protected. See
 See [reporting verification](MCP_REPORTING_VERIFICATION.md) for date boundaries,
 review qualification, exact monetary fixtures and complete export evidence.
 
-Hosted MCP stays disabled. Paginated balance-curve events,
-reference/configuration permanent deletion, screenshots/file access, MT5/import reads,
-profile settings, local stdio and external clients remain
-pending. The completed workflow family is not full MCP readiness.
+MT5 health, complete-history preview, broker revisions, exact manual-match
+fingerprints, explicit SOURCE/DISTINCT/LINK/REOPEN/CASH review and import batch/row
+reads now reuse the existing MT5 domain and authoritative private workflows.
+See [integration-access verification](MCP_INTEGRATION_ACCESS_VERIFICATION.md).
+
+Hosted MCP stays disabled. MT5 controls, initial symbol/cash mapping, onboarding
+approval and publication-policy tools, reference/configuration permanent
+deletion, screenshots/file access, local stdio and external clients remain
+pending. The completed increment is not full MCP readiness. Balance-curve events,
+self-profile preferences and position sizing are already implemented.
 
 ## Shared service boundary
 
@@ -83,10 +89,11 @@ database and protocol evidence before entering the catalog.
 | analytics.performance/query/calendar/balance_curve (implemented) | getPerformanceAnalytics; getTradeJournalDataset; application/reporting | analytics/performance; reporting/commands/results/balance-curve | Closed-only results, full ledger independent of trading dimensions, cash-neutral drawdown, currency separation, incomplete-data states, bounded snapshot-aware continuation and fresh authorization |
 | analytics.behavior/query (implemented) | getBehaviorAnalytics; application/reporting | analytics/behavior; reporting/evidence/results | Explicitly reviewed cohorts, exact immutable rule IDs, unanswered exclusion and descriptive sample-qualified associations |
 | journal.export (implemented) | trades/export route; application/reporting; reporting/export | Shared matchesJournalFilters, CSV escaping and canonical fields | Same active filters; all matching records beyond 1,000, string broker IDs and formula-safe free text |
-| calculator.position_size | Public calculator component | trading/position-sizing; instrument specifications | Verified figures, precision/volume steps, anonymous calculator preserved |
+| calculator.position_size (implemented) | Public calculator component and MCP pure-domain adapter | trading/position-sizing; instrument specifications | Verified figures, precision/volume steps, anonymous calculator preserved |
 | screenshots.list/upload_request/upload_finish/download/delete | screenshot-uploader; screenshot metadata | screenshotMetadataSchema; private storage ownership | Bounded content/type/size, controlled object IDs, deletion confirmation |
-| integrations.mt5.list/get/preview/review | onboarding, review, symbol-mapping, cash-onboarding services | Existing MT5 domain and private workflows | MCP actor path without browser impersonation; original grant boundaries |
-| integrations.imports.list/get | getImportOverview | imports/provenance; CSV mapping/staging | User/account isolation, errors and unresolved rows exposed honestly |
+| integrations.mt5.list/get/preview/sources/matches/review (implemented) | application/integrations; shared mt5/snapshot and prepare-review; existing browser adapters | Existing reconstruction/finance, SOURCE/DISTINCT/LINK/REOPEN/CASH review, private transactional writer | Actual MCP actor; separate active collector grant for writes; full bridge before bounded paging; history, exact tokens, retries and stale rejection |
+| integrations.imports.list/get/rows (implemented) | application/integrations; existing import staging tables | Private owner-derived read, wire decimal/ID strings | User/account isolation; paging; failed batches and unresolved rows retained; no import activation |
+| integrations.mt5.controls/mapping/onboarding/publication_policy (pending) | Existing browser and collector workflows | Existing grant/lease and explicit approval rules | Separate MCP command/protocol evidence still required; not exposed by review tool |
 | settings.profile.get/patch (implemented; hosted prerequisites installed) | saveProfileSettings; application/profile | profile/commands; private profile workflows | Self only, display name/timezone only; omitted/null, exact versions, atomic audit/retry, stale browser edits and revocation; no auth administration |
 | operations.get | getIntegrationOperation | Existing operation receipt authorization | Exact operation/purpose/owner binding; unknown retry guidance |
 
@@ -140,6 +147,8 @@ is modeled. See [goal/prop verification](MCP_GOALS_PROP_VERIFICATION.md).
   completion, conflict review and archive/deletion rules.
 - `tradeos://v1/reporting`: journal versus realized dates, decisive win-rate
   denominator, break-even rate, R qualification and mixed-currency aggregation.
+- `tradeos://v1/integrations`: owned health/provenance, complete-source previews,
+  explicit review kinds, separate MCP/collector grants and pending controls.
 
 Authenticated resources must not return other owners' data. Public discovery and
 generic schemas may be public; no user records are included in discovery.

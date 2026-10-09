@@ -26,6 +26,8 @@ export class ApplicationWorkflowError extends Error {
 }
 
 const statements={
+  INTEGRATION_READ:"select private.application_integration_read($1::jsonb) as result",
+  MT5_REVIEW_WRITE:"select private.application_mt5_review_write($1::jsonb,$2::jsonb) as result",
   PROFILE_READ:"select private.application_profile_read($1::jsonb) as result",
   PROFILE_WRITE:"select private.application_profile_write($1::jsonb) as result",
   REPORTING_DATA:"select private.application_reporting_data($1::jsonb) as result",
@@ -48,7 +50,8 @@ const statements={
   TRADE_WRITE:"select private.application_trade_write($1::jsonb,$2::jsonb) as result",
   TRADE_REFERENCES:"select private.application_trade_references($1::jsonb) as result",
 } as const;
-const preparedStatements={PROGRESS_WRITE:"select private.application_progress_prepare($1::jsonb) as result",
+const preparedStatements={MT5_REVIEW_WRITE:"select private.application_mt5_review_prepare($1::jsonb) as result",
+  PROGRESS_WRITE:"select private.application_progress_prepare($1::jsonb) as result",
   ACCOUNT_EVENT_WRITE:"select private.application_account_event_prepare($1::jsonb) as result",
   TRADE_WRITE:"select private.application_trade_prepare($1::jsonb) as result"} as const;
 

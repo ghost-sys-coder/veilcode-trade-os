@@ -2,9 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { buildMt5OnboardingPreview, mt5ConnectionViewSchema, mt5StoredSourceSchema } from "@/domain/mt5/onboarding";
 import { mt5IdentitySchema } from "@/domain/mt5/source";
-import { mt5SymbolMappingSchema } from "@/domain/mt5/symbol-mapping";
-import { mt5CashDecisionSchema } from "@/domain/mt5/cash";
-import { mt5ManualDecisionSchema } from "@/domain/mt5/review";
+import {mt5SymbolMappingSchema} from "@/domain/mt5/symbol-mapping";
+import {mt5CashDecisionSchema} from "@/domain/mt5/cash";
+import {mt5SourcePageSchema as sourcePageSchema} from "@/domain/mt5/snapshot";
 import { prepareMt5OnboardingApproval } from "@/domain/mt5/onboarding-approval";
 import { verifyDirectBrowser } from "@/services/integrations/grant-management";
 import type { IntegrationDatabase } from "@/types/integration-database";
@@ -15,23 +15,6 @@ export class Mt5OnboardingError extends Error {
 }
 type Client = SupabaseClient<IntegrationDatabase>;
 const version = z.string().regex(/^[1-9][0-9]*$/);
-const sourcePageSchema = z.object({ connectionId: z.string().uuid(),snapshotToken: z.string().regex(/^[a-f0-9]{64}$/),
-  version,identity: mt5IdentitySchema,captureCheckpoint: z.iso.datetime({ offset: true }).nullable(),
-  ledgerToken: z.string().regex(/^[a-f0-9]{64}$/),
-  account: z.object({ name: z.string(),currencyCode: z.string(),currencyPrecision: z.number().int(),startingBalance: z.string(),ledgerBalance: z.string() }),
-  tradeCount: z.number().int().nonnegative(),
-  trades: z.array(z.object({ id: z.string().uuid(),symbol: z.string(),direction: z.enum(["BUY","SELL"]),
-    openedAt: z.string().nullable(),closedAt: z.string().nullable(),canonicalIdentity: z.string().nullable(),closedNetPnl: z.string().nullable(),reviewToken:z.string().optional() })),
-  events: z.array(mt5StoredSourceSchema),sourceFactCount: z.number().int().nonnegative(),incompleteCollections: z.number().int().nonnegative(),
-  symbolMappings:z.array(mt5SymbolMappingSchema).default([]),symbolMappingCount:z.number().int().nonnegative().default(0),
-  manualDecisions:z.array(mt5ManualDecisionSchema).default([]),manualDecisionCount:z.number().int().nonnegative().default(0),
-  automaticPublicationEnabled:z.boolean().default(false),
-  cashDecisions:z.array(mt5CashDecisionSchema).default([]),cashDecisionCount:z.number().int().nonnegative().default(0),
-  adjustments:z.array(z.object({id:z.string().uuid(),type:z.enum(["DEPOSIT","WITHDRAWAL","BALANCE_CORRECTION","OTHER"]),amount:z.string(),
-    occurredAt:z.iso.datetime({offset:true}),isPerformanceNeutral:z.boolean().nullable()})).default([]),adjustmentCount:z.number().int().nonnegative().default(0),
-  onboardingApproval:z.object({createdAt:z.iso.datetime({offset:true}),captureCheckpoint:z.iso.datetime({offset:true}),
-    state:z.enum(["APPROVED_SNAPSHOT","STALE_APPROVAL"])}).nullable().default(null) });
-
 export async function listMt5Connections(client: Client) {
   await verifyDirectBrowser(client);
   const result = await client.rpc("mt5_list_connections");
