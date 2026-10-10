@@ -1,5 +1,13 @@
 # Trade OS MCP Access Implementation Plan
 
+Current 2026-10-10: updated from consolidated master `853a963`; items 1–4 of
+the [completion checklist](MCP_COMPLETION_CHECKLIST.md) are delivered for their
+increments. The local stdio adapter forwards all 84 tools/eight resources with
+protected renewable credentials and no MT5 runtime dependency. See
+[stdio verification](MCP_STDIO_VERIFICATION.md). Actual client matrix and final
+hosted acceptance/activation remain pending; the older milestone notes below
+are historical, not instructions to rebuild completed features.
+
 Branch: `feature/mcp-access`. Status: updated from master `6c7a0b7` after the
 focused demo check passed; stateless HTTP and the strategy/setup/rule shared
 list/get/create/patch/archive workflows and account list/get/create/patch with
@@ -58,7 +66,7 @@ Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 - [ ] Extend shared services across remaining user-facing workflows.
 - [ ] Versioned capability inventory, resources, schemas and tool tests.
 - [ ] Official TypeScript SDK and stateless HTTP foundation implemented;
-  local stdio adapter pending.
+  local stdio adapter implemented and locally verified.
 - [ ] Resource-bound OAuth, browser consent and connected-client management.
 - [ ] Protocol/browser/client verification and full regression checks.
 

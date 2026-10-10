@@ -13,6 +13,7 @@ import type { IntegrationDatabase } from "../types/integration-database.ts";
 import { verifyIntegrationAccess } from "./lib/mcp-integration-access-fixture.mts";
 import { verifyPrivateFiles } from "./lib/mcp-private-files-fixture.mts";
 import { verifyDeletions } from "./lib/mcp-deletions-fixture.mts";
+import { verifyStdio } from "./lib/mcp-stdio-fixture.mts";
 
 // Isolated local provider/browser/SDK test. No .env, real users, model API or
 // hosted writes. Credentials and authorization codes stay in process memory.
@@ -58,7 +59,7 @@ try {
   const signedIn=await browser.auth.signInWithPassword({email,password});assert(!signedIn.error && signedIn.data.session);
   const registration=await fetch(`${issuer}/admin/oauth/clients`,{method:"POST",headers:{apikey:status.SERVICE_ROLE_KEY,
     Authorization:`Bearer ${status.SERVICE_ROLE_KEY}`,"Content-Type":"application/json"},
-    body:JSON.stringify({client_name:"Trade OS MCP local gate",redirect_uris:[callback],client_type:"public",
+    body:JSON.stringify({client_name:"Trade OS MCP local gate",redirect_uris:[callback,"http://127.0.0.1:9878/callback"],client_type:"public",
       token_endpoint_auth_method:"none",grant_types:["authorization_code","refresh_token"],response_types:["code"]}),signal:AbortSignal.timeout(10000)});
   assert(registration.ok);fixtureClient=(await registration.json() as {client_id:string}).client_id;assert(fixtureClient);
   ui=await chromium.launch({channel:"chrome",headless:true});console.log(`MCP browser verification: Chrome ${ui.version()}, SDK 2.3.1.`);
@@ -146,7 +147,7 @@ try {
   passed("official SDK negotiates modern and legacy HTTP, discovers 84 tools and verifies 5.00-lot fixture");
 
   const directOAuth=createClient(api.origin,status.ANON_KEY,{...options,global:{headers:{Authorization:`Bearer ${tokens.access_token}`}}});
-  if(!process.argv.includes("--integration-access-only")&&!process.argv.includes("--deletions-only")) {
+  if(!process.argv.includes("--integration-access-only")&&!process.argv.includes("--deletions-only")&&!process.argv.includes("--stdio-only")) {
     const fileInstrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
     await verifyPrivateFiles(database,modern,fixtureUser,fileInstrument,admin,directOAuth,browser,page,grant.id,passed,message=>{stage=message;});
   }
@@ -154,7 +155,10 @@ try {
     const fileInstrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
     await verifyDeletions(database,modern,fixtureUser,fileInstrument,admin,browser,page,grant.id,passed,message=>{stage=message;});
   }
-  if(process.argv.includes("--deletions-only")) {
+  if(process.argv.includes("--stdio-only")) {
+    tokens=await verifyStdio(database,fixtureUser,issuer,resource,fixtureClient,tokens,page,passed,message=>{stage=message;});
+    assert.equal(pageErrors,0);console.log(`Focused MCP stdio gate: ${checks} checks passed; real external clients remain separate.`);
+  } else if(process.argv.includes("--deletions-only")) {
     assert.equal(pageErrors,0);console.log(`Focused MCP deletion gate: ${checks} checks passed; full regression gate remains separate.`);
   } else if(process.argv.includes("--files-only")) {
     console.log(`Focused MCP private-file gate: ${checks} checks passed; full regression gate remains separate.`);
@@ -712,6 +716,8 @@ try {
   await verifyIntegrationAccess(database,modern,fixtureUser,instrument,passed,message=>{stage=message;});
 
   await verifyDeletions(database,modern,fixtureUser,instrument,admin,browser,page,grant.id,passed,message=>{stage=message;});
+
+  tokens=await verifyStdio(database,fixtureUser,issuer,resource,fixtureClient,tokens,page,passed,message=>{stage=message;});
 
   stage="refresh and current-browser logout";
   const refresh=await fetch(`${issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
