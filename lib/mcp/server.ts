@@ -1,4 +1,6 @@
 import "server-only";
+import {deletionInspectSchema,deletionRequestSchema,deletionStatusSchema,deletionExecuteSchema,
+  deletionTargetSchema,deletionRequestResultSchema,deletionRecordSchema,deletionReceiptSchema} from "@/domain/deletions/commands";
 import {screenshotsListSchema,screenshotGetSchema,uploadRequestSchema,uploadStatusSchema,uploadChunkSchema,uploadFinishSchema,
   screenshotDownloadSchema,screenshotPageSchema,screenshotRecordSchema,uploadRecordSchema,fileResultSchema,fileDownloadResultSchema,PrivateFileError} from "@/domain/files/commands";
 import {mt5RegisterRequestSchema,mt5ControlRequestSchema,mt5GrantListSchema,mt5WorkflowResultSchemas,mt5GrantPageSchema} from "@/domain/mt5/workflow-commands";
@@ -65,19 +67,24 @@ const referenceToolNames=["tradeos_references_list","tradeos_references_get","tr
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve"] as const;
 const profileToolNames=["tradeos_profile_get","tradeos_profile_patch"] as const;
+const deletionToolNames=["tradeos_deletion_inspect","tradeos_deletion_request","tradeos_deletion_status","tradeos_deletion_execute"] as const;
 const fileToolNames=["tradeos_screenshots_list","tradeos_screenshots_get","tradeos_screenshot_upload_request","tradeos_screenshot_upload_status",
   "tradeos_screenshot_upload_chunk","tradeos_screenshot_upload_finish","tradeos_screenshot_download"] as const;
 const integrationToolNames=["tradeos_mt5_list","tradeos_mt5_get","tradeos_mt5_preview","tradeos_mt5_sources","tradeos_mt5_review",
   "tradeos_imports_list","tradeos_imports_get","tradeos_import_rows","tradeos_mt5_matches",
   "tradeos_mt5_grants","tradeos_mt5_map_account","tradeos_mt5_symbol_map","tradeos_mt5_cash_classify","tradeos_mt5_publish","tradeos_mt5_onboarding_approve","tradeos_mt5_publication_policy","tradeos_mt5_control"] as const;
 const catalog = {
-  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames,...integrationToolNames,...fileToolNames], resources:["catalog","domain","money","workflows","reporting","integrations","files"],
-  pendingFamilies:["configuration/reference/file permanent deletion","local stdio"],
-  status:"80 HTTP tools include authenticated, chunked private screenshot uploads/downloads, existing MT5 and application workflows. Permanent deletion, stdio and external-client verification remain pending.",
+  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames,...integrationToolNames,...fileToolNames,...deletionToolNames], resources:["catalog","domain","money","workflows","reporting","integrations","files","deletions"],
+  pendingFamilies:["local stdio"],
+  status:"84 HTTP tools include controlled files and exact-target browser-approved deletion. Local stdio, external clients and final hosted activation remain pending.",
 };
 const resources = {
   catalog,
-  files:{scope:"Private screenshot evidence for owned canonical trades. Metadata/list includes legacy attachments. No arbitrary local paths, remote URLs, public bucket, credentials or permanent deletion.",
+  deletions:{entities:["STRATEGY","SETUP","RULE","GOAL","TAG","INSTRUMENT","SCREENSHOT"],
+    flow:"Inspect the owned target and copy version unchanged. Request with distinct durable request/execution IDs and a meaningful reason. User must approve at approvalUrl in their normal browser; opening a link never approves. MCP cannot approve itself. Execute only with the pre-bound executionOperationId and requestId. Approval expires after 10 minutes and can be consumed once. New references force archival; reports distinguish ARCHIVED from DELETED.",
+    recovery:"Screenshot execution returns an immutable PURGE_PENDING acceptance receipt even if purge completes during that call. Check deletion_status for current completion. Exact retries recover the original receipt and resume pending work; do not invent another operation ID. Browser owner can retry an already-consumed purge after the original client is revoked. Image bytes are permanently removed, while original metadata/receipts/upload manifests remain audit evidence.",
+    security:"Owner/client/grant/resource/target/version and execution binding are checked in private transactions. Financial/correction/audit/source history and global instruments are not deletion targets. No arbitrary Storage paths, URLs, SQL, bulk deletion, broker execution or browser-approval tool. Existing normal writes/archives require no new approval."},
+  files:{scope:"Private screenshot evidence for owned canonical trades. Metadata/list includes legacy attachments. No arbitrary local paths, remote URLs, public bucket or credentials. Permanent removal uses the separate browser-approved deletion workflow.",
     upload:"Request with expectedTradeVersion, complete file SHA-256, byteLength, declared PNG/JPEG/WebP type and category/timeframe/caption/capturedAt metadata. Reservation is not evidence. Upload canonical base64 chunks of exactly chunkBytes (393216), except the final remainder, using each returned upload.version. Chunks may arrive out of order. Resume via upload_status; use identical operation IDs after uncertain responses. Staging expires after 24 hours; expired uploads require a new request. At most 10 MiB and 16 million decoded pixels; single-frame images only.",
     finish:"After all chunks, reload trade record_version and finish with current upload and trade versions. Full byte hash/type/size and compressed-pixel decoding are verified, then metadata/receipt/audit commit atomically. No overwrite. An audit or version failure leaves unpublished staging retryable, not attached evidence.",
     download:"Bounded base64 chunks, at most 393216 bytes each. Continue with nextOffset and the same expectedSha256; changed bytes reject continuation. Every request checks active grant/ownership before and after Storage I/O. No signed URLs. Legacy images are validated on read, not claimed to have an original captured hash.",
@@ -122,6 +129,10 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  deletionInspect:(input:unknown)=>Promise<ReturnType<typeof deletionTargetSchema.parse>>;
+  deletionRequest:(input:unknown)=>Promise<ReturnType<typeof deletionRequestResultSchema.parse>>;
+  deletionStatus:(input:unknown)=>Promise<ReturnType<typeof deletionRecordSchema.parse>>;
+  deletionExecute:(input:unknown)=>Promise<ReturnType<typeof deletionReceiptSchema.parse>>;
   screenshotsList:(input:unknown)=>Promise<ReturnType<typeof screenshotPageSchema.parse>>;
   screenshotsGet:(input:unknown)=>Promise<ReturnType<typeof screenshotRecordSchema.parse>>;
   screenshotUploadRequest:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
@@ -213,6 +224,10 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     inputSchema:configurationGetSchema,outputSchema:configurationRecordSchema,annotations:readOnly},
     async input=>guarded(()=>services.configurationGet(input)));
   const mutation = {readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false};
+  server.registerTool("tradeos_deletion_inspect",{description:"Inspect one eligible owned configuration/screenshot target, current version and historical reference count. Read the deletions resource; no mutation or browser approval occurs.",inputSchema:deletionInspectSchema,outputSchema:deletionTargetSchema,annotations:readOnly},input=>guarded(()=>services.deletionInspect(input)));
+  server.registerTool("tradeos_deletion_request",{description:"Request a one-use browser confirmation for the exact target/version. Request and execution operation IDs must differ; reason required. Approval URL is not a bearer capability; MCP cannot approve itself.",inputSchema:deletionRequestSchema,outputSchema:deletionRequestResultSchema,annotations:mutation},input=>guarded(()=>services.deletionRequest(input)));
+  server.registerTool("tradeos_deletion_status",{description:"Read current owner/client-bound approval, expiry, archive or physical-purge completion. A historical execution receipt may say PURGE_PENDING; status reports current DELETED only after removal is confirmed.",inputSchema:deletionStatusSchema,outputSchema:deletionRecordSchema,annotations:readOnly},input=>guarded(()=>services.deletionStatus(input)));
+  server.registerTool("tradeos_deletion_execute",{description:"Consume one browser-approved action using its exact bound execution operation ID. Delete unused eligible records, archive referenced ones, or start/recover a screenshot purge. Same retries return the original receipt; inspect current deletion_status. No financial/history deletion.",inputSchema:deletionExecuteSchema,outputSchema:deletionReceiptSchema,annotations:{...mutation,destructiveHint:true}},input=>guarded(()=>services.deletionExecute(input)));
   server.registerTool("tradeos_screenshots_list",{description:"List owned trade screenshot metadata in bounded UUID-keyset pages, including legacy evidence. No file URLs or secrets.",inputSchema:screenshotsListSchema,outputSchema:screenshotPageSchema,annotations:readOnly},input=>guarded(()=>services.screenshotsList(input)));
   server.registerTool("tradeos_screenshots_get",{description:"Read one owned screenshot's metadata and known original content facts. Null legacy hashes are unknown, not fabricated evidence.",inputSchema:screenshotGetSchema,outputSchema:screenshotRecordSchema,annotations:readOnly},input=>guarded(()=>services.screenshotsGet(input)));
   server.registerTool("tradeos_screenshot_upload_request",{description:"Reserve an exact private screenshot upload with current trade version, complete SHA-256, byte length and metadata. Not published evidence; no signed URL. Read the files resource before upload.",inputSchema:uploadRequestSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadRequest(input)));

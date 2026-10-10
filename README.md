@@ -109,13 +109,17 @@ isolation, reconstruction, reconciliation, publication, conflict review and prot
 restart recovery are built. Broader terminal/VPS/startup limits and the user-deferred
 extended soak remain documented, not reported as passed.
 
-`feature/mcp-access` implements 80 stateless HTTP tools and seven resources using
+`feature/mcp-access` implements 84 stateless HTTP tools and eight resources using
 resource-bound OAuth and verified shared services. Controlled private screenshots
-require server-only `SUPABASE_SECRET_KEY` (never `NEXT_PUBLIC_*`). Permanent deletion,
-local stdio, actual external-client checks and hosted activation remain separate
+require server-only `SUPABASE_SECRET_KEY` (never `NEXT_PUBLIC_*`). Permanent deletion
+uses exact-target one-use browser consent; referenced configuration archives.
+Screenshot execution reports `PURGE_PENDING` until physical removal is confirmed.
+Deletion prerequisites still require hosted rollout approval. Local stdio,
+actual external-client checks and hosted activation remain separate
 gates. Hosted MCP stays disabled. See the
 [completion checklist](docs/MCP_COMPLETION_CHECKLIST.md) and
-[private-file verification](docs/MCP_PRIVATE_FILES_VERIFICATION.md).
+[private-file verification](docs/MCP_PRIVATE_FILES_VERIFICATION.md) and
+[deletion-safeguards verification](docs/MCP_DELETION_SAFEGUARDS_VERIFICATION.md).
 
 Run `npm run test:mt5-python` and `npm run check:mt5-python` using the
 [Python development setup](integrations/mt5/README.md). Local-only browser/API tests

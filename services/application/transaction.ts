@@ -26,6 +26,8 @@ export class ApplicationWorkflowError extends Error {
 }
 
 const statements={
+  DELETION_READ:"select private.application_deletion_read($1::jsonb) as result",
+  DELETION_WRITE:"select private.application_deletion_write($1::jsonb) as result",
   FILE_READ:"select private.application_file_read($1::jsonb) as result",
   FILE_PREPARE:"select private.application_file_prepare($1::jsonb) as result",
   FILE_WRITE:"select private.application_file_write($1::jsonb,$2::jsonb) as result",

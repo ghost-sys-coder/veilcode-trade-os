@@ -1,7 +1,7 @@
 # MCP capability inventory v1
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
-Updated 2026-10-09: stateless HTTP, seven contract resources and 80 tools are
+Updated 2026-10-10: stateless HTTP, eight contract resources and 84 tools are
 implemented. Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries, performance/behavior analytics, the realized calendar
@@ -39,7 +39,8 @@ real-provider/SDK and browser verification passes. See
 Hosted MCP stays disabled. This increment's approved hosted prerequisites pass
 with 54 unchanged application table fingerprints. Screenshot metadata and controlled
 private transfers are now implemented; see [private-file verification](MCP_PRIVATE_FILES_VERIFICATION.md).
-Reference/configuration/file permanent deletion, local stdio and external clients
+Reference/configuration/file permanent deletion is locally verified; hosted
+deletion prerequisites require separate approval. Local stdio and external clients
 remain pending. This is not full MCP
 readiness. Balance-curve events,
 self-profile preferences and position sizing are already implemented.
@@ -63,7 +64,7 @@ Lists need stable bounded pagination; export exhausts all matching pages.
 
 Names below describe capability families. Strategy/setup/rule list/get/create/
 patch/archive are implemented through the configuration tools; their permanent
-deletion actions are not exposed yet. Other rows remain proposed unless named
+deletion actions use the generic exact-target deletion tools below. Other rows remain proposed unless named
 as implemented above. Every new operation needs service, schema, authorization,
 database and protocol evidence before entering the catalog.
 
@@ -114,6 +115,16 @@ instrument editing and configuration deletion). Implement explicit
 domain workflows and archive policy for these; do not claim a wrapper exists.
 
 ## Resources and workflow guidance
+
+`tradeos_deletion_inspect/request/status/execute` implements deletion for owned
+`STRATEGY`, `SETUP`, `RULE`, `GOAL`, `TAG`, `INSTRUMENT`, `SCREENSHOT`. It maps to
+`services/application/deletions.ts`, strict `domain/deletions/commands.ts`, private
+transactional workflows and the owner-browser approval route. `tradeos://v1/deletions`
+describes expiry, exact execution binding, historical archival and physical purge.
+Permanent deletion entries marked pending in the original mapping above are
+superseded by this implementation, not by independent per-family delete tools.
+Hosted deployment of this increment remains approval-gated. See
+[deletion verification](MCP_DELETION_SAFEGUARDS_VERIFICATION.md).
 
 The five read-only reporting tools are `tradeos_journal_summary`,
 `tradeos_analytics_performance`, `tradeos_analytics_behavior`, `tradeos_calendar`

@@ -68,6 +68,7 @@ describe("official SDK interoperability",()=>{
     await client.connect(transport);
     const tools=await client.listTools();expect(tools.tools.map(tool=>tool.name)).toEqual(["tradeos_capabilities","tradeos_position_size","tradeos_operation_status",
       "tradeos_configuration_list","tradeos_configuration_get",
+      "tradeos_deletion_inspect","tradeos_deletion_request","tradeos_deletion_status","tradeos_deletion_execute",
       "tradeos_screenshots_list","tradeos_screenshots_get","tradeos_screenshot_upload_request","tradeos_screenshot_upload_status","tradeos_screenshot_upload_chunk","tradeos_screenshot_upload_finish","tradeos_screenshot_download",
       "tradeos_configuration_create","tradeos_configuration_patch","tradeos_configuration_archive",
       "tradeos_accounts_list","tradeos_accounts_get","tradeos_accounts_create","tradeos_accounts_patch",
@@ -75,7 +76,7 @@ describe("official SDK interoperability",()=>{
       "tradeos_trades_list","tradeos_trades_get","tradeos_trades_create","tradeos_trades_patch","tradeos_trade_targets","tradeos_trade_correct_plan","tradeos_trade_management","tradeos_trade_review","tradeos_trade_instruments","tradeos_journals_get","tradeos_journals_list","tradeos_journals_save","tradeos_goals_get","tradeos_goals_list","tradeos_goals_create","tradeos_goals_patch","tradeos_goals_archive","tradeos_goal_progress_list","tradeos_goal_progress_record","tradeos_prop_get","tradeos_prop_save","tradeos_progress_get",
       "tradeos_references_list","tradeos_references_get","tradeos_references_create","tradeos_references_patch","tradeos_references_archive","tradeos_trade_tags_list","tradeos_trade_tags_assign","tradeos_trade_tags_remove",
       "tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve","tradeos_profile_get","tradeos_profile_patch","tradeos_mt5_list","tradeos_mt5_get","tradeos_mt5_preview","tradeos_mt5_sources","tradeos_mt5_review","tradeos_imports_list","tradeos_imports_get","tradeos_import_rows","tradeos_mt5_grants","tradeos_mt5_map_account","tradeos_mt5_symbol_map","tradeos_mt5_cash_classify","tradeos_mt5_publish","tradeos_mt5_onboarding_approve","tradeos_mt5_publication_policy","tradeos_mt5_control","tradeos_mt5_matches"]);
-    const contracts=await client.listResources();expect(contracts.resources).toHaveLength(7);
+    const contracts=await client.listResources();expect(contracts.resources).toHaveLength(8);
     const money=await client.readResource({uri:"tradeos://v1/money"});expect(money.contents[0]).toMatchObject({mimeType:"application/json"});
     const calculation=await client.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
       riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.10000",stopLossPrice:"1.09800"}});
@@ -89,7 +90,8 @@ describe("official SDK interoperability",()=>{
   },15000);
   it("supports legacy stateless MCP and rejects numeric monetary inputs and secret-bearing errors",async()=>{
     const unavailableService=async()=>{throw new Error("PRIVATE_TEST_VALUE");};
-    const unavailableFiles={screenshotsList:unavailableService,screenshotsGet:unavailableService,screenshotUploadRequest:unavailableService,
+    const unavailableFiles={deletionInspect:unavailableService,deletionRequest:unavailableService,deletionStatus:unavailableService,deletionExecute:unavailableService,
+      screenshotsList:unavailableService,screenshotsGet:unavailableService,screenshotUploadRequest:unavailableService,
       screenshotUploadStatus:unavailableService,screenshotUploadChunk:unavailableService,screenshotUploadFinish:unavailableService,screenshotDownload:unavailableService};
     const handler=createMcpHandler(()=>createTradeOsMcpServer({...unavailableFiles,mt5Grants:unavailableService,mt5MapAccount:unavailableService,mt5SymbolMap:unavailableService,mt5CashClassify:unavailableService,mt5Publish:unavailableService,mt5OnboardingApprove:unavailableService,mt5PublicationPolicy:unavailableService,mt5Control:unavailableService,mt5Matches:unavailableService,mt5List:unavailableService,mt5Get:unavailableService,mt5Preview:unavailableService,mt5Sources:unavailableService,mt5Review:unavailableService,importsList:unavailableService,importsGet:unavailableService,importRows:unavailableService,profileGet:unavailableService,profilePatch:unavailableService,balanceCurve:unavailableService,journalSummary:unavailableService,analyticsPerformance:unavailableService,analyticsBehavior:unavailableService,calendar:unavailableService,journalExport:unavailableService,referencesList:unavailableService,referencesGet:unavailableService,referencesWrite:unavailableService,tradeTagsList:unavailableService,tradeTagsWrite:unavailableService,operationStatus:unavailableService,configurationList:unavailableService,
       configurationGet:unavailableService,configurationWrite:unavailableService,accountsList:unavailableService,accountsGet:unavailableService,accountsWrite:unavailableService,
@@ -99,7 +101,7 @@ describe("official SDK interoperability",()=>{
         headers:{"content-type":"application/json",accept:"application/json, text/event-stream","mcp-protocol-version":"2025-11-25"},
         body:JSON.stringify({jsonrpc:"2.0",id,method,params})}));
       const responseJson=async(response:Response)=>{const body=await response.text();return JSON.parse(response.headers.get("content-type")?.includes("text/event-stream")?body.split("\n").find(line=>line.startsWith("data: "))!.slice(6):body);};
-      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(80);
+      const listing=await responseJson(await request(1,"tools/list",{}));expect(listing.result.tools).toHaveLength(84);
       const rejected=await responseJson(await request(2,"tools/call",{name:"tradeos_position_size",arguments:{balance:100000,currency:"USD",currencyPrecision:2,
         riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.10000",stopLossPrice:"1.09800"}}));
       expect(rejected.result?.isError||rejected.error).toBeTruthy();

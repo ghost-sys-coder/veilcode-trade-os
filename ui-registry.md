@@ -472,3 +472,28 @@ and a `font-semibold text-primary hover:underline` anchor to the prerequisite.
 Disable dependent inputs alongside the button and connect the reason input to
 that guidance with `aria-describedby`; do not leave a distant prerequisite as
 the only explanation for an inactive action.
+
+### Exact-target deletion consent
+
+File: `app/(app)/settings/integrations/deletions/[requestId]/page.tsx`
+Last updated: 2026-10-10
+
+| Property | Class |
+| --- | --- |
+| Background | inherited `bg-card`; guidance `bg-muted/30` |
+| Border | `border-border/70`; failure `border-destructive/25` |
+| Radius | guidance/alerts `rounded-lg`; inherited Card radius |
+| Primary text | inherited foreground; `text-sm font-semibold` |
+| Secondary text | `text-muted-foreground`; identities `font-mono text-xs` |
+| Spacing | `space-y-6`, card `space-y-5 pt-5`, guidance `p-4` |
+| Interaction | existing Button destructive/outline variants; native keyboard checkbox |
+| Shadow | inherited Card/Button primitives |
+| Accent | `text-primary` navigation; `accent-primary` checkbox |
+
+**Pattern notes:** Reuse existing warm light/navy dark surfaces. Consent is an
+unchecked, required explicit acknowledgement inside MutationForm's hydration/
+pending fieldset. Show exact target/version/client/execution ID, original reason,
+reference count and UTC expiry. Stale targets visibly disable approval. GET does
+not approve or execute. Pending physical deletion is a status with a separate
+owner recovery action, never a false success. Wrap long identities/reasons;
+390px mobile must not overflow. No new theme tokens or ad hoc colors.

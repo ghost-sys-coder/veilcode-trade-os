@@ -1,6 +1,6 @@
 # MCP completion checklist
 
-Updated 2026-10-09 from the actual `feature/mcp-access` implementation, merged
+Updated 2026-10-10 from the actual `feature/mcp-access` implementation, merged
 master `6c7a0b7`, user-approved integration plan and latest verification reports.
 This checklist separates missing MCP capabilities from delivered MT5 behavior;
 it is not a plan to rebuild the completed integrations or core workflows.
@@ -9,11 +9,12 @@ it is not a plan to rebuild the completed integrations or core workflows.
 
 - Stateless remote HTTP `/mcp`, public discovery, resource-bound Supabase OAuth,
   browser consent, renewable credentials, immediate revocation and operation lookup.
-- 80 HTTP tools and seven resources: accounts/balances/events/lifecycle,
+- 84 HTTP tools and eight resources: accounts/balances/events/lifecycle,
   strategies/setups/rules, instruments/tags, goals/prop progress, canonical
   trades/management/corrections/reviews, journals, analytics/calendar/export,
   position sizing, self-profile, MT5/import reads and explicit conflict review,
-  screenshot metadata and controlled private upload/download.
+  screenshot metadata, controlled private upload/download and browser-approved
+  configuration/screenshot deletion (hosted deletion rollout pending).
 - Verified shared services, central decimal calculations, private transactions,
   durable retries, optimistic concurrency and immutable mutation evidence.
 - MT5 health, complete preview/balance bridge, broker revisions, exact manual
@@ -52,6 +53,11 @@ that every requested real AI client has connected successfully.
    configuration; archive referenced strategies/setups/rules/goals and report
    archival. Screenshot deletion uses the same exact-target approval. Never
    delete plan corrections, execution/financial history or audit evidence.
+   **Implemented and locally verified:** four tools plus the deletions resource;
+   unused delete/referenced archive, physical Storage purge, immutable execution
+   receipts and owner-browser recovery after revocation. Hosted migration/push
+   remain approval-gated; do not mark the hosted increment complete yet. See
+   [deletion evidence](MCP_DELETION_SAFEGUARDS_VERIFICATION.md).
 4. **Local stdio adapter and setup.** Official SDK, same authenticated application
    workflows, resource-bound renewable credentials in protected local storage,
    clean protocol stdout and actionable errors. Ordinary application access must
@@ -69,8 +75,9 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Items 1 and 2 are implemented; next build is item 3, followed by 4, 5, 6. File deletion cannot ship before
-its confirmation boundary. Each increment needs its own tests and report before
+Items 1 and 2 are delivered. Item 3 is locally implemented; finish its approved
+hosted prerequisite rollout before moving to 4, 5, 6. File deletion cannot ship
+without its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.
 
 ## MT5 completion boundary

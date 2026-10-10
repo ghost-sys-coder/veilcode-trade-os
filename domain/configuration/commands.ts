@@ -4,7 +4,7 @@ import { RULE_TYPES } from "@/types/domain";
 
 export const configurationEntitySchema = z.enum(["STRATEGY", "SETUP", "RULE"]);
 export const recordVersionSchema = z.string().regex(/^[1-9][0-9]{0,18}$/)
-  .refine(value => BigInt(value) <= BigInt("9223372036854775807"), "Invalid record version.");
+  .refine(value => /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= BigInt("9223372036854775807"), "Invalid record version.");
 const description = z.string().trim().max(4000).nullable();
 const common = { name:strategySchema.shape.name, description, active:z.boolean() };
 const strategy = z.object(common).strict();

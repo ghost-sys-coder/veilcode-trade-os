@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(100);
+select plan(101);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.trading_accounts'::regclass),
@@ -610,11 +610,16 @@ select is(
   'later rule edits do not rewrite the immutable review snapshot'
 );
 
-delete from public.trading_rules where id = (select rule_id from phase_05_rule_context);
+select throws_ok(
+  $$delete from public.trading_rules where id = (select rule_id from phase_05_rule_context)$$,
+  '42501', 'Permanent deletion requires an approved application workflow.',
+  'direct rule deletion cannot bypass browser-approved safeguards'
+);
+update public.trading_rules set active=false,archived_at=now() where id=(select rule_id from phase_05_rule_context);
 select is(
   (select count(*)::integer from public.trade_rule_review_items where rule_id_snapshot = (select rule_id from phase_05_rule_context)),
   1,
-  'later rule deletion does not erase historical review evidence'
+  'later rule archival does not erase historical review evidence'
 );
 
 select throws_ok(
@@ -741,8 +746,8 @@ select lives_ok(
 
 select throws_ok(
   $$delete from public.account_goals where title = 'Study hours'$$,
-  '23503',
-  'update or delete on table "account_goals" violates foreign key constraint "account_goal_progress_events_goal_owner_fk" on table "account_goal_progress_events"',
+  '42501',
+  'Permanent deletion requires an approved application workflow.',
   'deleting a goal cannot cascade-delete its progress history'
 );
 
