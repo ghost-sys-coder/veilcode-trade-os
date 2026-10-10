@@ -70,7 +70,7 @@ restrict database access: grants, RLS and RPC checks must enforce it.
 | MT5-3 | Python collector and Windows recovery | Fault injection, account isolation, durable outbox and fencing | In progress: protected PKCE/refresh credentials and supervised upload verified against local API; native process containment and coordinator scheduling fixture-tested; operator CLI, callback listener and startup registration implemented; actual startup invocation and terminals pending |
 | MT5-4 | Onboarding, reconciliation and monitoring | Browser verification and controlled demo pilot | In progress: account/symbol mapping, explicit cash attribution, captured-history snapshot approval, balance bridge, monitoring, fenced controls and publication pass local browser checks; source/manual financial-conflict resolution and real demo pilot pending |
 | MT5-5 | Operational readiness | Full checks plus focused multi-account demo interruption tests; extended soak deferred | Not started |
-| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: accounts/events/lifecycle, canonical trades/reviews, configuration, persisted journals, goals/prop progress, references and trade tags share services. Computed summaries, performance/behavior analytics, realized calendar and full filtered CSV export bring coverage to 53 HTTP tools. Paginated event curves, remaining families and permanent deletion are pending; see MCP_REPORTING_VERIFICATION.md |
+| MCP-1 | Remaining shared workflows and capability inventory | Each existing feature mapped to a tested service/tool | In progress: 80 HTTP tools / seven resources cover accounts/events/lifecycle, trades/reviews, configuration, journals, progress, references/tags, reporting/export, snapshot-aware balance curves, profile, MT5/import reads/review plus mapping/cash/publication/approval/policy/control and controlled screenshot metadata/upload/download. Permanent deletion remains pending; see MCP_CAPABILITY_INVENTORY.md and MCP_PRIVATE_FILES_VERIFICATION.md |
 | MCP-2 | Local/remote transport and consent | Protocol, resource authorization and revocation tests | In progress: official SDK stateless HTTP and real local browser consent/S256/refresh/resource binding/revocation pass; local stdio and hosted activation pending |
 | MCP-3 | Client verification and readiness | Required client matrix plus regression checks | In progress: modern/legacy SDK and existing browser regression pass; requested real external clients pending |
 
@@ -120,6 +120,37 @@ See [MT5 plan](MT5_INTEGRATION_PLAN.md) and [MCP plan](MCP_INTEGRATION_PLAN.md).
 - [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth)
 
 ## Progress log
+
+- 2026-10-09: at the user's request to complete one group at a time, implemented
+  the remaining eight overlapping MT5 workflow adapters, reusing existing cores.
+  Catalog is now 73 tools/six resources. Local 884 unit tests, 984 database
+  assertions, 51 full MCP checks, 65 browser checks and 176 Python tests pass,
+  with static checks/build and schema replay. After user approval, installed the
+  exact hosted migration, aligned its new history entry to `20261009010947` and
+  verified 54 unchanged application table fingerprints, eleven private function
+  gates and the 30-function/14-column hosted verified build. MCP stays disabled;
+  no real collector or hosted data changed. See
+  [workflow verification](MCP_MT5_WORKFLOW_VERIFICATION.md).
+
+- 2026-10-09: on the user's requested push/completion outline, installed only
+  the tested integration-access private migration on the identified hosted
+  VeilCode Studio project. All 12 protected data fingerprints match; permissions,
+  27-function/14-column hosted guard and `build:verified` pass. MCP remains
+  disabled and MT5 state unchanged. Added
+  [the six-part completion checklist](MCP_COMPLETION_CHECKLIST.md), explicitly
+  separating pending MCP capabilities/client rollout from the accepted MT5
+  single-demo implementation and its deferred broader operational checks.
+
+- 2026-10-09: verified the latest branch/remote source before implementation,
+  then fast-forwarded the existing MCP branch to merged master `6c7a0b7`.
+  Added only the missing nine MCP MT5/import access tools and sixth resource.
+  Existing canonical reconstruction, central decimal finance, browser review and
+  private transactional writer are shared, not duplicated. New migration
+  `20261009001418` is tested/applied only to disposable local Supabase; hosted
+  schema, enablement and collector state are unchanged. Controls, first-time
+  mappings, onboarding/publication approvals, files, destructive confirmations,
+  stdio and real external clients remain separate unfinished gates. See
+  [integration-access evidence](MCP_INTEGRATION_ACCESS_VERIFICATION.md).
 
 - 2026-10-09: after explicit user approval, installed the tested additive profile
   migration on the correct hosted Trade OS project and aligned only its new

@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { buildMt5OnboardingPreview, mt5ConnectionViewSchema, mt5StoredSourceSchema } from "@/domain/mt5/onboarding";
-import { mt5IdentitySchema } from "@/domain/mt5/source";
-import { mt5SymbolMappingSchema } from "@/domain/mt5/symbol-mapping";
-import { mt5CashDecisionSchema } from "@/domain/mt5/cash";
-import { mt5ManualDecisionSchema } from "@/domain/mt5/review";
+import {mt5SymbolMappingSchema} from "@/domain/mt5/symbol-mapping";
+import {mt5CashDecisionSchema} from "@/domain/mt5/cash";
+import {mt5SourcePageSchema as sourcePageSchema} from "@/domain/mt5/snapshot";
+import {mt5RegisterRequestSchema,mt5ControlRequestSchema} from "@/domain/mt5/workflow-commands";
 import { prepareMt5OnboardingApproval } from "@/domain/mt5/onboarding-approval";
 import { verifyDirectBrowser } from "@/services/integrations/grant-management";
 import type { IntegrationDatabase } from "@/types/integration-database";
@@ -15,23 +15,6 @@ export class Mt5OnboardingError extends Error {
 }
 type Client = SupabaseClient<IntegrationDatabase>;
 const version = z.string().regex(/^[1-9][0-9]*$/);
-const sourcePageSchema = z.object({ connectionId: z.string().uuid(),snapshotToken: z.string().regex(/^[a-f0-9]{64}$/),
-  version,identity: mt5IdentitySchema,captureCheckpoint: z.iso.datetime({ offset: true }).nullable(),
-  ledgerToken: z.string().regex(/^[a-f0-9]{64}$/),
-  account: z.object({ name: z.string(),currencyCode: z.string(),currencyPrecision: z.number().int(),startingBalance: z.string(),ledgerBalance: z.string() }),
-  tradeCount: z.number().int().nonnegative(),
-  trades: z.array(z.object({ id: z.string().uuid(),symbol: z.string(),direction: z.enum(["BUY","SELL"]),
-    openedAt: z.string().nullable(),closedAt: z.string().nullable(),canonicalIdentity: z.string().nullable(),closedNetPnl: z.string().nullable(),reviewToken:z.string().optional() })),
-  events: z.array(mt5StoredSourceSchema),sourceFactCount: z.number().int().nonnegative(),incompleteCollections: z.number().int().nonnegative(),
-  symbolMappings:z.array(mt5SymbolMappingSchema).default([]),symbolMappingCount:z.number().int().nonnegative().default(0),
-  manualDecisions:z.array(mt5ManualDecisionSchema).default([]),manualDecisionCount:z.number().int().nonnegative().default(0),
-  automaticPublicationEnabled:z.boolean().default(false),
-  cashDecisions:z.array(mt5CashDecisionSchema).default([]),cashDecisionCount:z.number().int().nonnegative().default(0),
-  adjustments:z.array(z.object({id:z.string().uuid(),type:z.enum(["DEPOSIT","WITHDRAWAL","BALANCE_CORRECTION","OTHER"]),amount:z.string(),
-    occurredAt:z.iso.datetime({offset:true}),isPerformanceNeutral:z.boolean().nullable()})).default([]),adjustmentCount:z.number().int().nonnegative().default(0),
-  onboardingApproval:z.object({createdAt:z.iso.datetime({offset:true}),captureCheckpoint:z.iso.datetime({offset:true}),
-    state:z.enum(["APPROVED_SNAPSHOT","STALE_APPROVAL"])}).nullable().default(null) });
-
 export async function listMt5Connections(client: Client) {
   await verifyDirectBrowser(client);
   const result = await client.rpc("mt5_list_connections");
@@ -42,7 +25,11 @@ export async function listMt5Connections(client: Client) {
 export async function registerMt5Connection(client: Client, input: unknown) {
   await verifyDirectBrowser(client);
   if (!getIntegrationConfig("MT5").enabled) throw new Mt5OnboardingError();
-  const data = z.object({ grantId: z.string().uuid(),operationId: z.string().uuid(),identity: mt5IdentitySchema }).parse(input);
+  let data:z.infer<typeof mt5RegisterRequestSchema>;
+  try {data=mt5RegisterRequestSchema.parse(input);} catch(error) {
+    if(error instanceof z.ZodError&&error.issues.some(issue=>issue.message==="Demo identity required"))throw new Mt5OnboardingError("INVALID");
+    throw error;
+  }
   if (data.identity.accountKind !== "DEMO") throw new Mt5OnboardingError("INVALID");
   const result = await client.rpc("mt5_register_connection",{ p_grant_id: data.grantId,p_operation_id: data.operationId,p_identity: data.identity });
   if (result.error) throw new Mt5OnboardingError(result.error.code === "23505" ? "CONFLICT" : "UNAVAILABLE");
@@ -52,8 +39,7 @@ export async function registerMt5Connection(client: Client, input: unknown) {
 export async function controlMt5Connection(client: Client, input: unknown) {
   await verifyDirectBrowser(client);
   if (!getIntegrationConfig("MT5").enabled) throw new Mt5OnboardingError();
-  const data = z.object({ connectionId: z.string().uuid(),version,operationId: z.string().uuid(),
-    action: z.enum(["PAUSE","RESUME"]),reason: z.string().trim().min(8).max(1000) }).parse(input);
+  const data = mt5ControlRequestSchema.parse(input);
   const result = await client.rpc("mt5_set_connection_state",{ p_connection_id: data.connectionId,p_expected_version: data.version,
     p_operation_id: data.operationId,p_action: data.action,p_reason: data.reason });
   if (result.error) throw new Mt5OnboardingError(["40001","23505"].includes(result.error.code) ? "CONFLICT" : "UNAVAILABLE");

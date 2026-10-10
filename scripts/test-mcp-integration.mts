@@ -10,6 +10,8 @@ import pg from "pg";
 import { databaseTestConnection } from "./lib/database-test-safety.mjs";
 import { integrationSigningKeys, verifyIntegrationToken } from "../services/integrations/verify-token.ts";
 import type { IntegrationDatabase } from "../types/integration-database.ts";
+import { verifyIntegrationAccess } from "./lib/mcp-integration-access-fixture.mts";
+import { verifyPrivateFiles } from "./lib/mcp-private-files-fixture.mts";
 
 // Isolated local provider/browser/SDK test. No .env, real users, model API or
 // hosted writes. Credentials and authorization codes stay in process memory.
@@ -135,12 +137,25 @@ try {
     return instance;
   }
   const modern=await client("2026-07-28"), legacy=await client("legacy");
-  assert.equal((await modern.listTools()).tools.length,56);assert.equal((await legacy.listTools()).tools.length,56);
-  assert.equal((await modern.listResources()).resources.length,5);
+  assert.equal((await modern.listTools()).tools.length,80);assert.equal((await legacy.listTools()).tools.length,80);
+  assert.equal((await modern.listResources()).resources.length,7);
   const calculator=content(await modern.callTool({name:"tradeos_position_size",arguments:{balance:"100000",currency:"USD",currencyPrecision:2,
     riskMethod:"PERCENTAGE",riskValue:"1",instrumentSymbol:"EURUSD",direction:"BUY",entryPrice:"1.1",stopLossPrice:"1.098"}}));
   assert.equal(calculator.recommendedVolume,"5.00");assert.equal(calculator.riskAmount,"1000.00");
-  passed("official SDK negotiates modern and legacy HTTP, discovers 56 tools and verifies 5.00-lot fixture");
+  passed("official SDK negotiates modern and legacy HTTP, discovers 80 tools and verifies 5.00-lot fixture");
+
+  const directOAuth=createClient(api.origin,status.ANON_KEY,{...options,global:{headers:{Authorization:`Bearer ${tokens.access_token}`}}});
+  if(!process.argv.includes("--integration-access-only")) {
+    const fileInstrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
+    await verifyPrivateFiles(database,modern,fixtureUser,fileInstrument,admin,directOAuth,browser,page,grant.id,passed,message=>{stage=message;});
+  }
+  if(process.argv.includes("--files-only")) {
+    console.log(`Focused MCP private-file gate: ${checks} checks passed; full regression gate remains separate.`);
+  } else if(process.argv.includes("--integration-access-only")) {
+    const instrument=(await database.query("select id from public.instruments where symbol='EURUSD' and user_id is null")).rows[0].id;
+    await verifyIntegrationAccess(database,modern,fixtureUser,instrument,passed,message=>{stage=message;});
+    console.log(`Focused MCP integration gate: ${checks} checks passed; full regression gate remains separate.`);
+  } else {
 
   stage="self-profile audited SDK/browser preferences";
   const originalProfile=content(await modern.callTool({name:"tradeos_profile_get",arguments:{}}));
@@ -687,6 +702,8 @@ try {
   assert(await page.locator(`#edit-strategy-${strategy.id}`).getByRole("button",{name:"Archived strategy",exact:true}).isDisabled());
   passed("archival preserves setup references and the browser exposes a disabled archived action");
 
+  await verifyIntegrationAccess(database,modern,fixtureUser,instrument,passed,message=>{stage=message;});
+
   stage="refresh and current-browser logout";
   const refresh=await fetch(`${issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
     body:new URLSearchParams({grant_type:"refresh_token",client_id:fixtureClient!,refresh_token:tokens.refresh_token,resource}),signal:AbortSignal.timeout(10000)});
@@ -710,9 +727,11 @@ try {
   assert.equal(pageErrors,0);
   passed("server kill switch and grant revocation stop real SDK calls and refresh; no uncaught browser errors");
   console.log(`Local MCP gate: ${checks} checks passed. Real external clients and hosted rollout remain pending.`);
+  }
 } catch(error) {
-  const fixtureFrame=error instanceof Error?error.stack?.match(/test-mcp-integration\.mts:\d+:\d+/)?.[0]:undefined;
+  const fixtureFrame=error instanceof Error?error.stack?.match(/(?:test-mcp-integration|mcp-integration-access-fixture|mcp-private-files-fixture)\.mts:\d+:\d+/)?.[0]:undefined;
   console.error(JSON.stringify({stage,failure:error instanceof Error?error.name:"UnknownError",fixtureFrame}));
+  if(error instanceof Error && /^Private fixture tool failed: [A-Z_]+$/.test(error.message)) console.error(error.message);
   console.error("Local MCP gate failed; provider responses, codes and credentials suppressed.");process.exitCode=1;
 } finally {
   await Promise.all(connected.map(client=>client.close().catch(()=>{})));await ui?.close();

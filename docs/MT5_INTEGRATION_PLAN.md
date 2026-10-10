@@ -1,7 +1,9 @@
 # MT5 Synchronization Implementation Plan
 
-Branch: `feature/mt5-sync`. Status: MT5-0 passed locally; MT5-1/2 in progress;
-not operationally ready. Hosted rollout and actual terminal verification pending.
+Branch: `feature/mt5-sync`. Current status: requested single-demo implementation
+and focused hosted gate accepted before MCP work. Broader multi-terminal,
+reboot/VPS, telemetry and deferred-soak limits remain as stated below.
+Older checkpoint paragraphs are historical, not the current implementation status.
 Authority: the user-approved plan and [shared roadmap](INTEGRATION_ROADMAP.md).
 
 Current focused-demo gate (2026-10-08): user-enabled policy and bounded hosted

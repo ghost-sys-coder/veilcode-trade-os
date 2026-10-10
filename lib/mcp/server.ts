@@ -1,6 +1,18 @@
 import "server-only";
+import {screenshotsListSchema,screenshotGetSchema,uploadRequestSchema,uploadStatusSchema,uploadChunkSchema,uploadFinishSchema,
+  screenshotDownloadSchema,screenshotPageSchema,screenshotRecordSchema,uploadRecordSchema,fileResultSchema,fileDownloadResultSchema,PrivateFileError} from "@/domain/files/commands";
+import {mt5RegisterRequestSchema,mt5ControlRequestSchema,mt5GrantListSchema,mt5WorkflowResultSchemas,mt5GrantPageSchema} from "@/domain/mt5/workflow-commands";
+import {mt5SymbolMappingRequestSchema} from "@/domain/mt5/symbol-mapping";
+import {mt5CashRequestSchema} from "@/domain/mt5/cash";
+import {mt5OnboardingRequestSchema} from "@/domain/mt5/onboarding-approval";
+import {mt5PublicationRequestSchema} from "@/domain/mt5/publication";
+import {mt5PolicyRequestSchema} from "@/domain/mt5/review";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import {mt5ConnectionsSchema,mt5GetSchema,mt5MatchesSchema,mt5PreviewSchema,mt5SourcesSchema,importListSchema,importGetSchema,importRowsSchema,
+  connectionPageSchema,integrationRecordSchema,integrationPageSchema} from "@/domain/integrations/commands";
+import {mt5ConnectionViewSchema} from "@/domain/mt5/onboarding";
+import {mt5ReviewRequestSchema} from "@/domain/mt5/review";
 import {analyticsReportSchema,journalReportSchema,calendarReportSchema,journalSummarySchema,journalSummaryResultSchema,calendarResultSchema,exportResultSchema} from "@/domain/reporting/commands";
 import {performanceResultSchema,behaviorResultSchema} from "@/domain/reporting/results";
 import {ReportingConsistencyError} from "@/domain/reporting/rows";
@@ -53,13 +65,28 @@ const referenceToolNames=["tradeos_references_list","tradeos_references_get","tr
 const readOnly = { readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false };
 const reportingToolNames=["tradeos_journal_summary","tradeos_analytics_performance","tradeos_analytics_behavior","tradeos_calendar","tradeos_journal_export","tradeos_analytics_balance_curve"] as const;
 const profileToolNames=["tradeos_profile_get","tradeos_profile_patch"] as const;
+const fileToolNames=["tradeos_screenshots_list","tradeos_screenshots_get","tradeos_screenshot_upload_request","tradeos_screenshot_upload_status",
+  "tradeos_screenshot_upload_chunk","tradeos_screenshot_upload_finish","tradeos_screenshot_download"] as const;
+const integrationToolNames=["tradeos_mt5_list","tradeos_mt5_get","tradeos_mt5_preview","tradeos_mt5_sources","tradeos_mt5_review",
+  "tradeos_imports_list","tradeos_imports_get","tradeos_import_rows","tradeos_mt5_matches",
+  "tradeos_mt5_grants","tradeos_mt5_map_account","tradeos_mt5_symbol_map","tradeos_mt5_cash_classify","tradeos_mt5_publish","tradeos_mt5_onboarding_approve","tradeos_mt5_publication_policy","tradeos_mt5_control"] as const;
 const catalog = {
-  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames], resources:["catalog","domain","money","workflows","reporting"],
-  pendingFamilies:["configuration/reference permanent deletion","screenshots upload/download","mt5"],
-  status:"HTTP shared workflows include journals and computed summaries, performance/behavior analytics, snapshot-aware paginated balance curves, realized calendar, full filtered CSV exports and self-profile preferences. Screenshots, integration reads, permanent deletion and local stdio remain pending.",
+  version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames,...integrationToolNames,...fileToolNames], resources:["catalog","domain","money","workflows","reporting","integrations","files"],
+  pendingFamilies:["configuration/reference/file permanent deletion","local stdio"],
+  status:"80 HTTP tools include authenticated, chunked private screenshot uploads/downloads, existing MT5 and application workflows. Permanent deletion, stdio and external-client verification remain pending.",
 };
 const resources = {
   catalog,
+  files:{scope:"Private screenshot evidence for owned canonical trades. Metadata/list includes legacy attachments. No arbitrary local paths, remote URLs, public bucket, credentials or permanent deletion.",
+    upload:"Request with expectedTradeVersion, complete file SHA-256, byteLength, declared PNG/JPEG/WebP type and category/timeframe/caption/capturedAt metadata. Reservation is not evidence. Upload canonical base64 chunks of exactly chunkBytes (393216), except the final remainder, using each returned upload.version. Chunks may arrive out of order. Resume via upload_status; use identical operation IDs after uncertain responses. Staging expires after 24 hours; expired uploads require a new request. At most 10 MiB and 16 million decoded pixels; single-frame images only.",
+    finish:"After all chunks, reload trade record_version and finish with current upload and trade versions. Full byte hash/type/size and compressed-pixel decoding are verified, then metadata/receipt/audit commit atomically. No overwrite. An audit or version failure leaves unpublished staging retryable, not attached evidence.",
+    download:"Bounded base64 chunks, at most 393216 bytes each. Continue with nextOffset and the same expectedSha256; changed bytes reject continuation. Every request checks active grant/ownership before and after Storage I/O. No signed URLs. Legacy images are validated on read, not claimed to have an original captured hash.",
+    security:"The privileged Storage key is server-only. OAuth direct workspace/Storage policies remain denied. Managed evidence cannot be overwritten through legacy browser APIs. Temporary chunks remain private for resumability and retained manifests; deletion is a separate confirmed workflow."},
+  integrations:{reads:"Owned connections and import batches/rows use bounded cursors. MT5 sources expose append-only raw broker revisions with string identifiers; observations are not original plans or completed reviews.",
+    preview:"Complete consistent history feeds the existing reconstruction and balance bridge before episode paging. Reuse cursor unchanged for the same connection. VERSION_CONFLICT requires a fresh preview. problemCount is total; problemsTruncated warns about bounded problem detail. A heartbeat is not proof of reconciliation.",
+    review:"SOURCE/DISTINCT/LINK/REOPEN/CASH require operationId, connection version, source snapshot and ledger tokens, and a meaningful reason. Manual decisions also require tradeToken. LINK reuses the canonical financial writer and preserves the original manual plan/reviews. SOURCE approval does not publish changed finances. CASH handles reviewed revisions of already classified cash, not first-time ambiguous movements.",
+    authorization:"MCP access is separate from an active, account-bound MT5 collector grant. Review mutations require both; read-only retained evidence does not activate a worker. No collector capture/lease or broker order API is exposed.",
+    pending:"Owned active MT5 grants can be discovered and mapped to an explicit demo terminal identity. Symbol/cash decisions, selected publication, current-snapshot approval, policy and fencing controls are MCP workflows. No grant is created implicitly. RESUME changes server eligibility, not OS processes. Policy enablement requires current approval; publication alone is not reconciliation. Fetch a fresh preview after every change."},
   domain:{ canonicalTrade:"One logical position from planning through complete closure, independent of source.",
     relationships:["Account owns trades, snapshots and adjustments","Trade references an instrument, strategy and setup","Setup belongs to a strategy","Rules are snapshotted at completed review"],
     tradeStatuses:TRADE_STATUSES, tradeOutcomes:TRADE_OUTCOMES, tradeGrades:TRADE_GRADES, ruleTypes:RULE_TYPES,
@@ -95,6 +122,30 @@ function failure(code:string) { return { isError:true, content:[{ type:"text" as
 
 /** A fresh transport instance; data access exists only through verified services. */
 export type McpApplicationServices = {
+  screenshotsList:(input:unknown)=>Promise<ReturnType<typeof screenshotPageSchema.parse>>;
+  screenshotsGet:(input:unknown)=>Promise<ReturnType<typeof screenshotRecordSchema.parse>>;
+  screenshotUploadRequest:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
+  screenshotUploadStatus:(input:unknown)=>Promise<ReturnType<typeof uploadRecordSchema.parse>>;
+  screenshotUploadChunk:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
+  screenshotUploadFinish:(input:unknown)=>Promise<ReturnType<typeof fileResultSchema.parse>>;
+  screenshotDownload:(input:unknown)=>Promise<ReturnType<typeof fileDownloadResultSchema.parse>>;
+  mt5Grants:(input:unknown)=>Promise<ReturnType<typeof integrationPageSchema.parse>>;
+  mt5MapAccount:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5SymbolMap:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5CashClassify:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5Publish:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5OnboardingApprove:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5PublicationPolicy:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5Control:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5Matches:(input:unknown)=>Promise<ReturnType<typeof integrationPageSchema.parse>>;
+  mt5List:(input:unknown)=>Promise<ReturnType<typeof connectionPageSchema.parse>>;
+  mt5Get:(input:unknown)=>Promise<ReturnType<typeof mt5ConnectionViewSchema.parse>>;
+  mt5Preview:(input:unknown)=>Promise<Record<string,unknown>>;
+  mt5Sources:(input:unknown)=>Promise<ReturnType<typeof integrationPageSchema.parse>>;
+  mt5Review:(input:unknown)=>Promise<Record<string,unknown>>;
+  importsList:(input:unknown)=>Promise<ReturnType<typeof integrationPageSchema.parse>>;
+  importsGet:(input:unknown)=>Promise<Record<string,unknown>>;
+  importRows:(input:unknown)=>Promise<ReturnType<typeof integrationPageSchema.parse>>;
   profileGet:(input:unknown)=>Promise<ReturnType<typeof profileRecordSchema.parse>>;
   profilePatch:(input:unknown)=>Promise<ReturnType<typeof profileResultSchema.parse>>;
   balanceCurve:(input:unknown)=>Promise<ReturnType<typeof balanceCurveResultSchema.parse>>;
@@ -153,7 +204,7 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     });
   const guarded = async (work:()=>Promise<Record<string,unknown>>) => {
     try {return result(await work());}
-    catch(error) {return failure(error instanceof ApplicationWorkflowError || error instanceof BalanceCurveCursorError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
+    catch(error) {return failure(error instanceof ApplicationWorkflowError || error instanceof BalanceCurveCursorError || error instanceof PrivateFileError?`${error.code}: ${error.message}`:error instanceof ReportingConsistencyError?`REPORTING_CONSISTENCY_CONFLICT: ${error.message}`:"APPLICATION_WORKFLOW_UNAVAILABLE");}
   };
   server.registerTool("tradeos_configuration_list",{description:"List owner-owned STRATEGY, SETUP or RULE records in stable ID order. Continue using nextCursor as afterId; archived records are excluded by default.",
     inputSchema:configurationListSchema,outputSchema:configurationPageSchema,annotations:readOnly},
@@ -162,6 +213,13 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
     inputSchema:configurationGetSchema,outputSchema:configurationRecordSchema,annotations:readOnly},
     async input=>guarded(()=>services.configurationGet(input)));
   const mutation = {readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false};
+  server.registerTool("tradeos_screenshots_list",{description:"List owned trade screenshot metadata in bounded UUID-keyset pages, including legacy evidence. No file URLs or secrets.",inputSchema:screenshotsListSchema,outputSchema:screenshotPageSchema,annotations:readOnly},input=>guarded(()=>services.screenshotsList(input)));
+  server.registerTool("tradeos_screenshots_get",{description:"Read one owned screenshot's metadata and known original content facts. Null legacy hashes are unknown, not fabricated evidence.",inputSchema:screenshotGetSchema,outputSchema:screenshotRecordSchema,annotations:readOnly},input=>guarded(()=>services.screenshotsGet(input)));
+  server.registerTool("tradeos_screenshot_upload_request",{description:"Reserve an exact private screenshot upload with current trade version, complete SHA-256, byte length and metadata. Not published evidence; no signed URL. Read the files resource before upload.",inputSchema:uploadRequestSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadRequest(input)));
+  server.registerTool("tradeos_screenshot_upload_status",{description:"Inspect owned client-bound upload state, version, expiry and received chunk indices for resumable recovery. Does not interpret placeholder/staged bytes as evidence.",inputSchema:uploadStatusSchema,outputSchema:uploadRecordSchema,annotations:readOnly},input=>guarded(()=>services.screenshotUploadStatus(input)));
+  server.registerTool("tradeos_screenshot_upload_chunk",{description:"Upload one canonical base64 chunk of 393216 bytes or the exact final remainder. Use the current upload version and durable operation ID. No local path or external URL; raw content never enters audit receipts.",inputSchema:uploadChunkSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadChunk(input)));
+  server.registerTool("tradeos_screenshot_upload_finish",{description:"Validate all staged bytes and full image decoding, then atomically attach evidence and audit it. Requires current upload/trade versions; stale/audit failure publishes no metadata. Exact retries recover receipts without rewriting images.",inputSchema:uploadFinishSchema,outputSchema:fileResultSchema,annotations:mutation},input=>guarded(()=>services.screenshotUploadFinish(input)));
+  server.registerTool("tradeos_screenshot_download",{description:"Read a bounded authenticated base64 chunk of owned private evidence. Continue with nextOffset and expectedSha256; grant revocation or changed content rejects every new chunk. No public/signed URL.",inputSchema:screenshotDownloadSchema,outputSchema:fileDownloadResultSchema,annotations:readOnly},input=>guarded(()=>services.screenshotDownload(input)));
   server.registerTool("tradeos_configuration_create",{description:"Create a strategy, setup or rule. Required operationId is durable: retry the identical payload with the same ID after an uncertain response. Never submit an owner ID. Numeric limits are decimal strings.",
     inputSchema:configurationCreateSchema,outputSchema:configurationResultSchema,annotations:mutation},
     async input=>guarded(()=>services.configurationWrite("CREATE",input)));
@@ -229,5 +287,22 @@ export function createTradeOsMcpServer(services:McpApplicationServices) {
   server.registerTool("tradeos_analytics_balance_curve",{description:"Page a realized account/portfolio balance curve for one required currencyCode. Only account/accountType/from/to ledger filters are accepted; never filter the balance by strategy/instrument. Maximum 100 points per page. All balances/drawdown use full history before paging; cash-neutral movements shift the high-water basis. closed_at places complete trades, not partial/open cash. Cumulative R has an explicit cumulativeRSample. Incomplete history withholds authoritative money; unclassified OTHER withholds drawdown. Reuse nextCursor with identical scope/timezone; CURVE_CHANGED requires restarting. Every continuation freshly authorizes access; no equity substitution or persistent server session.",inputSchema:balanceCurveSchema,outputSchema:balanceCurveResultSchema,annotations:readOnly},async input=>guarded(()=>services.balanceCurve(input)));
   server.registerTool("tradeos_profile_get",{description:"Read the verified actor's own display name, journal timezone, timestamps and string record_version. No owner ID input, email, credentials or authentication metadata. Does not create a missing profile.",inputSchema:profileGetSchema,outputSchema:profileRecordSchema,annotations:readOnly},async input=>guarded(()=>services.profileGet(input)));
   server.registerTool("tradeos_profile_patch",{description:"Patch only your own displayName (2–80 Unicode characters; null clears) and/or valid IANA timezone. Omitted fields stay unchanged; null timezone is invalid. Requires durable operationId and current expectedVersion. Preferences are updated atomically with receipt and before/after audit. Timezone controls default reporting dates, not stored instants, account currency or an explicit firm timezone. No auth/credential changes.",inputSchema:profilePatchSchema,outputSchema:profileResultSchema,annotations:mutation},async input=>guarded(()=>services.profilePatch(input)));
+  server.registerTool("tradeos_mt5_list",{description:"List owned stored MT5 connections in stable ID order. Heartbeat/sync/backlog are distinct; reads do not activate workers. Use nextCursor as afterId.",inputSchema:mt5ConnectionsSchema,outputSchema:connectionPageSchema,annotations:readOnly},async input=>guarded(()=>services.mt5List(input)));
+  server.registerTool("tradeos_mt5_get",{description:"Read one owned MT5 connection's identity, version, durable checkpoints and server health. Local pending uploads are not inferred from server backlog.",inputSchema:mt5GetSchema,outputSchema:mt5ConnectionViewSchema,annotations:readOnly},async input=>guarded(()=>services.mt5Get(input)));
+  server.registerTool("tradeos_mt5_preview",{description:"Page reconstructed episodes with the full-history reconciliation bridge and explicit source/ledger tokens. Observed balance is separate from canonical closed-trade balance. Incomplete history remains blocked. Reuse cursor unchanged; VERSION_CONFLICT requires restarting. No publication occurs.",inputSchema:mt5PreviewSchema,outputSchema:integrationRecordSchema,annotations:readOnly},async input=>guarded(()=>services.mt5Preview(input)));
+  server.registerTool("tradeos_mt5_sources",{description:"Page append-only broker revisions by string revisionId, optionally filtered by kind/sourceId. Use nextCursor as afterRevisionId. isCurrent identifies the active revision; requiresReview describes the current fact, not historical user review evidence.",inputSchema:mt5SourcesSchema,outputSchema:integrationPageSchema,annotations:readOnly},async input=>guarded(()=>services.mt5Sources(input)));
+  server.registerTool("tradeos_mt5_review",{description:"Explicit SOURCE/DISTINCT/LINK/REOPEN/CASH review requires a reason, operationId, current version and snapshot/ledger tokens; manual decisions require tradeToken. Atomically auditable and retry-safe. LINK updates execution only from verified broker evidence, preserving plans/reviews. SOURCE approval does not publish. No capture, lease, order or publication-policy operation.",inputSchema:mt5ReviewRequestSchema,outputSchema:integrationRecordSchema,annotations:mutation},async input=>guarded(()=>services.mt5Review(input)));
+  server.registerTool("tradeos_imports_list",{description:"Page owned import batches across sources, optionally scoped to an owned account. Use nextCursor as afterId. Status/errors are retained; no import is started.",inputSchema:importListSchema,outputSchema:integrationPageSchema,annotations:readOnly},async input=>guarded(()=>services.importsList(input)));
+  server.registerTool("tradeos_imports_get",{description:"Read an owned import batch's persisted metadata, status, counts and error summary. No publication or conflict decision is inferred.",inputSchema:importGetSchema,outputSchema:integrationRecordSchema,annotations:readOnly},async input=>guarded(()=>services.importsGet(input)));
+  server.registerTool("tradeos_import_rows",{description:"Page owned staged rows with raw/canonical data, string source identifiers, validation errors and explicit conflict decisions. Empty MT5 staging rows do not mean no source facts; mt5_sources exposes broker provenance.",inputSchema:importRowsSchema,outputSchema:integrationPageSchema,annotations:readOnly},async input=>guarded(()=>services.importRows(input)));
+  server.registerTool("tradeos_mt5_grants",{description:"Page owned active account-bound MT5 grants already approved through browser consent. No grant/credential creation. Use returned id as grantId for mapping; nextCursor becomes afterId.",inputSchema:mt5GrantListSchema,outputSchema:mt5GrantPageSchema,annotations:readOnly},async input=>guarded(()=>services.mt5Grants(input)));
+  server.registerTool("tradeos_mt5_map_account",{description:"Map an already-approved MT5 grant to the supplied exact DEMO broker/server/login/terminal identity and account currency precision. Does not enumerate terminals, activate live accounts, start workers or create consent. operationId is durable.",inputSchema:mt5RegisterRequestSchema,outputSchema:mt5WorkflowResultSchemas.REGISTER,annotations:mutation},async input=>guarded(()=>services.mt5MapAccount(input)));
+  server.registerTool("tradeos_mt5_symbol_map",{description:"Explicitly map an observed broker symbol to an owned/global instrument with current version/source token and reason. Published symbol identity cannot be reassigned. Reload preview after success.",inputSchema:mt5SymbolMappingRequestSchema,outputSchema:mt5WorkflowResultSchemas.SYMBOL_MAPPING,annotations:mutation},async input=>guarded(()=>services.mt5SymbolMap(input)));
+  server.registerTool("tradeos_mt5_cash_classify",{description:"Classify one reviewed broker cash source explicitly as baseline funding, adjustment, exact existing adjustment link or zero effect. Server computes decimal amount from source; funding in baseline is not counted twice. OTHER requires explicit performance meaning. Existing classifications require CASH review rather than replacement.",inputSchema:mt5CashRequestSchema,outputSchema:mt5WorkflowResultSchemas.CASH,annotations:mutation},async input=>guarded(()=>services.mt5CashClassify(input)));
+  server.registerTool("tradeos_mt5_publish",{description:"Explicitly publish selected eligible canonical episodes from a current preview. Server computes all execution facts; no submitted PnL/plan. Does not approve reconciliation, enable policy or start collection. Unknown original plans remain unknown. Reload preview after commit.",inputSchema:mt5PublicationRequestSchema,outputSchema:mt5WorkflowResultSchemas.PUBLICATION,annotations:mutation},async input=>guarded(()=>services.mt5Publish(input)));
+  server.registerTool("tradeos_mt5_onboarding_approve",{description:"Approve exactly the complete available-history snapshot after all canonical executions and cash are reconciled. Requires explicit availableHistoryConfirmed=true, matching positive preserved opening baseline and current version/source/ledger tokens. Never approves incomplete or unexplained history.",inputSchema:mt5OnboardingRequestSchema,outputSchema:mt5WorkflowResultSchemas.ONBOARDING,annotations:mutation},async input=>guarded(()=>services.mt5OnboardingApprove(input)));
+  server.registerTool("tradeos_mt5_publication_policy",{description:"Explicitly enable/disable account-specific future eligible automatic publication, with reason, operationId and current evidence. Enablement requires current onboarding approval. It does not resume a paused collector or launch OS tasks; no broker execution.",inputSchema:mt5PolicyRequestSchema,outputSchema:mt5WorkflowResultSchemas.POLICY,annotations:mutation},async input=>guarded(()=>services.mt5PublicationPolicy(input)));
+  server.registerTool("tradeos_mt5_control",{description:"PAUSE/RESUME server connection eligibility with exact version/reason. Atomically increments the fence and invalidates old worker ownership. Does not change local durable intent, launch a terminal, install startup or issue orders. Preserve explicit operator collector controls.",inputSchema:mt5ControlRequestSchema,outputSchema:mt5WorkflowResultSchemas.CONTROL,annotations:mutation},async input=>guarded(()=>services.mt5Control(input)));
+  server.registerTool("tradeos_mt5_matches",{description:"Page manual-match candidates and prior decisions for one reconstructed episode. reviewToken is the exact current tradeToken needed for DISTINCT/LINK/REOPEN. Decisions are explicit historical events, not silent matching. Use nextCursor as afterId and obtain fresh preview source/ledger/version tokens before writing.",inputSchema:mt5MatchesSchema,outputSchema:integrationPageSchema,annotations:readOnly},async input=>guarded(()=>services.mt5Matches(input)));
   return server;
 }

@@ -1,6 +1,6 @@
 # Trade OS MCP Access Implementation Plan
 
-Branch: `feature/mcp-access`. Status: updated from master `3a8bef2` after the
+Branch: `feature/mcp-access`. Status: updated from master `6c7a0b7` after the
 focused demo check passed; stateless HTTP and the strategy/setup/rule shared
 list/get/create/patch/archive workflows and account list/get/create/patch with
 exact balance access are implemented. Account adjustments/classification,
@@ -9,8 +9,25 @@ workflows now use shared services. Persisted journal reflections and goal/prop
 commands plus exact shared account-progress metrics, owned tag/instrument
 workflows and audited trade-tag associations now join computed journal summaries,
 performance/behavior analytics, the realized calendar and full filtered CSV export,
-bringing local coverage to 56 HTTP tools with snapshot-aware paginated balance-curve
-events and self-profile preferences. Profile hosted prerequisites are installed
+bringing local coverage to 80 HTTP tools and seven resources with snapshot-aware
+paginated balance-curve events, self-profile preferences, MT5/import access and
+controlled screenshot metadata/upload/download. The private-file increment
+preserves legacy browser attachments, denies direct OAuth Storage access and
+uses server-only credentials; see [private-file verification](MCP_PRIVATE_FILES_VERIFICATION.md).
+The nine integration tools reuse existing broker reconstruction/finance and
+SOURCE/DISTINCT/LINK/REOPEN/CASH review rather than rebuilding MT5. Health,
+raw revision history, complete preview, manual fingerprints and import staging
+are owner-scoped; review additionally checks the active account-bound MT5 grant.
+Controls, initial mapping/cash classification, selected publication, onboarding
+approval and publication policy now have eight strict MCP adapters, verified
+locally as one overlapping workflow group. Its approved hosted prerequisites are
+installed and verified, preserving all 54 application table fingerprints and
+leaving MCP disabled. See [workflow verification](MCP_MT5_WORKFLOW_VERIFICATION.md) and
+[integration verification](MCP_INTEGRATION_ACCESS_VERIFICATION.md).
+The tested private integration migration is now installed and verified on the
+correct hosted project, with 12 unchanged data fingerprints and MCP disabled.
+The remaining capability/client/release gates are listed in
+[completion checklist](MCP_COMPLETION_CHECKLIST.md). Profile hosted prerequisites are installed
 after explicit approval, and pushed profile source `e241586` has a READY Preview
 build. Authenticated hosted/client verification and permanent deletion remain
 pending. See [profile verification](MCP_PROFILE_VERIFICATION.md) and

@@ -14,6 +14,8 @@ try {
     cwd:root,stdio:"inherit",env:{ ...process.env,
       SUPABASE_URL: status.API_URL, NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
       SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY,
+      // Never let a hosted Storage secret from .env leak into disposable tests.
+      SUPABASE_SECRET_KEY: status.SECRET_KEY ?? status.SERVICE_ROLE_KEY,
       TRADE_OS_LOCAL_DATABASE_URL: status.DB_URL,
       TRADE_OS_INTEGRATION_ORIGIN:"http://127.0.0.1:3100", TRADE_OS_MT5_ENABLED:"true", TRADE_OS_MCP_ENABLED:"true", TRADE_OS_LOCAL_TEST_APP:"true",
     },
