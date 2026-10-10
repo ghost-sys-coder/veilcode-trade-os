@@ -1,7 +1,7 @@
 # MCP completion checklist
 
 Updated 2026-10-10 from the actual `feature/mcp-access` implementation, merged
-master `6c7a0b7`, user-approved integration plan and latest verification reports.
+master `853a963`, user-approved integration plan and latest verification reports.
 This checklist separates missing MCP capabilities from delivered MT5 behavior;
 it is not a plan to rebuild the completed integrations or core workflows.
 
@@ -64,6 +64,12 @@ that every requested real AI client has connected successfully.
    workflows, resource-bound renewable credentials in protected local storage,
    clean protocol stdout and actionable errors. Ordinary application access must
    not depend on MT5 being online. No AI-provider keys or model API calls.
+   **Implemented and locally verified:** transport-only authenticated forwarding,
+   S256 loopback browser login, reused Windows DPAPI/ACL/OS locks, serialized
+   fail-closed renewable credentials and clean SDK stdout. Modern/legacy real
+   subprocess, retry/version, kill-switch and native Windows gates pass. See
+   [stdio evidence](MCP_STDIO_VERIFICATION.md) and [setup](../integrations/mcp/README.md).
+   Real AI-client and hosted activation acceptance remain items 5–6.
 5. **Real-client/authentication matrix.** Verify Codex, Claude Code, ChatGPT
    Desktop/remote connector, Claude remote and Gemini CLI. Finish pre-registered
    local-client setup and controlled remote registration/discovery compatibility
@@ -77,7 +83,7 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Items 1–3 are delivered for their increments. Next build is item 4, then 5 and 6.
+Items 1–4 are delivered for their increments. Next build is item 5, then 6.
 File deletion cannot ship
 without its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.

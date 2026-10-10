@@ -75,8 +75,8 @@ const integrationToolNames=["tradeos_mt5_list","tradeos_mt5_get","tradeos_mt5_pr
   "tradeos_mt5_grants","tradeos_mt5_map_account","tradeos_mt5_symbol_map","tradeos_mt5_cash_classify","tradeos_mt5_publish","tradeos_mt5_onboarding_approve","tradeos_mt5_publication_policy","tradeos_mt5_control"] as const;
 const catalog = {
   version:"1", tools:[...toolNames,...referenceToolNames,...reportingToolNames,...profileToolNames,...integrationToolNames,...fileToolNames,...deletionToolNames], resources:["catalog","domain","money","workflows","reporting","integrations","files","deletions"],
-  pendingFamilies:["local stdio"],
-  status:"84 HTTP tools include controlled files and exact-target browser-approved deletion. Local stdio, external clients and final hosted activation remain pending.",
+  pendingFamilies:[],
+  status:"84 tools and eight resources through HTTP and the authenticated local stdio adapter, including controlled files and browser-approved deletion. Real external-client verification and final hosted activation remain pending.",
 };
 const resources = {
   catalog,

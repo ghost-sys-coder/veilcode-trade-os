@@ -2,7 +2,8 @@
 
 Prepared 2026-10-07 from master `9e3a803` on `feature/mcp-access`.
 Updated 2026-10-10: stateless HTTP, eight contract resources and 84 tools are
-implemented. Goals, custom evidence, prop configuration and exact account progress
+implemented, now also forwarded by the authenticated local stdio adapter. See
+[stdio verification](MCP_STDIO_VERIFICATION.md). Goals, custom evidence, prop configuration and exact account progress
 now share services with the browser, alongside daily/weekly/monthly reflections.
 Computed journal summaries, performance/behavior analytics, the realized calendar
 and complete filtered CSV export now share validated, owner-scoped services.
@@ -40,8 +41,8 @@ Hosted MCP stays disabled. This increment's approved hosted prerequisites pass
 with 54 unchanged application table fingerprints. Screenshot metadata and controlled
 private transfers are now implemented; see [private-file verification](MCP_PRIVATE_FILES_VERIFICATION.md).
 Reference/configuration/file permanent deletion, its approved hosted prerequisites
-and configured Preview are verified. Local stdio and external clients
-remain pending. This is not full MCP
+and configured Preview are verified. Local stdio is implemented and locally
+verified; actual external clients and final activation remain pending. This is not full MCP
 readiness. Balance-curve events,
 self-profile preferences and position sizing are already implemented.
 

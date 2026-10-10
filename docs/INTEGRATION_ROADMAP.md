@@ -1,6 +1,11 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Current 2026-10-10: MCP items 1–4 are implemented for their increments on
+`feature/mcp-access` updated from master `853a963`. The authenticated stdio
+adapter reuses HTTP services and existing Windows credential protection;
+actual client matrix and final hosted activation remain pending. See
+[stdio verification](MCP_STDIO_VERIFICATION.md).
 Original baseline: clean `master` at `412da1c`. Two feature branches, in addition to
 `master`: `feature/mt5-sync` and `feature/mcp-access`.
 
