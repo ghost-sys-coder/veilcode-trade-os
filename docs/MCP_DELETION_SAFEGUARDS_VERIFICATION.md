@@ -2,8 +2,9 @@
 
 2026-10-10. Branch `feature/mcp-access`, baseline `81e68a2`. Checklist item 3
 only, following the user-confirmed [blueprint](MCP_DELETION_SAFEGUARDS_PLAN.md).
-Local implementation is verified; hosted prerequisite rollout and Preview are
-pending separate approval. Hosted MCP remains disabled. No master merge,
+Local implementation and the user-approved hosted prerequisites are verified.
+Source Preview builds; final runtime recheck follows the Preview configuration
+correction below. Hosted MCP remains disabled. No master merge,
 production promotion, real-account deletion, stdio or external-client work.
 
 ## Delivered behavior
@@ -115,8 +116,8 @@ absence separately. All destructive fixtures use disposable loopback Supabase.
 | `node .artifacts/mt5-pilot/check-private-file-client-assets.mjs` | PASS: secret absent from **39** client JS/CSS/map assets |
 | `git diff --check` | PASS |
 
-Migration `20261009203729_mcp_deletion_safeguards.sql` is recorded only on the
-disposable local stack. The local diagnostic wrapper restores hint settings;
+Migration `20261009203729_mcp_deletion_safeguards.sql` is recorded on the
+disposable local stack and the user-approved hosted Trade OS project. The local diagnostic wrapper restores hint settings;
 it does not relax permissions. Final cleanup readback confirms zero fixture
 users, grants, operations, deletion requests/jobs, upload manifests and chunks.
 
@@ -139,19 +140,65 @@ monetary, canonical-trade, review-completion and MT5 contracts are reused.
 System integrity: verified shared services/private short transactions, fresh
 scope checks, immutable receipts/audits, server-only Storage and existing token
 UI primitives. The imprint skill records the approval pattern in `ui-registry.md`.
-Production readiness: local gates pass; **hosted prerequisite rollout/Preview
-remain pending**, not passed. The release preflight intentionally requires both
-new private entry functions before deployment.
+Release readiness: local gates and approved hosted prerequisites pass. The
+release preflight requires both new private entry functions before deployment.
+Final Preview runtime verification is recorded separately below; this is not
+hosted authenticated deletion-tool acceptance or full MCP activation.
 
 The user's separate `domain/mt5/cash.ts` change appeared during verification;
 it is preserved and excluded from this commit. Results describe the checked
 working tree, not a claim that this unrelated edit was delivered here. The user's
 untracked `public/snapshots/result-snapshot.png` is also untouched/excluded.
 
-Before pushing: obtain separate approval to apply the exact tested migration
-to the Trade OS project, fingerprint existing tables/control state before/after,
-verify private ACL/RLS/Storage policies, keep MCP disabled and verify the exact
-feature-branch Preview. Do not merge/promote production or delete hosted fixtures.
+## Approved hosted rollout and Preview
+
+- The user separately approved hosted prerequisites, push and Preview verification.
+  Target: VeilCode Studio@Zooloop.tv@gmail.com, Trade OS
+  `nhwlxcrsivmawwmjiwck`; no other Supabase account/project was used.
+- Migration installed with guarded prerequisites. All **56** existing public/private
+  application tables plus Storage buckets/objects (**58 total**) retain identical
+  row counts and multiset fingerprints immediately before/after. Both new private
+  deletion tables are empty. No hosted deletion fixture was created or executed.
+- The provider initially recorded `20261010014358`; after an approval-service
+  quota interruption, guarded history alignment records canonical
+  `20261009203729`, retaining the reviewed source and removing only that alias.
+  The interruption did not reapply the migration or change user data.
+- RLS is enabled with no client policies on both private tables. No anon,
+  authenticated or service-role table/writer/read grants. Four restrictive Storage
+  retirement policies, seven protected deletion triggers, the relink guard and
+  narrow authenticated-only browser-session helper are present. The upload FK
+  removal preserves immutable historical manifests rather than cascading them.
+- Hosted MCP has no enabled resource; new request/job counts remain zero. The
+  MT5 pilot stays **ACTIVE / v20 / fence 6**, **20** canonical trades,
+  **USD +2,032.53**. No collector resume, policy change or broker action.
+- `npm run build:verified` passes against hosted prerequisites: **35 functions /
+  14 version-order columns**, then the production build. Source
+  **466948887f54b6dbd45a90f885739cbdfba67c44** is pushed only to
+  `feature/mcp-access`. Initial Preview **dpl_FM3fY8HuXBTTaHSTZmFUJT8jpBf5** is
+  READY, project `prj_J06NUbnHQj38DhAK4YX5poGV5ytz`, team
+  `team_24dtIFqfL1X7RkcGc6gVif0X`, target null (Preview), build **59.5s**.
+  Its log confirms the preflight and new approval route.
+- GET checks on that first Preview pass calculator and login redirects but expose
+  a missing integration origin: the variables were Production-only. This is an
+  environment mismatch, not a failed SQL rollout. No origin validation is relaxed.
+- The verified stable branch alias is
+  `https://trade-os-git-feature-mcp-access-ghostsyscoders-projects.vercel.app`.
+  Only this branch's Preview gets Config variables for that integration origin,
+  `TRADE_OS_MCP_ENABLED=false` and `TRADE_OS_MT5_ENABLED=false`. Production settings,
+  server secret and application grants are untouched. A fresh deployment must
+  receive them before the final smoke check; an existing deployment is immutable.
+- Protected Preview checks use existing Vercel CLI authentication without
+  disabling Deployment Protection or printing cookies/bypass tokens. Disabled
+  integration requests should return the existing **401** access-denied challenge,
+  not the smoke harness's earlier assumed 503. Discovery stays publicly available
+  behind the outer deployment protection and is bound to the stable Preview origin.
+
+Hosted advisors report no ERROR, no new unindexed FK and the two intended new
+private deny-by-default RLS INFO notices (27 total). Pre-existing
+[leaked-password protection warning](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection),
+[31 RLS InitPlan warnings](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan)
+and [10 unindexed-FK INFO findings](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys)
+remain recorded. New unused indexes before enablement are not removed.
 
 ## Explicit limits
 
