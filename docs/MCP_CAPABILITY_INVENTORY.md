@@ -39,8 +39,8 @@ real-provider/SDK and browser verification passes. See
 Hosted MCP stays disabled. This increment's approved hosted prerequisites pass
 with 54 unchanged application table fingerprints. Screenshot metadata and controlled
 private transfers are now implemented; see [private-file verification](MCP_PRIVATE_FILES_VERIFICATION.md).
-Reference/configuration/file permanent deletion is locally verified; hosted
-deletion prerequisites require separate approval. Local stdio and external clients
+Reference/configuration/file permanent deletion, its approved hosted prerequisites
+and configured Preview are verified. Local stdio and external clients
 remain pending. This is not full MCP
 readiness. Balance-curve events,
 self-profile preferences and position sizing are already implemented.
@@ -123,7 +123,8 @@ transactional workflows and the owner-browser approval route. `tradeos://v1/dele
 describes expiry, exact execution binding, historical archival and physical purge.
 Permanent deletion entries marked pending in the original mapping above are
 superseded by this implementation, not by independent per-family delete tools.
-Hosted deployment of this increment remains approval-gated. See
+Approved hosted prerequisites and configured branch Preview pass with MCP disabled;
+actual hosted/client acceptance is still a final release gate. See
 [deletion verification](MCP_DELETION_SAFEGUARDS_VERIFICATION.md).
 
 The five read-only reporting tools are `tradeos_journal_summary`,

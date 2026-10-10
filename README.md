@@ -114,7 +114,7 @@ resource-bound OAuth and verified shared services. Controlled private screenshot
 require server-only `SUPABASE_SECRET_KEY` (never `NEXT_PUBLIC_*`). Permanent deletion
 uses exact-target one-use browser consent; referenced configuration archives.
 Screenshot execution reports `PURGE_PENDING` until physical removal is confirmed.
-Deletion prerequisites still require hosted rollout approval. Local stdio,
+Deletion prerequisites and the configured Preview are verified; MCP stays disabled. Local stdio,
 actual external-client checks and hosted activation remain separate
 gates. Hosted MCP stays disabled. See the
 [completion checklist](docs/MCP_COMPLETION_CHECKLIST.md) and

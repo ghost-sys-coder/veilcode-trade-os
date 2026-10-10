@@ -14,7 +14,7 @@ it is not a plan to rebuild the completed integrations or core workflows.
   trades/management/corrections/reviews, journals, analytics/calendar/export,
   position sizing, self-profile, MT5/import reads and explicit conflict review,
   screenshot metadata, controlled private upload/download and browser-approved
-  configuration/screenshot deletion (hosted deletion rollout pending).
+  configuration/screenshot deletion (hosted prerequisites and Preview verified).
 - Verified shared services, central decimal calculations, private transactions,
   durable retries, optimistic concurrency and immutable mutation evidence.
 - MT5 health, complete preview/balance bridge, broker revisions, exact manual
@@ -53,10 +53,12 @@ that every requested real AI client has connected successfully.
    configuration; archive referenced strategies/setups/rules/goals and report
    archival. Screenshot deletion uses the same exact-target approval. Never
    delete plan corrections, execution/financial history or audit evidence.
-   **Implemented and locally verified:** four tools plus the deletions resource;
+   **Complete for this increment:** four tools plus the deletions resource;
    unused delete/referenced archive, physical Storage purge, immutable execution
-   receipts and owner-browser recovery after revocation. Hosted migration/push
-   remain approval-gated; do not mark the hosted increment complete yet. See
+   receipts and owner-browser recovery after revocation. Approved hosted
+   prerequisites preserve all 56 existing application tables plus Storage;
+   the pushed, configured Preview passes 7/7 GET checks with MCP disabled. Actual
+   hosted authenticated/client acceptance remains item 6, not a claimed pass. See
    [deletion evidence](MCP_DELETION_SAFEGUARDS_VERIFICATION.md).
 4. **Local stdio adapter and setup.** Official SDK, same authenticated application
    workflows, resource-bound renewable credentials in protected local storage,
@@ -75,8 +77,8 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Items 1 and 2 are delivered. Item 3 is locally implemented; finish its approved
-hosted prerequisite rollout before moving to 4, 5, 6. File deletion cannot ship
+Items 1–3 are delivered for their increments. Next build is item 4, then 5 and 6.
+File deletion cannot ship
 without its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.
 
