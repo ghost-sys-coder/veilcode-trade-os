@@ -24,6 +24,9 @@ async function fixture() {
     result: { action: "FINISH", upload: { ...upload, status: "COMPLETE", version: "2", screenshotId: id, receivedChunks: [0] }, screenshot: record, tradeVersion: "2" } };
 }
 describe("controlled private-file schemas", () => {
+  it.each(["", "invalid", "1.5", "9223372036854775808"])("invalid versions are validation failures, not BigInt exceptions (%s)", expectedTradeVersion => {
+    expect(uploadRequestSchema.safeParse({...base,expectedTradeVersion}).success).toBe(false);
+  });
   it.each([{ ownerId: id }, { storagePath: "../outside" }, { url: "https://example.test/file" }, { filePath: "C:\\private" },
     { byteLength: 0 }, { byteLength: FILE_MAX_BYTES + 1 }, { contentType: "image/svg+xml" }, { sha256: "A".repeat(64) },
     { expectedTradeVersion: 1 }, { expectedTradeVersion: "0" }, { metadata: { category: "UNKNOWN" } }])("rejects invalid/rescoped request %j", extra => {

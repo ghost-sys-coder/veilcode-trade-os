@@ -6,7 +6,7 @@ export const FILE_CHUNK_BYTES = 393_216;
 export const FILE_MAX_PIXELS = 16_000_000;
 export const FILE_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 const id = z.string().uuid();
-const version = z.string().regex(/^[1-9]\d{0,18}$/).refine(v => BigInt(v) <= BigInt("9223372036854775807"));
+const version = z.string().regex(/^[1-9]\d{0,18}$/).refine(v => /^[1-9]\d{0,18}$/.test(v) && BigInt(v) <= BigInt("9223372036854775807"));
 export const fileHashSchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const screenshotMetadataCommandSchema = z.object({
   category: z.enum(SCREENSHOT_CATEGORIES), timeframe: z.enum(TIMEFRAMES).nullable().default(null),

@@ -12,5 +12,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // Bound Sharp/SDK/socket fixture contention on developer machines and CI.
+    // Keep application deadlines and per-test timeouts unchanged.
+    maxWorkers: 2,
   },
 });
