@@ -2,9 +2,8 @@
 
 2026-10-10. Branch `feature/mcp-access`, baseline `81e68a2`. Checklist item 3
 only, following the user-confirmed [blueprint](MCP_DELETION_SAFEGUARDS_PLAN.md).
-Local implementation and the user-approved hosted prerequisites are verified.
-Source Preview builds; final runtime recheck follows the Preview configuration
-correction below. Hosted MCP remains disabled. No master merge,
+Local implementation, user-approved hosted prerequisites and the configured
+Preview are verified. Hosted MCP remains disabled. No master merge,
 production promotion, real-account deletion, stdio or external-client work.
 
 ## Delivered behavior
@@ -142,7 +141,7 @@ scope checks, immutable receipts/audits, server-only Storage and existing token
 UI primitives. The imprint skill records the approval pattern in `ui-registry.md`.
 Release readiness: local gates and approved hosted prerequisites pass. The
 release preflight requires both new private entry functions before deployment.
-Final Preview runtime verification is recorded separately below; this is not
+Passing Preview runtime verification is recorded separately below; this is not
 hosted authenticated deletion-tool acceptance or full MCP activation.
 
 The user's separate `domain/mt5/cash.ts` change appeared during verification;
@@ -186,12 +185,36 @@ untracked `public/snapshots/result-snapshot.png` is also untouched/excluded.
   Only this branch's Preview gets Config variables for that integration origin,
   `TRADE_OS_MCP_ENABLED=false` and `TRADE_OS_MT5_ENABLED=false`. Production settings,
   server secret and application grants are untouched. A fresh deployment must
-  receive them before the final smoke check; an existing deployment is immutable.
+  receive them; an existing deployment is immutable. The fresh configured Preview
+  is verified in the final readback below.
 - Protected Preview checks use existing Vercel CLI authentication without
   disabling Deployment Protection or printing cookies/bypass tokens. Disabled
   integration requests should return the existing **401** access-denied challenge,
   not the smoke harness's earlier assumed 503. Discovery stays publicly available
   behind the outer deployment protection and is bound to the stable Preview origin.
+
+### Configured Preview final readback
+
+- Pushed rollout report **5905cc95344e2571ae23f824d52ffed9e63e0718** retains the
+  exact application source **4669488**. Configured Preview
+  **dpl_2KZXgXLi9723fDvh1KsH1tafuUXG** is **READY**, correct project/team,
+  `feature/mcp-access`, target null. Its alias resolves to that exact deployment:
+  [MCP-branch Preview](https://trade-os-git-feature-mcp-access-ghostsyscoders-projects.vercel.app).
+- Its build log confirms the **35-function / 14-column** prerequisite pass and
+  the new approval route. The unconfigured immutable initial Preview is not used
+  as runtime evidence for the corrected configuration.
+- `node .artifacts/mt5-pilot/verify-deletion-preview.mjs` passes **7/7** GET-only
+  checks with no application session: calculator **200**; accounts, daily journal
+  and unknown approval link **307 → /login**; disabled MCP **401** with expected
+  access-denied JSON/challenge; both discovery endpoints **200** with the stable
+  Preview resource origin and the correct Supabase issuer. CLI path syntax was
+  corrected after an absolute-URL argument was rejected before any application
+  request. No application origin check or authentication was weakened.
+- Hosted readback retains canonical migration history (one row, no provider alias),
+  zero deletion requests/jobs, MCP disabled and the unchanged MT5 pilot. No hosted
+  consent, deletion mutation, actual client or automatic-publication test is claimed.
+- Subsequent report/checklist commits change documentation only. Their source and
+  READY state are verified on push; the application implementation remains 4669488.
 
 Hosted advisors report no ERROR, no new unindexed FK and the two intended new
 private deny-by-default RLS INFO notices (27 total). Pre-existing
