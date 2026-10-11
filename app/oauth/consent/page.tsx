@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { authorizationIdSchema, consentPath } from "@/domain/integrations/oauth-consent";
 import { createClient } from "@/lib/supabase/server";
 import { loadGrantConsent } from "@/services/integrations/grant-consent";
+import { mcpConsentHandoff } from "@/services/integrations/consent-handoff";
 import { Label } from "@/components/ui/label";
 
 export const metadata: Metadata = {
@@ -24,6 +25,8 @@ export default async function ConsentPage({ searchParams }: {
   const query = await searchParams;
   const id = authorizationIdSchema.safeParse(query.authorization_id);
   const client = await createClient();
+  const handoff = id.success ? await mcpConsentHandoff(client, id.data) : null;
+  if (handoff) redirect(handoff);
   const consent = id.success ? await loadGrantConsent(client, id.data) : { view: { status: "INVALID_REQUEST" as const }, eligibility: null };
   const { view, eligibility } = consent;
   if (view.status === "RESUMED") redirect(view.redirectUrl);
