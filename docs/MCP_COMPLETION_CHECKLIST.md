@@ -76,6 +76,11 @@ that every requested real AI client has connected successfully.
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini
    consumer-app support. User browser consent may be needed for these checks.
+   **Staging prepared, acceptance pending:** the approved dedicated hostname has
+   an exact-host protection exception and passes 6/6 anonymous boundary checks.
+   A disabled staging resource and separate public Codex stdio client are prepared;
+   consent handoff is locally verified. Production consent-host release and actual
+   client tests remain required. See [staging evidence](MCP_CLIENT_ACCEPTANCE_PREFLIGHT.md).
 6. **Final hosted acceptance and activation.** Verify complete workflow coverage,
    protocol schemas/paging/concurrency/idempotency, owner isolation, review and
    deletion evidence, public calculator/login/manual-trade regressions and all

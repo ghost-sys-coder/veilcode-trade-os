@@ -6,6 +6,10 @@ Current 2026-10-10: MCP items 1–4 are implemented for their increments on
 adapter reuses HTTP services and existing Windows credential protection;
 actual client matrix and final hosted activation remain pending. See
 [stdio verification](MCP_STDIO_VERIFICATION.md).
+2026-10-11: a dedicated, explicitly approved MCP staging hostname and public
+Codex client are prepared with access disabled. Optional verified MCP-only
+consent handoff passes local gates; consent-host release and actual AI-client
+acceptance remain pending. See [staging evidence](MCP_CLIENT_ACCEPTANCE_PREFLIGHT.md).
 Original baseline: clean `master` at `412da1c`. Two feature branches, in addition to
 `master`: `feature/mt5-sync` and `feature/mcp-access`.
 
