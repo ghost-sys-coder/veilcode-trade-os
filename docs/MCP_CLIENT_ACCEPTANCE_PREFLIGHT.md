@@ -62,10 +62,16 @@ Only MCP requests whose authoritative resource exactly matches that origin's
 `/mcp` can be routed. MT5 requests are never routed, and the destination cannot
 redirect back to itself.
 
-The handoff forwards only the opaque authorization ID. It does not fetch an
+The handoff forwards only the opaque authorization ID. It does not forward an
 authorization code, approve access, create/activate grants, forward cookies or
 copy account selections. Staging repeats its own browser/provider, enablement,
 resource and grant checks. Production's MCP API can remain disabled throughout.
+
+The first hosted attempt exposed an ownership-binding ordering defect, corrected
+by a normal authenticated pending-request details read followed by repeated
+private checks. The explicit real-provider first-visit gate now covers that path.
+See [release and correction evidence](MCP_CONSENT_RELEASE_VERIFICATION.md); the
+older baseline checks below do not claim that first hosted attempt succeeded.
 
 Hosted handoff acceptance is **pending**: the code must first reach the provider's
 consent host through a separately approved release, and that host's exact handoff

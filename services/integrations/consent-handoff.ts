@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { getIntegrationConfig } from "@/config/integrations";
-import { authorizationIdSchema, consentPath } from "@/domain/integrations/oauth-consent";
+import { authorizationIdSchema, consentPath, parseConsentRequest, safeApprovalRedirect } from "@/domain/integrations/oauth-consent";
 import type { IntegrationDatabase } from "@/types/integration-database";
 
 const contextSchema = z.object({
@@ -35,11 +35,36 @@ export async function mcpConsentHandoff(
     if (user.error || !user.data.user || user.data.user.id !== claims.data.claims.sub) return null;
     // Private authority checks the direct browser session, owned request, expiry,
     // registered enabled resource and S256. No caller-supplied destination is used.
-    const result = await client.rpc("get_integration_consent_request", { p_authorization_id: id.data });
+    let result = await client.rpc("get_integration_consent_request", { p_authorization_id: id.data });
+    let boundRequest: ReturnType<typeof parseConsentRequest> = null;
+    let resumeRedirect: string | undefined;
+    if (result.error) {
+      // Fresh provider requests have no owner until getAuthorizationDetails binds
+      // them to the authenticated browser. This is the normal consent read, not
+      // approval. Pending details must match this exact ID/user. An existing
+      // provider consent may instead return a resume URL: retain it only for
+      // validation after private ownership checks, never for forwarding.
+      const details = await client.auth.oauth.getAuthorizationDetails(id.data);
+      if (details.error) return null;
+      boundRequest = parseConsentRequest(details.data, id.data, user.data.user.id);
+      if (!boundRequest) {
+        if (!details.data || typeof details.data !== "object" || !("redirect_url" in details.data)
+          || typeof details.data.redirect_url !== "string" || !details.data.redirect_url
+          || details.data.redirect_url.length > 4096) return null;
+        resumeRedirect = details.data.redirect_url;
+      }
+      // Binding alone is never authority: repeat private resource/S256/expiry/
+      // ownership validation, including the provider's exact client/callback.
+      result = await client.rpc("get_integration_consent_request", { p_authorization_id: id.data });
+    }
     if (result.error) return null;
     const context = contextSchema.safeParse(result.data);
-    if (!context.success || context.data.resource !== resource) return null;
-    // Only the opaque request identifier crosses origins. No provider detail call,
+    if (!context.success || context.data.resource !== resource
+      || (boundRequest && (context.data.client_id !== boundRequest.clientId
+        || context.data.callback !== boundRequest.callback))
+      || (resumeRedirect !== undefined && (context.data.status !== "approved"
+        || !safeApprovalRedirect(resumeRedirect, context.data.callback)))) return null;
+    // Only the opaque request identifier crosses origins. No provider redirect,
     // approval, code, token, cookie, user identity or account selection is forwarded.
     // Destination repeats identity, provider, resource, grant and enablement checks.
     return `${target.origin}${consentPath(id.data)}`;
