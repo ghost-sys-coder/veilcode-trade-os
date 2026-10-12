@@ -111,6 +111,69 @@ audit cleanup is not an application/MCP deletion capability.
 
 ## Hosted release and retest
 
+### Latest follow-up after network repair
+
+The user pushed `b35c2b6` and repaired connectivity. Read-only GitHub verification
+confirmed the exact MCP branch at `b35c2b62d78d9366f1c8206df076dcda45908f64`
+and unchanged master at `4b8a3ab6fd28272bde1cd98aa055661805f58326`.
+The network-blocked checkpoint below is retained as historical evidence.
+
+- `node .artifacts/mcp-clients/verify-consent-release.mjs --staged --tail --continue-errors`:
+  **4/4 PASS**, including the previously unavailable exact 307 consent-to-login
+  redirect and 403 `INVALID_MCP_ORIGIN` rejection. Combined with the earlier
+  five exact staged passes, every planned staged boundary was verified.
+- Fresh project-filtered production/staging alias reads, the exact READY
+  production-target `f1770c1` deployment and the production MCP flag `false`
+  were checked before promotion. The approved production consent fix was promoted
+  without rebuild, domain/protection/config changes or master merge. Alias readback
+  confirmed production now serves `dpl_78TAaTRs37QA7Rsi97K5D4J2JZXm`.
+  The staging alias still serves `dpl_3nTU2LHnn3Si68LoC8QNbpGs76Au` (`97cad5c`).
+- `node .artifacts/mcp-clients/verify-consent-release.mjs`: **9/9 PASS** against
+  anonymous live production. Public calculator/login/consent remain accessible;
+  accounts and daily journal redirect to login; both discovery documents retain
+  their expected resource/issuer; anonymous MCP returns 401 with its challenge.
+- Fresh same-grant reconnect completed automatically through the registered
+  callback: signed resource-bound validation and live remote tools passed.
+  No extra approval form, revoke/remap or application-grant mutation occurred.
+- A bounded production error/fatal runtime scan scoped to the exact deployment
+  and 30-minute window returned an empty grouped result. This is a bounded
+  observation, not a claim of exhaustive monitoring or configured drains.
+- `node .artifacts/mcp-clients/run-native-safely.mjs --discover`: actual Codex
+  CLI **0.147.0**, **84 tools/eight resources PASS**, isolated to Trade OS.
+- The same wrapper with `--read`: actual native capabilities, owner-scoped
+  account response and **four domain-resource reads PASS**, zero protocol errors,
+  zero model calls and no global configuration writes. Codex's non-protocol stderr
+  again included the generic OS-error category; this does not claim a warning-free
+  entire Codex session. Requested native tool/resource operations passed.
+
+Renewal is still **not passed**, but its failure is now precisely isolated:
+
+- `node .artifacts/mcp-clients/verify-codex-renewal.mjs` failed closed at
+  `TOKEN_VERIFICATION`; no uncertain refresh was replayed.
+- A fresh normal reconnect preceded one diagnostic refresh. The original strict
+  validator remained authoritative and rejected that token. Separate diagnostic
+  inspection verified its signature/issuer/expiry before reporting only validation
+  booleans: audience, exact resource/client, owner/session/grant UUIDs, grant-version
+  string and authenticated role all passed; **`iatInFuture=true`** was the failing
+  check. Tokens and raw claims were never printed or persisted by the diagnostic.
+- Three strict-TLS READ ONLY clock comparisons had 190–211 ms round trips and
+  put the database approximately **0.86–1.07 seconds ahead** of this desktop.
+  `w32tm /query /status` reported the service was not started; `Get-Service W32Time`
+  confirmed **Stopped / Manual**. This explains why the faster refresh verification
+  rejects a future-issued token while the slower initial exchange can pass.
+- The same hosted readback confirmed one ACTIVE Codex grant, unchanged full Codex
+  grant fingerprint/two audit events and unchanged MT5 grant fingerprint.
+- Windows clock synchronization was requested for explicit approval, not performed.
+  No clock tolerance, validation or credential-recovery fallback was added. A final
+  normal reconnect restored the protected profile and enabled the native reads.
+
+Next: approve/perform Windows time synchronization, verify clock alignment, then
+repeat documented protected renewal and status checks. Actual-client writes/retry/
+revocation, other requested clients and final production MCP activation remain
+pending. No missing gate is counted as passed.
+
+### Earlier blocked checkpoint (superseded by the follow-up above)
+
 The tested application commit is `f1770c137157c5acfb7890f8d279fa4491437116`
 on `feature/mcp-access`. GitHub read-only preflight continues to fail with a
 connection category (not DNS, authentication or certificate verification); this

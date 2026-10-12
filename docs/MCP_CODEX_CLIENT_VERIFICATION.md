@@ -2,10 +2,15 @@
 
 Recorded 2026-10-12 (Africa/Kampala). This is partial acceptance of checklist
 item 5, not full MCP completion or authorization to enable production MCP.
-Follow-up: the next login exposed a provider auto-consent handoff defect before
-renewal could be retested. Its diagnosis, explicit approved refinement and gates
-are in [reconnect verification](MCP_RECONNECT_VERIFICATION.md). Earlier native
-read passes remain valid observations, not proof of that later reconnect.
+Latest follow-up: the approved provider auto-consent correction is released on
+production, its nine anonymous boundary checks pass, and fresh same-grant
+reconnect plus actual Codex discovery/read checks pass. Renewal is precisely
+blocked by this desktop's future-issued-token check: Windows Time is stopped and
+the desktop is about one second behind Supabase. Clock-sync approval is pending;
+no token check or tolerance was weakened. See
+[reconnect verification](MCP_RECONNECT_VERIFICATION.md) for exact release,
+native-client, diagnostic and unchanged-grant evidence. Earlier observations below
+are retained historically, not substitutes for that follow-up.
 
 ## Hosted consent and boundaries
 
@@ -21,8 +26,10 @@ grant, one unexpired matching provider session created after the grant, the exac
 staging resource and unchanged MT5 grant fingerprint. No accounts, trades,
 terminal settings, collector state or existing client configuration were changed.
 
-Current hosted source is `09e4005`; immutable deployment identifiers and hosted
-boundary checks are in [the corrected release receipt](MCP_CONSENT_RELEASE_VERIFICATION.md).
+Current production consent source is `f1770c1`; staging remains `97cad5c`.
+The current receipt is [reconnect verification](MCP_RECONNECT_VERIFICATION.md).
+The earlier `09e4005` release is recorded in
+[the preceding consent receipt](MCP_CONSENT_RELEASE_VERIFICATION.md).
 
 ## Actual native client evidence
 
@@ -67,7 +74,7 @@ The native read process emitted non-protocol stderr including an OS-error catego
 its requested tool/resource reads and READY startup passed. This does not claim a
 warning-free entire Codex session.
 
-## Renewal: failed closed, hosted retest required
+## Earlier renewal investigation: failed closed
 
 `node .artifacts/mcp-clients/verify-codex-renewal.mjs` invoked the documented
 adapter `refresh` command. It exited 1 with `REFRESH_UNCERTAIN`. A subsequent
@@ -120,7 +127,7 @@ secrets from provider tables/backups to bypass login.
 - `git diff --check`: PASS. Exact current code is committed/pushed on the MCP
   feature branch only; production activation and master consolidation are separate.
 
-Remaining: fresh Codex login/hosted renewal, bounded actual-client write/retry/
+Remaining: Windows clock synchronization and hosted renewal, bounded actual-client write/retry/
 concurrency and revocation/reconnect; separate consent and acceptance for Claude
 Code, Gemini CLI, ChatGPT Desktop/remote and Claude remote; final hosted matrix
 and explicitly authorized production enablement. Other-client version/help checks

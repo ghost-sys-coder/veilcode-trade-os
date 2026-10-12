@@ -3,7 +3,10 @@
 Latest checkpoint, 2026-10-12: the corrected consent handoff is deployed; the
 user approved the Codex staging client and its signed/live connection passed.
 Native Codex discovery and read checks also passed. A subsequent hosted refresh
-failed closed and requires fresh login; it is not an acceptance pass. Staging MCP
+failed closed; fresh reconnect now passes after the approved consent correction.
+Renewal is blocked by a future-issued-token check with Windows Time stopped and
+this desktop about one second behind Supabase. Clock-sync approval and renewal
+acceptance remain pending. Staging MCP
 is enabled, production MCP remains disabled. The older baseline observations
 below are historical. See [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
 The subsequent existing-consent reconnect defect and explicitly approved
