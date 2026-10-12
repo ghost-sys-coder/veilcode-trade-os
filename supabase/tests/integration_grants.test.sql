@@ -66,7 +66,7 @@ reset role;
 select set_config('request.jwt.claims','{"sub":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","role":"authenticated"}',true);
 set local role authenticated;
 select throws_ok($$select public.revoke_integration_grant((public.list_integration_grants()->0->>'id')::uuid,'2')$$,
-  '40001','Grant version conflict.','stale revocation version is rejected');
+  'PT409','Grant version conflict.','stale revocation version is rejected');
 select lives_ok($$select public.revoke_integration_grant((public.list_integration_grants()->0->>'id')::uuid,'1')$$,'browser revokes its grant');
 select lives_ok($$select public.revoke_integration_grant((public.list_integration_grants()->0->>'id')::uuid,'1')$$,'revocation retry succeeds');
 reset role;

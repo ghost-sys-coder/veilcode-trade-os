@@ -1,4 +1,16 @@
 /** Fixed release prerequisites for the adapted browser and MCP services. */
+export const INTEGRATION_SETUP_DATABASE_FUNCTIONS = [
+  "private.reserve_integration_setup(uuid,text,uuid,text)",
+  "private.reconcile_integration_setup(uuid,text)", "private.list_integration_setups()",
+  "public.reserve_integration_setup(uuid,text,uuid,text)",
+  "public.reconcile_integration_setup(uuid,text)", "public.list_integration_setups()",
+  "private.enforce_setup_grant_binding()",
+] as const;
+export function applicationDatabaseFunctions(env: { TRADE_OS_INTEGRATION_SETUP_ENABLED?: string }) {
+  return env.TRADE_OS_INTEGRATION_SETUP_ENABLED === "true"
+    ? [...APPLICATION_DATABASE_FUNCTIONS, ...INTEGRATION_SETUP_DATABASE_FUNCTIONS]
+    : [...APPLICATION_DATABASE_FUNCTIONS];
+}
 export const APPLICATION_DATABASE_FUNCTIONS = [
   "private.application_deletion_read(jsonb)","private.application_deletion_write(jsonb)",
   "private.application_file_read(jsonb)","private.application_file_prepare(jsonb)","private.application_file_write(jsonb,jsonb)",

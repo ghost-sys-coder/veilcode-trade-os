@@ -37,7 +37,7 @@ select is(public.mt5_set_connection_state('cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 select throws_ok($$select public.mt5_set_connection_state('cccccccc-cccc-4ccc-8ccc-cccccccccccc','1','00000000-0000-4000-8000-000000000001','RESUME','Operator review pause')$$,
  '23505','Operation payload conflict.','changed retry payload rejected');
 select throws_ok($$select public.mt5_set_connection_state('cccccccc-cccc-4ccc-8ccc-cccccccccccc','1',gen_random_uuid(),'RESUME','Resume capture explicitly')$$,
- '40001','Connection version conflict.','stale browser version rejected');
+ 'PT409','Connection version conflict.','stale browser version rejected');
 reset role;
 select is((select fencing_token from private.mt5_connections),2::bigint,'browser pause fences the prior worker');
 select ok((select worker_id is null and lease_expires_at<=clock_timestamp() from private.mt5_connections),'pause clears worker ownership');

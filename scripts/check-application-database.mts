@@ -2,7 +2,7 @@ import nextEnv from "@next/env";
 import pg from "pg";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { APPLICATION_DATABASE_COLUMNS, APPLICATION_DATABASE_FUNCTIONS } from "../domain/application/database-contract.ts";
+import { APPLICATION_DATABASE_COLUMNS, applicationDatabaseFunctions } from "../domain/application/database-contract.ts";
 import { publicationDatabaseConfig } from "../services/integrations/publication-database-config.ts";
 import { databaseTestConnection } from "./lib/database-test-safety.mjs";
 
@@ -16,7 +16,8 @@ try {
       cwd:fileURLToPath(new URL("..",import.meta.url)),encoding:"utf8",stdio:["ignore","pipe","pipe"],timeout:15000,
     })) as {DB_URL:string};
     databaseTestConnection(status.DB_URL);
-    env={TRADE_OS_LOCAL_TEST_APP:"true",TRADE_OS_LOCAL_DATABASE_URL:status.DB_URL};
+    env={TRADE_OS_LOCAL_TEST_APP:"true",TRADE_OS_LOCAL_DATABASE_URL:status.DB_URL,
+      TRADE_OS_INTEGRATION_SETUP_ENABLED:process.env.TRADE_OS_INTEGRATION_SETUP_ENABLED};
   } else {
     nextEnv.loadEnvConfig(fileURLToPath(new URL("..",import.meta.url)));
     env=process.env;
@@ -27,8 +28,9 @@ try {
   await database.connect();
   stage="schema catalog";
   await database.query("begin read only");
+  const requiredFunctions=applicationDatabaseFunctions(env);
   const functions=await database.query<{name:string;ready:boolean}>(
-    "select name,to_regprocedure(name) is not null as ready from unnest($1::text[]) name",[APPLICATION_DATABASE_FUNCTIONS]);
+    "select name,to_regprocedure(name) is not null as ready from unnest($1::text[]) name",[requiredFunctions]);
   const columns=await database.query<{table:string;column:string;ready:boolean}>(
     `select x.table_name as "table",x.column_name as "column",exists(select 1 from information_schema.columns c
       where c.table_schema='public' and c.table_name=x.table_name and c.column_name=x.column_name and c.data_type='bigint') as ready
@@ -36,7 +38,15 @@ try {
     [JSON.stringify(APPLICATION_DATABASE_COLUMNS.map(item=>({table_name:item.table,column_name:item.column})))]);
   const missing=[...functions.rows.filter(row=>!row.ready).map(row=>row.name),
     ...columns.rows.filter(row=>!row.ready).map(row=>`public.${row.table}.${row.column}`)];
-  if(functions.rows.length!==APPLICATION_DATABASE_FUNCTIONS.length || columns.rows.length!==APPLICATION_DATABASE_COLUMNS.length)throw new Error("Incomplete prerequisite inventory");
+  if(env.TRADE_OS_INTEGRATION_SETUP_ENABLED==="true") {
+    const guards=await database.query<{name:string;ready:boolean}>(`select name,exists(select 1 from pg_catalog.pg_trigger
+      where not tgisinternal and tgenabled='O' and tgname=name and tgrelid=to_regclass(relation)) as ready
+      from (values ('integration_setup_grant_binding','private.integration_grants'),
+        ('integration_setup_events_immutable','private.integration_setup_events')) required(name,relation)`);
+    if(guards.rows.length!==2)throw new Error("Incomplete setup guard inventory");
+    missing.push(...guards.rows.filter(row=>!row.ready).map(row=>row.name));
+  }
+  if(functions.rows.length!==requiredFunctions.length || columns.rows.length!==APPLICATION_DATABASE_COLUMNS.length)throw new Error("Incomplete prerequisite inventory");
   await database.query("commit");
   if(missing.length) {
     console.error(`Application database prerequisites missing: ${missing.join(", ")}. Apply the reviewed migrations before deploying browser adapters.`);

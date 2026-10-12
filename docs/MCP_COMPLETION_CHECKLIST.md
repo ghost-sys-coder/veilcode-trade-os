@@ -97,7 +97,13 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Items 1–4 are delivered for their increments. Next build is item 5, then 6.
+Items 1–4 are delivered for their increments. Actual client acceptance is item 5,
+then final hosted release is item 6. The user additionally confirmed app-led setup
+for both integrations. Its owned-profile/UI/configuration increment now passes
+local gates, but is not hosted/enabled. Windows companion distribution is next;
+client acceptance must use the finished onboarding, not operator-only JSON/CLI.
+See [setup plan](INTEGRATION_SETUP_UX_PLAN.md) and
+[increment evidence](INTEGRATION_SETUP_VERIFICATION.md).
 File deletion cannot ship
 without its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.

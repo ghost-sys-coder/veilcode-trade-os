@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadGrantConsent } from "@/services/integrations/grant-consent";
 import { mcpConsentHandoff } from "@/services/integrations/consent-handoff";
 import { Label } from "@/components/ui/label";
+import { listSetupProfiles } from "@/services/integrations/setup-profiles";
 
 export const metadata: Metadata = {
   title: "Integration consent | Trade OS",
@@ -35,8 +36,17 @@ export default async function ConsentPage({ searchParams }: {
   }
   const request = view.status === "REQUEST" ? view.request : null;
   const accountResult = eligibility?.purpose === "MT5" ? await client.from("trading_accounts").select("id,name,currency_code").order("name") : null;
-  const accounts = accountResult?.data ?? [];
-  const approvalAvailable = Boolean(eligibility && !accountResult?.error && (eligibility.purpose !== "MT5" || accounts.length));
+  let boundAccountId: string | null = null;
+  let setupUnavailable = false;
+  if (request && eligibility?.purpose === "MT5" && process.env.TRADE_OS_INTEGRATION_SETUP_ENABLED === "true") {
+    try {
+      const matching = (await listSetupProfiles(client)).filter(profile => profile.clientId === request.clientId);
+      if (matching.length > 1 || matching.some(profile => profile.purpose !== "MT5" || profile.resource !== eligibility.resource || profile.status !== "READY")) setupUnavailable = true;
+      else boundAccountId = matching[0]?.accountId ?? null;
+    } catch { setupUnavailable = true; }
+  }
+  const accounts = (accountResult?.data ?? []).filter(account => !boundAccountId || account.id === boundAccountId);
+  const approvalAvailable = Boolean(eligibility && !setupUnavailable && !accountResult?.error && (eligibility.purpose !== "MT5" || accounts.length));
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-20 text-foreground">
@@ -65,7 +75,7 @@ export default async function ConsentPage({ searchParams }: {
               <form action={approveConsent} className="space-y-4">
                 <input type="hidden" name="authorization_id" value={request.authorizationId} />
                 {approvalAvailable && eligibility?.purpose === "MT5" ? <div className="space-y-2"><Label htmlFor="consent-account">Authorized trading account</Label>
-                  <select id="consent-account" name="account_id" required defaultValue="" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <select id="consent-account" name="account_id" required defaultValue={boundAccountId ?? ""} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <option value="" disabled>Select an account</option>
                     {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.currency_code}</option>)}
                   </select></div> : null}

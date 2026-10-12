@@ -18,6 +18,8 @@ try {
       SUPABASE_SECRET_KEY: status.SECRET_KEY ?? status.SERVICE_ROLE_KEY,
       TRADE_OS_LOCAL_DATABASE_URL: status.DB_URL,
       TRADE_OS_INTEGRATION_ORIGIN:"http://127.0.0.1:3100", TRADE_OS_MT5_ENABLED:"true", TRADE_OS_MCP_ENABLED:"true", TRADE_OS_LOCAL_TEST_APP:"true",
+      // Disposable setup gates still require the separate local DB rollout policy.
+      TRADE_OS_INTEGRATION_SETUP_ENABLED: process.env.TRADE_OS_INTEGRATION_SETUP_ENABLED === "true" ? "true" : "false",
     },
   });
   child.on("error",()=>{ console.error("Local integration app could not start."); process.exitCode=1; });

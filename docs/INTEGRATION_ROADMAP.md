@@ -1,6 +1,13 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Latest app-led setup checkpoint 2026-10-12: increment 1 adds owned public-client
+profiles, guided MT5/MCP setup, durable registration recovery and credential-free
+configuration downloads. Local unit/database/provider/browser/native gates pass.
+Hosted setup is not enabled and the Windows companion is not released. Next is
+companion distribution, not rebuilding the existing integrations. See
+[setup evidence](INTEGRATION_SETUP_VERIFICATION.md) and
+[four-increment plan](INTEGRATION_SETUP_UX_PLAN.md).
 Latest checkpoint 2026-10-12: the approved existing-consent correction is released,
 all nine live production boundaries pass, and same-grant reconnect plus native
 Codex discovery/read checks pass. User-approved Windows clock synchronization

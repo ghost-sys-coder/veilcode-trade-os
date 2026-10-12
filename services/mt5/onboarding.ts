@@ -42,7 +42,7 @@ export async function controlMt5Connection(client: Client, input: unknown) {
   const data = mt5ControlRequestSchema.parse(input);
   const result = await client.rpc("mt5_set_connection_state",{ p_connection_id: data.connectionId,p_expected_version: data.version,
     p_operation_id: data.operationId,p_action: data.action,p_reason: data.reason });
-  if (result.error) throw new Mt5OnboardingError(["40001","23505"].includes(result.error.code) ? "CONFLICT" : "UNAVAILABLE");
+  if (result.error) throw new Mt5OnboardingError(["PT409","40001","23505"].includes(result.error.code) ? "CONFLICT" : "UNAVAILABLE");
   return z.object({ connectionId: z.string().uuid(),version,status: z.enum(["PAUSED","ONBOARDING","ACTIVE"]) }).parse(result.data);
 }
 

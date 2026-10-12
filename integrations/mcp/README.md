@@ -16,6 +16,12 @@ See [verification](../../docs/MCP_STDIO_VERIFICATION.md) and
 
 ## Requirements and public configuration
 
+App-led setup now prepares distinct public client profiles and compatible
+credential-free downloads through `/settings/integrations` when its separate
+rollout gate is enabled. The packaged companion is still pending. The checkout
+instructions below remain an operator path, not the finished self-service UX.
+See [setup status](../../docs/INTEGRATION_SETUP_VERIFICATION.md).
+
 - Windows under the same user that completes browser consent.
 - Node 22.18+ with type stripping (verified with Node 25.1.0), Python 3.13+
   on PATH and the checkout's installed `npm ci` dependencies.

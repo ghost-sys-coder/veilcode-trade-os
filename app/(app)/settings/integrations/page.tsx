@@ -14,6 +14,7 @@ import { listMt5Connections } from "@/services/mt5/onboarding";
 import type { Mt5ConnectionView } from "@/domain/mt5/onboarding";
 import { Mt5Monitor } from "@/features/integrations/mt5-monitor";
 import { Mt5MappingForm } from "@/features/integrations/mt5-forms";
+import { IntegrationSetupStart } from "@/features/integrations/setup-start";
 
 export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   await requireUserId();
@@ -34,6 +35,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   return <div className="space-y-6">
     <PageHeader eyebrow="Workspace control" title="Integrations & connected clients" description="Inspect authorized account scope and revoke client access immediately. Broker execution and AI-provider credentials are never part of a connection." />
     <Link href="/settings" className="text-sm font-semibold text-primary underline-offset-4 hover:underline">Back to settings</Link>
+    <IntegrationSetupStart />
     {query.status === "revoked" ? <p role="status" className="rounded-lg border border-profit/25 bg-profit/10 p-4 text-sm">Application access and provider consent revoked.</p> : null}
     {query.status === "revoked-provider-pending" ? <p role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">Application access is revoked immediately. Provider credential revocation needs a retry; use Retry provider revocation below.</p> : null}
     {query.status === "failed" ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">The grant could not be revoked. Reload to get its current version and retry.</p> : null}

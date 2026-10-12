@@ -6,7 +6,7 @@ values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000
 ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','00000000-0000-0000-0000-000000000000','authenticated','authenticated','mcp-other@example.test','fixture-only','{}','{}',now(),now());
 insert into auth.oauth_clients(id,registration_type,redirect_uris,grant_types,client_type,token_endpoint_auth_method)
 values('ffffffff-ffff-4fff-8fff-ffffffffffff','manual','http://127.0.0.1:9877/callback','authorization_code,refresh_token','public','none');
-insert into private.integration_resources(purpose,resource,enabled) values('MCP','https://trade.example/mcp',true);
+insert into private.integration_resources(purpose,resource,enabled) values('MCP','https://trade.example/mcp',true) on conflict(purpose) do update set resource=excluded.resource,enabled=excluded.enabled;
 insert into private.integration_grants(id,owner_id,client_id,purpose,account_id,resource,authorization_id,status)
 values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','ffffffff-ffff-4fff-8fff-ffffffffffff','MCP',null,'https://trade.example/mcp','mcp-fixture','ACTIVE');
 insert into auth.sessions(id,user_id,oauth_client_id,created_at,updated_at)

@@ -1,7 +1,14 @@
 import {readFileSync} from "node:fs";
 import {describe,it,expect} from "vitest";
-import {APPLICATION_DATABASE_FUNCTIONS,APPLICATION_DATABASE_COLUMNS} from "@/domain/application/database-contract";
+import {APPLICATION_DATABASE_FUNCTIONS,APPLICATION_DATABASE_COLUMNS,INTEGRATION_SETUP_DATABASE_FUNCTIONS,applicationDatabaseFunctions} from "@/domain/application/database-contract";
 describe("shared-workflow deployment guard",()=>{
+  it("requires setup prerequisites only when self-service rollout is enabled",()=>{
+    expect(applicationDatabaseFunctions({})).toEqual(APPLICATION_DATABASE_FUNCTIONS);
+    expect(applicationDatabaseFunctions({TRADE_OS_INTEGRATION_SETUP_ENABLED:"false"})).toEqual(APPLICATION_DATABASE_FUNCTIONS);
+    expect(applicationDatabaseFunctions({TRADE_OS_INTEGRATION_SETUP_ENABLED:"true"}))
+      .toEqual([...APPLICATION_DATABASE_FUNCTIONS,...INTEGRATION_SETUP_DATABASE_FUNCTIONS]);
+    expect(INTEGRATION_SETUP_DATABASE_FUNCTIONS).toContain("private.enforce_setup_grant_binding()");
+  });
   it("gates Vercel builds on the read-only prerequisite check",()=>{
     const project=JSON.parse(readFileSync(new URL("../../vercel.json",import.meta.url),"utf8"));
     const npm=JSON.parse(readFileSync(new URL("../../package.json",import.meta.url),"utf8"));
