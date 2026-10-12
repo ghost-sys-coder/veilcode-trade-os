@@ -4,7 +4,10 @@ import { z } from "zod";
 
 export class LocalMcpError extends Error {
   readonly code: string;
-  constructor(code: string) { super(code); this.code=code; this.name = "LocalMcpError"; }
+  readonly refreshStage?: "PRE_CLEAR" | "PROVIDER_REQUEST" | "TOKEN_RESPONSE" | "TOKEN_VERIFICATION" | "CREDENTIAL_SAVE";
+  constructor(code: string, refreshStage?: LocalMcpError["refreshStage"]) {
+    super(code); this.code=code; this.refreshStage=refreshStage; this.name = "LocalMcpError";
+  }
 }
 export const configSchema = z.object({
   version: z.literal(1), profile: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
@@ -53,5 +56,8 @@ export function safeMessage(error: unknown): string {
     REFRESH_UNCERTAIN: "Token refresh outcome uncertain. Run login again; no automatic refresh retry was made.",
     UNAVAILABLE: "Application or network unavailable. For an uncertain write, check tradeos_operation_status before retrying with the SAME operation ID.",
   };
-  return `Trade OS MCP: ${messages[code] ?? messages.UNAVAILABLE}`;
+  const stage=error instanceof LocalMcpError && code==="REFRESH_UNCERTAIN" &&
+    ["PRE_CLEAR","PROVIDER_REQUEST","TOKEN_RESPONSE","TOKEN_VERIFICATION","CREDENTIAL_SAVE"].includes(error.refreshStage??"")
+    ? ` Verification stage: ${error.refreshStage}.` : "";
+  return `Trade OS MCP: ${messages[code] ?? messages.UNAVAILABLE}${stage}`;
 }

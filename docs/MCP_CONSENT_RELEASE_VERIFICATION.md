@@ -133,6 +133,33 @@ No actual Codex read/write/refresh/revocation pass is claimed yet. Existing loca
 SDK/provider/browser/native-helper evidence remains in the staging report and
 does not substitute for requested actual AI clients. No model inference was used.
 
+## Corrected hosted receipt, 2026-10-12
+
+Correction source `09e40054ee6055892e410dd50b715227edae54ea` is pushed and
+remotely verified. Production deployment `dpl_BPFMhVmrkDX5evNh6bD7cL3PSbaq`
+(`trade-45eqxfmj4-ghostsyscoders-projects.vercel.app`) is READY and serves the
+normal production alias. Corrected Preview `dpl_FSGGvR26NYQyQTiLTgMhroRWaXCh`
+(`trade-79hqk30th-ghostsyscoders-projects.vercel.app`) is READY and serves the
+dedicated staging alias. Production's 35-function/14-column database preflight,
+9 staged and 9 live boundary checks passed; staging's six checks passed.
+The corrected production deployment's bounded 30-minute error-log scan returned
+zero records. This is not an all-time monitoring or browser-console pass.
+
+The user subsequently reported the normal callback message, "Trade OS
+authorization received. You can close this tab. Check the terminal for connection
+verification." Terminal verification succeeded: signed resource-bound token,
+Windows-protected storage and a live MCP connection. Hosted readback found exactly
+one ACTIVE grant for this Codex client. The MT5 grant fingerprint was unchanged.
+No revocation/remapping was needed, and production MCP stayed disabled.
+
+Native Codex discovery/read evidence and the subsequent failed-closed refresh
+are recorded separately in [the client checkpoint](MCP_CODEX_CLIENT_VERIFICATION.md).
+This corrects the earlier pending hosted-consent checkpoint without changing
+the fact that the original disabled-form attempt failed. The entire client matrix
+is not complete. Master was last observed at `4b8a3ab` (the user-consolidated
+earlier release); source correction `09e4005` still needs normal consolidation
+before a future master-based deployment. No master merge was performed here.
+
 ## Rollback
 
 The pre-release production build ID above is retained for a scoped rollback if

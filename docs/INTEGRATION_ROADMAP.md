@@ -1,12 +1,18 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Latest checkpoint 2026-10-12: MCP staging consent and native Codex discovery/read
+checks passed. Hosted renewal failed closed; its compatibility correction is
+locally verified but hosted reauthorization/renewal remains pending. No model
+inference, production MCP enablement or MT5 changes. The requested multi-client
+matrix and final activation are not complete. See
+[Codex checkpoint](MCP_CODEX_CLIENT_VERIFICATION.md).
 Current 2026-10-10: MCP items 1–4 are implemented for their increments on
 `feature/mcp-access` updated from master `853a963`. The authenticated stdio
 adapter reuses HTTP services and existing Windows credential protection;
 actual client matrix and final hosted activation remain pending. See
 [stdio verification](MCP_STDIO_VERIFICATION.md).
-2026-10-11: a dedicated, explicitly approved MCP staging hostname and public
+Earlier checkpoint, 2026-10-11: a dedicated, explicitly approved MCP staging hostname and public
 Codex client are prepared with access disabled. Optional verified MCP-only
 consent handoff passes local gates; consent-host release and actual AI-client
 acceptance remain pending. See [staging evidence](MCP_CLIENT_ACCEPTANCE_PREFLIGHT.md).

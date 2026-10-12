@@ -1,5 +1,12 @@
 # MCP client acceptance: staging preflight
 
+Latest checkpoint, 2026-10-12: the corrected consent handoff is deployed; the
+user approved the Codex staging client and its signed/live connection passed.
+Native Codex discovery and read checks also passed. A subsequent hosted refresh
+failed closed and requires fresh login; it is not an acceptance pass. Staging MCP
+is enabled, production MCP remains disabled. The older baseline observations
+below are historical. See [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+
 Updated 2026-10-11. Baseline `ab18ade` on `feature/mcp-access` is pushed and
 remotely verified. Checklist items 1–4 are delivered; this increment prepares
 item 5. Actual AI-client acceptance and production activation are not complete.
@@ -73,7 +80,7 @@ private checks. The explicit real-provider first-visit gate now covers that path
 See [release and correction evidence](MCP_CONSENT_RELEASE_VERIFICATION.md); the
 older baseline checks below do not claim that first hosted attempt succeeded.
 
-Hosted handoff acceptance is **pending**: the code must first reach the provider's
+At the initial baseline, hosted handoff acceptance was **pending**: the code had to reach the provider's
 consent host through a separately approved release, and that host's exact handoff
 origin must be configured. Pushing the feature branch does not update production.
 Do not change the common production integration origin to staging or bypass any

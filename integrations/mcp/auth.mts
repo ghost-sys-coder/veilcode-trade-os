@@ -7,6 +7,7 @@ import type { CredentialStore } from "./vault.mts";
 
 const tokenSchema = z.object({access_token:z.string().min(1).max(16384), refresh_token:z.string().min(1).max(16384),
   token_type:z.string().refine(value=>value.toLowerCase()==="bearer"), expires_in:z.number().int().positive().optional()});
+const refreshResponseSchema=tokenSchema.extend({refresh_token:tokenSchema.shape.refresh_token.optional()});
 const savedSchema = z.object({version:z.literal(1),resource:z.string(),issuer:z.string(),clientId:z.string(),
   accessToken:z.string().min(1).max(16384),refreshToken:z.string().min(1).max(16384),expiresAt:z.number().int().positive()}).strict();
 export type SavedCredentials = z.infer<typeof savedSchema>;
@@ -81,22 +82,36 @@ export class LocalAuthorization {
     if(this.refreshing) return this.refreshing;
     if(this.blocked || !this.credentials) throw new LocalMcpError("LOGIN_REQUIRED");
     this.refreshing=(async()=>{
+      let stage: NonNullable<LocalMcpError["refreshStage"]>="PRE_CLEAR";
       try {
         const refreshToken=this.credentials!.refreshToken;
         // Durably invalidate the old rotating secret BEFORE the request. A
         // process crash/lost response must require login, not replay a refresh
         // whose rotation may already have committed at the provider.
         await this.store.clear();
+        stage="PROVIDER_REQUEST";
         const response=await this.json(`${this.config.issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
           body:new URLSearchParams({grant_type:"refresh_token",client_id:this.config.clientId,refresh_token:refreshToken,resource:this.config.resource})});
-        await this.accept(response);
+        stage="TOKEN_RESPONSE";
+        const tokens=refreshResponseSchema.parse(response);
+        // A verified successful response may omit a replacement refresh token
+        // (documented OAuth behavior). Only then retain the previously validated
+        // token. Null/empty/malformed values and uncertain responses NEVER fall
+        // back. The old credential remains durably cleared until this succeeds.
+        stage="TOKEN_VERIFICATION";
+        const claims=await this.verify(tokens.access_token);
+        if(claims.client_id!==this.config.clientId)throw new LocalMcpError("ACCESS_DENIED");
+        const credentials: SavedCredentials={version:1,resource:this.config.resource,issuer:this.config.issuer,clientId:this.config.clientId,
+          accessToken:tokens.access_token,refreshToken:tokens.refresh_token??refreshToken,expiresAt:claims.exp};
+        stage="CREDENTIAL_SAVE";
+        await this.store.save(credentials);this.credentials=credentials;this.blocked=false;
         return this.credentials!.accessToken;
       } catch {
         // Rotation may have committed even if response/save was lost. Do not reuse
         // a potentially consumed refresh token or retry an uncertain mutation.
         this.blocked=true;
         await this.store.clear().catch(()=>{});
-        throw new LocalMcpError("REFRESH_UNCERTAIN");
+        throw new LocalMcpError("REFRESH_UNCERTAIN",stage);
       } finally { this.refreshing=undefined; }
     })();
     return this.refreshing;

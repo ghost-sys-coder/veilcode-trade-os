@@ -73,6 +73,54 @@ describe("stdio renewable authorization",()=>{
     await expect(f.auth.refresh()).rejects.toMatchObject({code:"LOGIN_REQUIRED"});
     expect(f.fetcher).toHaveBeenCalledOnce();expect(f.getStored()).toEqual({disconnected:true});
   });
+  it("retains the prior refresh token only after a verified successful response omits its replacement",async()=>{
+    const f=fixture({fetch:vi.fn(async()=>Response.json({access_token:"NEXT_TOKEN",token_type:"bearer"}))});
+    await f.auth.accept(tokens);await f.auth.refresh();
+    expect(f.getStored()).toMatchObject({accessToken:"NEXT_TOKEN",refreshToken:tokens.refresh_token});
+    expect(f.verify).toHaveBeenCalledWith("NEXT_TOKEN");
+    expect(vi.mocked(f.store.clear).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.fetcher).mock.invocationCallOrder[0]);
+    expect(vi.mocked(f.verify).mock.invocationCallOrder.at(-1)).toBeLessThan(vi.mocked(f.store.save).mock.invocationCallOrder.at(-1)!);
+  });
+  it.each([null,"",123,"x".repeat(16385)])("does not retain an old refresh token when replacement is malformed (%#)",async refreshToken=>{
+    const f=fixture({fetch:vi.fn(async()=>Response.json({access_token:"NEXT_TOKEN",refresh_token:refreshToken,token_type:"bearer"}))});
+    await f.auth.accept(tokens);
+    await expect(f.auth.refresh()).rejects.toMatchObject({code:"REFRESH_UNCERTAIN",refreshStage:"TOKEN_RESPONSE"});
+    expect(f.getStored()).toEqual({disconnected:true});
+    await expect(f.auth.accessToken()).rejects.toMatchObject({code:"LOGIN_REQUIRED"});
+    expect(f.fetcher).toHaveBeenCalledOnce();
+  });
+  it("does not persist either refresh token when refreshed access-token verification fails",async()=>{
+    const f=fixture({fetch:vi.fn(async()=>Response.json({access_token:"NEXT_TOKEN",token_type:"bearer"})),
+      verify:vi.fn(async token=>{if(token==="NEXT_TOKEN")throw new Error("PRIVATE_RAW_TOKEN");return {exp:9999999999,client_id:config.clientId};})});
+    await f.auth.accept(tokens);
+    await expect(f.auth.refresh()).rejects.toMatchObject({code:"REFRESH_UNCERTAIN",refreshStage:"TOKEN_VERIFICATION"});
+    expect(f.getStored()).toEqual({disconnected:true});expect(f.store.save).toHaveBeenCalledOnce();
+  });
+  it("reports only allowlisted refresh stages, never provider errors or tokens",()=>{
+    expect(safeMessage(new LocalMcpError("REFRESH_UNCERTAIN","TOKEN_VERIFICATION"))).toContain("Verification stage: TOKEN_VERIFICATION");
+    const error=new LocalMcpError("REFRESH_UNCERTAIN");
+    Object.assign(error,{refreshStage:"PRIVATE_TOKEN=secret"});
+    expect(safeMessage(error)).not.toContain("secret");
+    expect(safeMessage(error)).not.toContain("Verification stage");
+  });
+  it("still requires a refresh token during the initial code exchange",async()=>{
+    const f=fixture();await expect(f.auth.accept({access_token:"INITIAL",token_type:"bearer"})).rejects.toThrow();
+    expect(f.store.save).not.toHaveBeenCalled();
+  });
+  it("cannot use omission fallback to accept another client's signed access token",async()=>{
+    const f=fixture({fetch:vi.fn(async()=>Response.json({access_token:"NEXT_TOKEN",token_type:"bearer"})),
+      verify:vi.fn(async token=>({exp:9999999999,client_id:token==="NEXT_TOKEN"?"70000000-0000-4000-8000-000000000002":config.clientId}))});
+    await f.auth.accept(tokens);
+    await expect(f.auth.refresh()).rejects.toMatchObject({code:"REFRESH_UNCERTAIN",refreshStage:"TOKEN_VERIFICATION"});
+    expect(f.getStored()).toEqual({disconnected:true});
+  });
+  it("fails closed without replay if saving a verified refresh fails",async()=>{
+    const f=fixture();await f.auth.accept(tokens);vi.mocked(f.store.save).mockRejectedValueOnce(new Error("PRIVATE_DISK_ERROR"));
+    await expect(f.auth.refresh()).rejects.toMatchObject({code:"REFRESH_UNCERTAIN",refreshStage:"CREDENTIAL_SAVE"});
+    expect(f.getStored()).toEqual({disconnected:true});
+    await expect(f.auth.refresh()).rejects.toMatchObject({code:"LOGIN_REQUIRED"});
+    expect(f.fetcher).toHaveBeenCalledOnce();
+  });
   it("does not start rotation if its durable pre-clear fails",async()=>{
     const f=fixture();await f.auth.accept(tokens);vi.mocked(f.store.clear).mockRejectedValue(new Error("DISK_FAIL"));
     await expect(f.auth.refresh()).rejects.toMatchObject({code:"REFRESH_UNCERTAIN"});expect(f.fetcher).not.toHaveBeenCalled();
