@@ -3,9 +3,9 @@
 Status: approved implementation plan; delivery started on 2026-10-05.
 Latest checkpoint 2026-10-12: the approved existing-consent correction is released,
 all nine live production boundaries pass, and same-grant reconnect plus native
-Codex discovery/read checks pass. Hosted renewal failed closed at the future-issued
-token check; Windows Time is stopped and this desktop is about one second behind
-Supabase. Clock-sync approval and renewed-token acceptance remain pending. No model
+Codex discovery/read checks pass. User-approved Windows clock synchronization
+resolved the future-issued-token failure; protected renewal, separate-process
+status and actual native reads after renewal pass without weakening token checks. No model
 inference, production MCP enablement or MT5 changes. The requested multi-client
 matrix and final activation are not complete. See
 [Codex checkpoint](MCP_CODEX_CLIENT_VERIFICATION.md).

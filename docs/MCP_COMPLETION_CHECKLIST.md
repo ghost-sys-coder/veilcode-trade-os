@@ -80,10 +80,10 @@ that every requested real AI client has connected successfully.
    the corrected production consent handoff are released. The user-approved Codex
    stdio grant passes signed/live connection, native 84-tool/eight-resource
    discovery and actual native read checks. The approved existing-consent fix is
-   released; fresh same-grant reconnect and native reads pass. Hosted refresh
-   fails the future-issued-token check because Windows Time is stopped and this
-   desktop is about one second behind Supabase. Clock synchronization approval,
-   renewal verification, actual-client writes/revocation and the other
+   released; fresh same-grant reconnect and native reads pass. User-approved
+   Windows clock synchronization resolved the future-issued-token failure;
+   protected renewal, separate-process status and native reads after renewal pass
+   with strict validation unchanged. Actual-client writes/revocation and the other
    requested clients remain pending. Production MCP is still disabled. See
    [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
    Existing-consent handoff correction and fresh hosted retest are tracked in

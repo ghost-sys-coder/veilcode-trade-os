@@ -111,7 +111,58 @@ audit cleanup is not an application/MCP deletion capability.
 
 ## Hosted release and retest
 
-### Latest follow-up after network repair
+### Approved clock correction and completed renewal (latest)
+
+On 2026-10-12 the user explicitly approved starting Windows Time and synchronizing
+this desktop's clock. The approved change is complete; authentication code,
+clock tolerance and MT5 configuration were not changed.
+
+- The ordinary `Start-Service -Name W32Time` failed because administrator rights
+  were unavailable. An exact elevated helper then started W32Time and ran
+  `w32tm /resync /rediscover`, exiting **0**. An elevated readback confirmed the
+  existing source `time.windows.com,0x9`, successful synchronization and a
+  remaining phase offset of about 0.98 seconds. Non-elevated status reads denied
+  access; they were not treated as successful verification.
+- Direct `w32tm /stripchart /computer:time.windows.com /samples:3 /dataonly`
+  measurements independently confirmed offsets of **+0.9818539, +0.9735582 and
+  +0.9778548 seconds**. The successful resync request had not yet removed that
+  offset; no refresh was attempted while the discrepancy remained known.
+- To complete the already-approved synchronization without changing time policy,
+  a bounded helper verified the exact existing source and three fresh offsets,
+  required all offsets to be positive and at most two seconds, and required a
+  spread under 0.1 seconds. It applied the median **+0.982519 seconds** with
+  [Windows' documented `Set-Date -Adjust`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/set-date),
+  then resynchronized. Both helper/resync exited **0**; W32Time is **Running**.
+  Timezone, peer, registry policy and startup type (**Manual**) were unchanged.
+- Independent post-correction NTP offsets were **+0.0085060, +0.0060119 and
+  +0.0104683 seconds**. Strict-TLS READ ONLY database comparisons likewise enclosed
+  zero offset within their network round-trip bounds; the former one-second gap
+  was gone. The clock was corrected against the existing NTP source, not manually
+  set to a database timestamp or adjusted to bypass token verification.
+- `node .artifacts/mcp-clients/verify-codex-renewal.mjs`: **PASS**, exit 0,
+  signed-token verification plus live connection passed, protocol stdout zero.
+- The same command with `--status`: **PASS**, exit 0, a separate process loaded
+  and verified the newly persisted Windows-protected credentials and live access.
+- `node .artifacts/mcp-clients/run-native-safely.mjs --read`: actual Codex CLI
+  **0.147.0 PASS after renewal**, capabilities **84 tools/eight resources**, native
+  owner-scoped account read and four exact domain-resource reads, zero protocol
+  errors, model calls and global configuration writes. The existing generic
+  non-protocol OS-error stderr category remains recorded; no requested MCP read
+  failed and this is not a warning-free whole-client claim.
+- Final strict-TLS READ ONLY readback confirmed the exact Codex grant fingerprint
+  unchanged, one ACTIVE grant, two audit events unchanged and the exact MT5 grant
+  fingerprint unchanged. No application data, consent permission or collector
+  control was modified by synchronization or renewal.
+
+No application source, migration, integration flag, production/staging alias or
+authentication check changed in this follow-up. Disposable regression suites were
+not needlessly rerun for this operating-system correction and documentation-only
+checkpoint; earlier full results remain dated observations. Reboot persistence
+and long-term clock drift were not tested. Actual-client write/retry/concurrency/
+revocation checks, other requested clients and final authorized production MCP
+enablement are still pending—not part of this completed renewal gate.
+
+### Consent release and clock diagnosis (preceding checkpoint)
 
 The user pushed `b35c2b6` and repaired connectivity. Read-only GitHub verification
 confirmed the exact MCP branch at `b35c2b62d78d9366f1c8206df076dcda45908f64`
@@ -146,7 +197,7 @@ The network-blocked checkpoint below is retained as historical evidence.
   again included the generic OS-error category; this does not claim a warning-free
   entire Codex session. Requested native tool/resource operations passed.
 
-Renewal is still **not passed**, but its failure is now precisely isolated:
+At that checkpoint renewal was **not passed**, but its failure was precisely isolated:
 
 - `node .artifacts/mcp-clients/verify-codex-renewal.mjs` failed closed at
   `TOKEN_VERIFICATION`; no uncertain refresh was replayed.
@@ -167,7 +218,7 @@ Renewal is still **not passed**, but its failure is now precisely isolated:
   No clock tolerance, validation or credential-recovery fallback was added. A final
   normal reconnect restored the protected profile and enabled the native reads.
 
-Next: approve/perform Windows time synchronization, verify clock alignment, then
+The next steps at that checkpoint were: approve/perform Windows time synchronization, verify clock alignment, then
 repeat documented protected renewal and status checks. Actual-client writes/retry/
 revocation, other requested clients and final production MCP activation remain
 pending. No missing gate is counted as passed.

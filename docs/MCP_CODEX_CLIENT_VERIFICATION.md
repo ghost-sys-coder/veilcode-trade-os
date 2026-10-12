@@ -4,10 +4,11 @@ Recorded 2026-10-12 (Africa/Kampala). This is partial acceptance of checklist
 item 5, not full MCP completion or authorization to enable production MCP.
 Latest follow-up: the approved provider auto-consent correction is released on
 production, its nine anonymous boundary checks pass, and fresh same-grant
-reconnect plus actual Codex discovery/read checks pass. Renewal is precisely
-blocked by this desktop's future-issued-token check: Windows Time is stopped and
-the desktop is about one second behind Supabase. Clock-sync approval is pending;
-no token check or tolerance was weakened. See
+reconnect plus actual Codex discovery/read checks pass. The user-approved Windows
+clock synchronization removed the one-second offset; protected renewal, separate
+process status and actual native Codex reads after renewal now pass. No token
+check or tolerance was weakened. Writes/revocation and other clients remain
+pending. See
 [reconnect verification](MCP_RECONNECT_VERIFICATION.md) for exact release,
 native-client, diagnostic and unchanged-grant evidence. Earlier observations below
 are retained historically, not substitutes for that follow-up.
@@ -127,7 +128,7 @@ secrets from provider tables/backups to bypass login.
 - `git diff --check`: PASS. Exact current code is committed/pushed on the MCP
   feature branch only; production activation and master consolidation are separate.
 
-Remaining: Windows clock synchronization and hosted renewal, bounded actual-client write/retry/
+Remaining: bounded actual-client write/retry/
 concurrency and revocation/reconnect; separate consent and acceptance for Claude
 Code, Gemini CLI, ChatGPT Desktop/remote and Claude remote; final hosted matrix
 and explicitly authorized production enablement. Other-client version/help checks
