@@ -98,7 +98,7 @@ describe("verified MT5 onboarding services", () => {
     expect(f.rpc).not.toHaveBeenCalled();
   });
   it("reports concurrency conflicts without leaking SQL errors", async () => {
-    const f = fixture(); f.rpc.mockResolvedValueOnce({ data: null as never,error: { code: "40001" } });
+    const f = fixture(); f.rpc.mockResolvedValueOnce({ data: null as never,error: { code: "PT409" } });
     await expect(controlMt5Connection(f.client,{ connectionId: id,version: "1",operationId: id,action: "PAUSE",reason: "Review this account" })).rejects.toThrow("CONFLICT");
   });
 });

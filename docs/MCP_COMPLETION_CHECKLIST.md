@@ -76,11 +76,20 @@ that every requested real AI client has connected successfully.
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini
    consumer-app support. User browser consent may be needed for these checks.
-   **Staging prepared, acceptance pending:** the approved dedicated hostname has
-   an exact-host protection exception and passes 6/6 anonymous boundary checks.
-   A disabled staging resource and separate public Codex stdio client are prepared;
-   consent handoff is locally verified. Production consent-host release and actual
-   client tests remain required. See [staging evidence](MCP_CLIENT_ACCEPTANCE_PREFLIGHT.md).
+   **Partial actual-client acceptance, 2026-10-12:** staging-only enablement and
+   the corrected production consent handoff are released. The user-approved Codex
+   stdio grant passes signed/live connection, native 84-tool/eight-resource
+   discovery and actual native read checks. The approved existing-consent fix is
+   released; fresh same-grant reconnect and native reads pass. User-approved
+   Windows clock synchronization resolved the future-issued-token failure;
+   protected renewal, separate-process status and native reads after renewal pass
+   with strict validation unchanged. Actual-client writes/revocation and the other
+   requested clients remain pending. Production MCP is still disabled. See
+   [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+   Existing-consent handoff correction and fresh hosted retest are tracked in
+   [reconnect verification](MCP_RECONNECT_VERIFICATION.md); the code must not
+   discard a provider-issued one-use reconnect code or treat routed IDs as
+   proof of complete authorization.
 6. **Final hosted acceptance and activation.** Verify complete workflow coverage,
    protocol schemas/paging/concurrency/idempotency, owner isolation, review and
    deletion evidence, public calculator/login/manual-trade regressions and all
@@ -88,7 +97,13 @@ that every requested real AI client has connected successfully.
    then release/activate MCP under its separate flag through the approved rollout.
    A feature-branch push or passing SDK test is not full MCP completion.
 
-Items 1–4 are delivered for their increments. Next build is item 5, then 6.
+Items 1–4 are delivered for their increments. Actual client acceptance is item 5,
+then final hosted release is item 6. The user additionally confirmed app-led setup
+for both integrations. Its owned-profile/UI/configuration increment now passes
+local gates, but is not hosted/enabled. Windows companion distribution is next;
+client acceptance must use the finished onboarding, not operator-only JSON/CLI.
+See [setup plan](INTEGRATION_SETUP_UX_PLAN.md) and
+[increment evidence](INTEGRATION_SETUP_VERIFICATION.md).
 File deletion cannot ship
 without its confirmation boundary. Each increment needs its own tests and report before
 moving on. Inventory/resource counts update from implementation, not estimates.

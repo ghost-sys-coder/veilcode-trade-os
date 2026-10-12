@@ -4,6 +4,9 @@ import type { Database, Json } from "@/types/database";
 export type IntegrationDatabase = Omit<Database, "public"> & {
   public: Omit<Database["public"], "Functions"> & {
     Functions: Database["public"]["Functions"] & {
+      reserve_integration_setup: { Args: { p_operation_id: string; p_client_kind: string; p_account_id: string | null; p_resource: string }; Returns: Json };
+      reconcile_integration_setup: { Args: { p_profile_id: string; p_expected_version: string }; Returns: Json };
+      list_integration_setups: { Args: Record<string, never>; Returns: Json };
       approve_integration_grant: { Args: { p_authorization_id: string; p_purpose: string; p_account_id?: string | null }; Returns: Json };
       revoke_integration_grant: { Args: { p_grant_id: string; p_expected_version: string }; Returns: Json };
       list_integration_grants: { Args: Record<string, never>; Returns: Json };

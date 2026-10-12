@@ -100,7 +100,7 @@ export async function applicationTransaction(context:ApplicationContext, workflo
     const configurationFailure=error instanceof Error && error.message==="MT5_PUBLICATION_DATABASE_UNAVAILABLE";
     throw new ApplicationWorkflowError(configurationFailure?"DATABASE_NOT_CONFIGURED"
       :["42883","42P01","42703"].includes(state)?"SCHEMA_NOT_READY"
-      :state==="40001"?"VERSION_CONFLICT":state==="23505"?(duplicateName?"DUPLICATE_NAME":"OPERATION_CONFLICT")
+      :["PT409","40001"].includes(state)?"VERSION_CONFLICT":state==="23505"?(duplicateName?"DUPLICATE_NAME":"OPERATION_CONFLICT")
       :state==="P0002"?"NOT_FOUND":state==="42501"?"ACCESS_DENIED"
       :state==="22003"?(workflow.startsWith("TRADE")||workflow.startsWith("PROGRESS")?"NUMERIC_STORAGE_LIMIT":"MONEY_STORAGE_LIMIT")
       :["22023","23514","23503","23502","22P02","22007","22008"].includes(state)?"INVALID_REFERENCE":unavailable);

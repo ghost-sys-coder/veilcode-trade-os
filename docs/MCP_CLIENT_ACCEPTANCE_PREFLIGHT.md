@@ -1,5 +1,18 @@
 # MCP client acceptance: staging preflight
 
+Latest checkpoint, 2026-10-12: the corrected consent handoff is deployed; the
+user approved the Codex staging client and its signed/live connection passed.
+Native Codex discovery and read checks also passed. A subsequent hosted refresh
+failed closed; fresh reconnect now passes after the approved consent correction.
+The user-approved Windows clock synchronization resolved the future-issued-token
+failure; renewal, separate-process status and native reads after renewal now pass
+with strict token checks unchanged. Actual-client writes/revocation and the other
+requested clients remain pending. Staging MCP
+is enabled, production MCP remains disabled. The older baseline observations
+below are historical. See [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+The subsequent existing-consent reconnect defect and explicitly approved
+exact-callback exception are tracked in [reconnect verification](MCP_RECONNECT_VERIFICATION.md).
+
 Updated 2026-10-11. Baseline `ab18ade` on `feature/mcp-access` is pushed and
 remotely verified. Checklist items 1–4 are delivered; this increment prepares
 item 5. Actual AI-client acceptance and production activation are not complete.
@@ -62,12 +75,22 @@ Only MCP requests whose authoritative resource exactly matches that origin's
 `/mcp` can be routed. MT5 requests are never routed, and the destination cannot
 redirect back to itself.
 
-The handoff forwards only the opaque authorization ID. It does not fetch an
+For new consent, the handoff forwards only the opaque authorization ID. It does not forward an
 authorization code, approve access, create/activate grants, forward cookies or
 copy account selections. Staging repeats its own browser/provider, enablement,
 resource and grant checks. Production's MCP API can remain disabled throughout.
+The user later approved an existing-consent-only exception: after fresh matching
+active-grant and private checks, send the already-issued code directly to the
+registered client callback, never through a staging URL. This prevents the
+provider's auto-consent code from being discarded; see the reconnect report.
 
-Hosted handoff acceptance is **pending**: the code must first reach the provider's
+The first hosted attempt exposed an ownership-binding ordering defect, corrected
+by a normal authenticated pending-request details read followed by repeated
+private checks. The explicit real-provider first-visit gate now covers that path.
+See [release and correction evidence](MCP_CONSENT_RELEASE_VERIFICATION.md); the
+older baseline checks below do not claim that first hosted attempt succeeded.
+
+At the initial baseline, hosted handoff acceptance was **pending**: the code had to reach the provider's
 consent host through a separately approved release, and that host's exact handoff
 origin must be configured. Pushing the feature branch does not update production.
 Do not change the common production integration origin to staging or bypass any

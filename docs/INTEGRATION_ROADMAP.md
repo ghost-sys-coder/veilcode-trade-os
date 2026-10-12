@@ -1,12 +1,32 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Latest app-led setup checkpoint 2026-10-12: increment 1 adds owned public-client
+profiles, guided MT5/MCP setup, durable registration recovery and credential-free
+configuration downloads. Local unit/database/provider/browser/native gates pass.
+Hosted setup is not enabled and the Windows companion is not released. Next is
+companion distribution, not rebuilding the existing integrations. See
+[setup evidence](INTEGRATION_SETUP_VERIFICATION.md) and
+[four-increment plan](INTEGRATION_SETUP_UX_PLAN.md).
+Latest checkpoint 2026-10-12: the approved existing-consent correction is released,
+all nine live production boundaries pass, and same-grant reconnect plus native
+Codex discovery/read checks pass. User-approved Windows clock synchronization
+resolved the future-issued-token failure; protected renewal, separate-process
+status and actual native reads after renewal pass without weakening token checks. No model
+inference, production MCP enablement or MT5 changes. The requested multi-client
+matrix and final activation are not complete. See
+[Codex checkpoint](MCP_CODEX_CLIENT_VERIFICATION.md).
+An explicitly approved existing-consent reconnect refinement now validates the
+active grant and returns the provider code directly to its exact registered
+callback, instead of trying to reread an auto-approved request at staging. New
+consent still forwards only the opaque request ID. See
+[reconnect gate](MCP_RECONNECT_VERIFICATION.md) for release/retest status.
 Current 2026-10-10: MCP items 1–4 are implemented for their increments on
 `feature/mcp-access` updated from master `853a963`. The authenticated stdio
 adapter reuses HTTP services and existing Windows credential protection;
 actual client matrix and final hosted activation remain pending. See
 [stdio verification](MCP_STDIO_VERIFICATION.md).
-2026-10-11: a dedicated, explicitly approved MCP staging hostname and public
+Earlier checkpoint, 2026-10-11: a dedicated, explicitly approved MCP staging hostname and public
 Codex client are prepared with access disabled. Optional verified MCP-only
 consent handoff passes local gates; consent-host release and actual AI-client
 acceptance remain pending. See [staging evidence](MCP_CLIENT_ACCEPTANCE_PREFLIGHT.md).

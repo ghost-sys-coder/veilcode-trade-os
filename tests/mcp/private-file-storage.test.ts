@@ -24,7 +24,8 @@ describe("bounded server-only Storage transport",()=>{
       expect(req.headers["content-length"]).toBe("0"); expect(req.url).toBe("/storage/v1/object/authenticated/trade-file-staging/owner/trade/file.part");
       res.writeHead(206,{"content-range":`bytes 0-${bytes.length-1}/${bytes.length}`,"content-length":String(bytes.length)});res.end(bytes);
     });
-    expect(await storage.get("trade-file-staging","owner/trade/file.part",bytes.length)).toEqual(bytes);
+    const actual=await storage.get("trade-file-staging","owner/trade/file.part",bytes.length);
+    expect(actual.length).toBe(bytes.length);expect(actual.equals(bytes)).toBe(true);
   });
   it.each([302,404,500])("rejects status %i without following redirects or exposing headers",async status=>{
     let calls=0;const storage=await endpoint((_,res)=>{calls++;res.writeHead(status,{location:"http://127.0.0.1/elsewhere"});res.end("secret fixture provider detail");});
@@ -49,7 +50,8 @@ describe("bounded server-only Storage transport",()=>{
       expect(JSON.parse(Buffer.from(String(req.headers["x-metadata"]),"base64").toString())).toEqual({tradeOsSha256:fileDigest(bytes)});
       req.on("data",b=>{received=Buffer.concat([received,b]);});req.on("end",()=>res.end("{}"));
     });
-    await storage.put("trade-file-staging","owner/file",bytes,"application/octet-stream");expect(received).toEqual(bytes);
+    await storage.put("trade-file-staging","owner/file",bytes,"application/octet-stream");
+    expect(received.length).toBe(bytes.length);expect(received.equals(bytes)).toBe(true);
   });
   it("recovers a stored original before another POST by reading and hashing, never overwriting",async()=>{
     const bytes=Buffer.from("same");const methods:string[]=[];

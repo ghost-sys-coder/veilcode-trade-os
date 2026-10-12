@@ -1,30 +1,16 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
+import { localMcpConfigSchema } from "../../domain/integrations/local-mcp-config.ts";
 
 export class LocalMcpError extends Error {
   readonly code: string;
-  constructor(code: string) { super(code); this.code=code; this.name = "LocalMcpError"; }
-}
-export const configSchema = z.object({
-  version: z.literal(1), profile: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
-  resource: z.string().url(), issuer: z.string().url(), clientId: z.string().uuid(),
-  redirectUri: z.string().url(), allowLoopback: z.boolean().default(false),
-}).strict().superRefine((value, ctx) => {
-  for (const name of ["resource", "issuer"] as const) {
-    const url = new URL(value[name]);
-    const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
-    if (url.username || url.password || url.search || url.hash ||
-      (url.protocol !== "https:" && !(value.allowLoopback && loopback && url.protocol === "http:")) ||
-      url.pathname !== (name === "resource" ? "/mcp" : "/auth/v1"))
-      ctx.addIssue({ code: "custom", path: [name], message: "Invalid trusted integration URL" });
+  readonly refreshStage?: "PRE_CLEAR" | "PROVIDER_REQUEST" | "TOKEN_RESPONSE" | "TOKEN_VERIFICATION" | "CREDENTIAL_SAVE";
+  constructor(code: string, refreshStage?: LocalMcpError["refreshStage"]) {
+    super(code); this.code=code; this.refreshStage=refreshStage; this.name = "LocalMcpError";
   }
-  const redirect = new URL(value.redirectUri);
-  if (redirect.protocol !== "http:" || redirect.hostname !== "127.0.0.1" || !redirect.port ||
-    Number(redirect.port) < 1024 || redirect.username || redirect.password || redirect.search || redirect.hash ||
-    redirect.pathname !== "/callback")
-    ctx.addIssue({ code: "custom", path: ["redirectUri"], message: "An explicit loopback callback port is required" });
-});
+}
+export const configSchema = localMcpConfigSchema;
 export type LocalMcpConfig = z.infer<typeof configSchema>;
 export async function readConfig(path: string): Promise<LocalMcpConfig> {
   try {
@@ -53,5 +39,8 @@ export function safeMessage(error: unknown): string {
     REFRESH_UNCERTAIN: "Token refresh outcome uncertain. Run login again; no automatic refresh retry was made.",
     UNAVAILABLE: "Application or network unavailable. For an uncertain write, check tradeos_operation_status before retrying with the SAME operation ID.",
   };
-  return `Trade OS MCP: ${messages[code] ?? messages.UNAVAILABLE}`;
+  const stage=error instanceof LocalMcpError && code==="REFRESH_UNCERTAIN" &&
+    ["PRE_CLEAR","PROVIDER_REQUEST","TOKEN_RESPONSE","TOKEN_VERIFICATION","CREDENTIAL_SAVE"].includes(error.refreshStage??"")
+    ? ` Verification stage: ${error.refreshStage}.` : "";
+  return `Trade OS MCP: ${messages[code] ?? messages.UNAVAILABLE}${stage}`;
 }

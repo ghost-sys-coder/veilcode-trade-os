@@ -497,3 +497,31 @@ reference count and UTC expiry. Stale targets visibly disable approval. GET does
 not approve or execute. Pending physical deletion is a status with a separate
 owner recovery action, never a false success. Wrap long identities/reasons;
 390px mobile must not overflow. No new theme tokens or ad hoc colors.
+
+### App-led integration setup
+
+Files: `features/integrations/setup-start.tsx`, `features/integrations/setup-form.tsx`,
+`app/(app)/settings/integrations/connect/[purpose]/page.tsx`,
+`app/(app)/settings/integrations/setup/[profileId]/page.tsx`
+Last updated: 2026-10-12
+
+| Property | Class |
+| --- | --- |
+| Background | inherited `bg-card`; guidance `bg-muted/30`; unavailable `bg-primary/5` |
+| Border | `border-border/70`; controls `border-input`; unavailable `border-primary/20` |
+| Radius | controls and guidance `rounded-lg`; inherited Card radius |
+| Primary text | inherited foreground; `text-sm font-semibold` |
+| Secondary text | `text-sm leading-6 text-muted-foreground`; captions `text-xs leading-5` |
+| Spacing | `space-y-6`; form/card `space-y-5 pt-5`; guidance `p-4`; controls `gap-2` |
+| Interaction | existing Button variants; links `hover:underline`; `focus-visible:ring-ring/25` |
+| Shadow | inherited Card/Button primitives |
+| Accent | `text-primary`, `bg-primary/12`; no success/health implication |
+
+**Pattern notes:** Keep the warm light/navy dark language, native labelled
+selects and MutationForm hydration/pending fieldset. Account labels use friendly
+names plus currency, not UUIDs. Configuration, installation, consent and observed
+activity are separate milestones; a saved profile or active grant is never a
+health claim. Disabled prerequisites are explained beside the dependent action.
+Recover the same registration instead of creating another client. Do not show a
+download/install button until the relevant artifact exists and passes its gate.
+No new colors, loading animations, theme implementation or external icon assets.

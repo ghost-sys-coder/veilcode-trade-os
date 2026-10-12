@@ -35,7 +35,7 @@ select set_config('request.jwt.claims',jsonb_build_object('sub','eeeeeeee-eeee-4
 -- Real MCP identity with its own resource/session/consent; collector stays separate.
 insert into auth.oauth_clients(id,registration_type,redirect_uris,grant_types,client_type,token_endpoint_auth_method)
 values('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','manual','http://127.0.0.1:9877/callback','authorization_code,refresh_token','public','none');
-insert into private.integration_resources(purpose,resource,enabled) values('MCP','https://trade.example/mcp',true);
+insert into private.integration_resources(purpose,resource,enabled) values('MCP','https://trade.example/mcp',true) on conflict(purpose) do update set resource=excluded.resource,enabled=excluded.enabled;
 insert into private.integration_grants(id,owner_id,client_id,purpose,account_id,resource,authorization_id,status)
 values('99999999-9999-4999-8999-999999999999','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','MCP',null,'https://trade.example/mcp','mcp-link-fixture','ACTIVE');
 update auth.sessions set oauth_client_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' where id='11111111-1111-4111-8111-111111111111';
