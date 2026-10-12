@@ -7,6 +7,11 @@ locally verified but hosted reauthorization/renewal remains pending. No model
 inference, production MCP enablement or MT5 changes. The requested multi-client
 matrix and final activation are not complete. See
 [Codex checkpoint](MCP_CODEX_CLIENT_VERIFICATION.md).
+An explicitly approved existing-consent reconnect refinement now validates the
+active grant and returns the provider code directly to its exact registered
+callback, instead of trying to reread an auto-approved request at staging. New
+consent still forwards only the opaque request ID. See
+[reconnect gate](MCP_RECONNECT_VERIFICATION.md) for release/retest status.
 Current 2026-10-10: MCP items 1–4 are implemented for their increments on
 `feature/mcp-access` updated from master `853a963`. The authenticated stdio
 adapter reuses HTTP services and existing Windows credential protection;

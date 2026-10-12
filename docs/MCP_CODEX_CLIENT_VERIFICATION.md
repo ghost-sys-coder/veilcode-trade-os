@@ -2,6 +2,10 @@
 
 Recorded 2026-10-12 (Africa/Kampala). This is partial acceptance of checklist
 item 5, not full MCP completion or authorization to enable production MCP.
+Follow-up: the next login exposed a provider auto-consent handoff defect before
+renewal could be retested. Its diagnosis, explicit approved refinement and gates
+are in [reconnect verification](MCP_RECONNECT_VERIFICATION.md). Earlier native
+read passes remain valid observations, not proof of that later reconnect.
 
 ## Hosted consent and boundaries
 

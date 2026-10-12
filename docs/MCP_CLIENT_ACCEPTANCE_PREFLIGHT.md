@@ -6,6 +6,8 @@ Native Codex discovery and read checks also passed. A subsequent hosted refresh
 failed closed and requires fresh login; it is not an acceptance pass. Staging MCP
 is enabled, production MCP remains disabled. The older baseline observations
 below are historical. See [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+The subsequent existing-consent reconnect defect and explicitly approved
+exact-callback exception are tracked in [reconnect verification](MCP_RECONNECT_VERIFICATION.md).
 
 Updated 2026-10-11. Baseline `ab18ade` on `feature/mcp-access` is pushed and
 remotely verified. Checklist items 1–4 are delivered; this increment prepares
@@ -69,10 +71,14 @@ Only MCP requests whose authoritative resource exactly matches that origin's
 `/mcp` can be routed. MT5 requests are never routed, and the destination cannot
 redirect back to itself.
 
-The handoff forwards only the opaque authorization ID. It does not forward an
+For new consent, the handoff forwards only the opaque authorization ID. It does not forward an
 authorization code, approve access, create/activate grants, forward cookies or
 copy account selections. Staging repeats its own browser/provider, enablement,
 resource and grant checks. Production's MCP API can remain disabled throughout.
+The user later approved an existing-consent-only exception: after fresh matching
+active-grant and private checks, send the already-issued code directly to the
+registered client callback, never through a staging URL. This prevents the
+provider's auto-consent code from being discarded; see the reconnect report.
 
 The first hosted attempt exposed an ownership-binding ordering defect, corrected
 by a normal authenticated pending-request details read followed by repeated

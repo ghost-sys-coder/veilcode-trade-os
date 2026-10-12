@@ -83,6 +83,10 @@ that every requested real AI client has connected successfully.
    login/renewal verification, actual-client writes/revocation and the other
    requested clients remain pending. Production MCP is still disabled. See
    [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+   Existing-consent handoff correction and fresh hosted retest are tracked in
+   [reconnect verification](MCP_RECONNECT_VERIFICATION.md); the code must not
+   discard a provider-issued one-use reconnect code or treat routed IDs as
+   proof of complete authorization.
 6. **Final hosted acceptance and activation.** Verify complete workflow coverage,
    protocol schemas/paging/concurrency/idempotency, owner isolation, review and
    deletion evidence, public calculator/login/manual-trade regressions and all
