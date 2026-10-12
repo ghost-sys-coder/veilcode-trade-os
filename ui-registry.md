@@ -525,3 +525,27 @@ health claim. Disabled prerequisites are explained beside the dependent action.
 Recover the same registration instead of creating another client. Do not show a
 download/install button until the relevant artifact exists and passes its gate.
 No new colors, loading animations, theme implementation or external icon assets.
+
+### Native Windows companion and installer
+
+Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs
+Last updated: 2026-10-12
+
+| Property | Native value / pattern |
+| --- | --- |
+| Background | navy-charcoal RGB(8,13,20) |
+| Text — primary | RGB(239,240,243), Segoe UI; headings bold |
+| Text — secondary | RGB(160,177,199) |
+| Accent | amber RGB(239,177,37); operational heading/install action |
+| Button surface/border | RGB(21,28,39) / RGB(54,64,78) flat border |
+| Spacing | 28px body padding; 12–16px vertical rhythm |
+| Focus/selection | native keyboard controls and labelled dropdown/text field |
+| Shadow / motion | none; native system affordances only |
+
+**Pattern notes:** Native desktop values mirror the web's navy/amber language;
+they are not new web tokens. Wrap actions and explanatory copy within the current
+viewport and allow vertical scrolling, never clipped horizontal controls. Disable
+profile selection and all actions during a request. Reset old verification copy
+when switching profiles. Empty, configured, authorized and observed-active states
+remain distinct. No generic success badge for imported setup. Installer clearly
+states unsigned/private status and that installing files starts no integration.
