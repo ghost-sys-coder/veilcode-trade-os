@@ -111,8 +111,45 @@ audit cleanup is not an application/MCP deletion capability.
 
 ## Hosted release and retest
 
-Pending: scoped production consent-route release, fresh Codex reconnect, protected
-credential renewal and another actual native read. Production MCP must stay off;
-the existing grant/MT5 fingerprints must remain unchanged. See
+The tested application commit is `f1770c137157c5acfb7890f8d279fa4491437116`
+on `feature/mcp-access`. GitHub read-only preflight continues to fail with a
+connection category (not DNS, authentication or certificate verification); this
+commit has **not been pushed**. The working tree was clean at that checkpoint.
+
+The exact tracked source was staged with existing production settings, without
+assigning domains:
+
+- Deployment: `dpl_78TAaTRs37QA7Rsi97K5D4J2JZXm`, **READY**, production target,
+  exact source commit `f1770c1`.
+- URL: `https://trade-krodrdyso-ghostsyscoders-projects.vercel.app`.
+- Hosted build preflight: **35 functions and 14 version/order columns PASS**;
+  inspected build logs contained no build errors.
+- The initial upload command lost its acknowledgement. A read-only deployment
+  listing recovered exactly one matching READY deployment, then an independent
+  deployment read verified it. No duplicate deployment was requested.
+- Seven exact staged GET checks passed across bounded runs: public calculator,
+  login, anonymous accounts/daily-journal login redirects, consent without an ID,
+  and both MCP/MT5 protected-resource metadata documents. Resource and issuer
+  comparisons were retained.
+- Raw requests for the invalid-request consent redirect and immutable-host MCP
+  rejection timed out with no HTTP response (`curl` code 28; one CLI invocation
+  also reached its process timeout). These are **not passes**. An alternate
+  authenticated Vercel fetch followed the invalid-request consent navigation to
+  HTTP 200 with `x-matched-path: /login` and the sign-in page; it did not expose
+  the original redirect status, so it does not substitute for that exact check.
+  The alternate MCP fetch also had a transport failure.
+- Protection, expected statuses, authentication and timeouts were not weakened.
+  Requests used existing Vercel authentication; no protection setting, domain,
+  integration flag, grant or MT5 control state was changed.
+- Fresh readback of the project-filtered production alias still pointed to
+  `dpl_BPFMhVmrkDX5evNh6bD7cL3PSbaq` (the previous `09e4005` release).
+  **No promotion was requested.** The staged READY build is not a production
+  release or a completed hosted authentication test.
+
+Pending: the two exact staged checks, scoped production consent-route promotion,
+fresh Codex reconnect, protected credential renewal and another actual native
+read. Further identical failing network requests are not useful until connectivity
+recovers. Production MCP stays off; the existing grant/MT5 fingerprints must
+remain unchanged. See
 [the preceding Codex checkpoint](MCP_CODEX_CLIENT_VERIFICATION.md) for the already
 completed discovery/read checks and the unresolved hosted renewal failure.
