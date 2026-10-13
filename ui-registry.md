@@ -525,3 +525,43 @@ health claim. Disabled prerequisites are explained beside the dependent action.
 Recover the same registration instead of creating another client. Do not show a
 download/install button until the relevant artifact exists and passes its gate.
 No new colors, loading animations, theme implementation or external icon assets.
+
+Pairing update (2026-10-13): companion file upload and terminal review use shared
+Input/Label/Textarea/Button inside MutationForm, with space-y-4 grouping and
+border-border/70 bg-muted/30 p-4 evidence. Display broker server/login, demo mode,
+account-currency precision, executable/data folder and UTC observation time before
+the unchecked acknowledgement. Disabled consent/mapping prerequisites remain
+explicit. File selection never approves mapping; rapid file changes cannot replace
+the selected preview with an older asynchronous read. Mapping download is only
+available after authoritative approval. No new colors or animations.
+
+### Native Windows companion and installer
+
+Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs
+Last updated: 2026-10-12
+
+| Property | Native value / pattern |
+| --- | --- |
+| Background | navy-charcoal RGB(8,13,20) |
+| Text — primary | RGB(239,240,243), Segoe UI; headings bold |
+| Text — secondary | RGB(160,177,199) |
+| Accent | amber RGB(239,177,37); operational heading/install action |
+| Button surface/border | RGB(21,28,39) / RGB(54,64,78) flat border |
+| Spacing | 28px body padding; 12–16px vertical rhythm |
+| Focus/selection | native keyboard controls and labelled dropdown/text field |
+| Shadow / motion | none; native system affordances only |
+
+**Pattern notes:** Native desktop values mirror the web's navy/amber language;
+they are not new web tokens. Wrap actions and explanatory copy within the current
+viewport and allow vertical scrolling, never clipped horizontal controls. Disable
+profile selection and all actions during a request. Reset old verification copy
+when switching profiles. Empty, configured, authorized and observed-active states
+remain distinct. No generic success badge for imported setup. Installer clearly
+states unsigned/private status and that installing files starts no integration.
+
+Pairing update (2026-10-13): dedicated-terminal and same-terminal adoption actions
+are MT5-only and require a native explicit confirmation/file choice. Prompt that
+SDK connection may launch the selected installation. Copy only the public review
+file path; no token is displayed. Approved manifest import explicitly reports
+PAUSED and pending uploads, not online/reconciled. Wrapped actions remain vertical
+scroll content, and all profile/action controls lock together during the request.

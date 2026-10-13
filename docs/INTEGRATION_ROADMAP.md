@@ -1,6 +1,18 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Pairing checkpoint 2026-10-13: explicit companion terminal selection, metadata-only
+demo verification, browser mapping approval, same-terminal paused adoption and
+server-verified PAUSED initialization are implemented. Local startup/running
+controls and telemetry, real-terminal acceptance, vendor-client matrix and hosted
+rollout remain pending. No hosted grant, task or pilot was changed. See
+[pairing evidence](MT5_COMPANION_PAIRING_VERIFICATION.md).
+Windows companion checkpoint: per-user packaging, private setup import and consent
+adapters are implemented with bundled runtimes and isolated native tests. This is
+only the packaging substep of app-led setup increment 2: terminal pairing/mapping,
+startup/control UI and local telemetry remain unfinished. No installer was publicly
+released, production MCP enabled or pilot resumed. See
+[companion verification](WINDOWS_COMPANION_VERIFICATION.md).
 Latest app-led setup checkpoint 2026-10-12: increment 1 adds owned public-client
 profiles, guided MT5/MCP setup, durable registration recovery and credential-free
 configuration downloads. Local unit/database/provider/browser/native gates pass.

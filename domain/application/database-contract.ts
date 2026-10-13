@@ -5,6 +5,8 @@ export const INTEGRATION_SETUP_DATABASE_FUNCTIONS = [
   "public.reserve_integration_setup(uuid,text,uuid,text)",
   "public.reconcile_integration_setup(uuid,text)", "public.list_integration_setups()",
   "private.enforce_setup_grant_binding()",
+  "private.approve_mt5_setup_pairing(jsonb)", "private.get_mt5_setup_pairing(uuid,text)",
+  "public.approve_mt5_setup_pairing(jsonb)", "public.get_mt5_setup_pairing(uuid,text)",
 ] as const;
 export function applicationDatabaseFunctions(env: { TRADE_OS_INTEGRATION_SETUP_ENABLED?: string }) {
   return env.TRADE_OS_INTEGRATION_SETUP_ENABLED === "true"
