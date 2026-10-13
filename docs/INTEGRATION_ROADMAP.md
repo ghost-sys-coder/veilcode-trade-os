@@ -1,6 +1,13 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Claude Desktop Chat Preview rollout 2026-10-13: implementation `1358cca` is pushed;
+the single hosted prerequisite and branch-only config are verified, with existing
+grant/profile/MT5 fingerprints unchanged. Matched unsigned app downloads are
+published and hash-checked. Configured Preview is READY with 48-function preflight;
+staging Desktop onboarding is enabled. Production remains on unchanged master
+with MCP disabled. Owner installation/consent and actual Desktop acceptance are
+pending. See [Desktop rollout](MCP_CLAUDE_DESKTOP_PREVIEW_ROLLOUT.md).
 Claude Desktop Chat local-build checkpoint 2026-10-13: distinct app-led profile,
 default-off policy, backward-compatible versioned setup listing and owned MCPB
 download are implemented. A sealed, release-pinned launcher reuses the existing
