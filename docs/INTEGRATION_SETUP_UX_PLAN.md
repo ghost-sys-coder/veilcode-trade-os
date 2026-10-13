@@ -24,13 +24,18 @@ No broker passwords or AI-provider keys are requested by Trade OS.
    local health/upload telemetry. No repository, hand-edited JSON or developer
    terminal commands should be required in the finished user experience.
 3. **Actual-client acceptance through onboarding:** Codex writes/retries/concurrency/
-   revocation, then Claude Code, Gemini CLI and supported remote connector paths.
+   revocation, then Claude Code and supported Claude desktop/remote paths.
+   Updated 2026-10-13: Gemini is ON HOLD; standalone ChatGPT connector work is
+   queued after this Codex/Claude focus, without removing client-neutral support.
 4. **Operational/release gates:** remaining real-terminal/startup checks, full
    regression/static/build/security verification and approved hosted rollout.
 
 These are separate completion gates, not a claim that increment 1 supplies a
 released installer or that configuration generation proves successful connection.
 The deferred VPS/extended soak remain separate from this delivery.
+Development must retain VPS-ready host boundaries, configured paths/origins,
+database-backed recovery and fenced collector handover. VPS provisioning and
+actual future-host startup/RDP verification remain deferred, not passed.
 
 Increment 2 checkpoint: native per-user packaging, bundled runtimes, protected
 setup import, explicit consent/reconnect and packaged MCP launcher are implemented

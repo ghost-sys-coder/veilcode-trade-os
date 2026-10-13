@@ -70,8 +70,11 @@ that every requested real AI client has connected successfully.
    subprocess, retry/version, kill-switch and native Windows gates pass. See
    [stdio evidence](MCP_STDIO_VERIFICATION.md) and [setup](../integrations/mcp/README.md).
    Real AI-client and hosted activation acceptance remain items 5–6.
-5. **Real-client/authentication matrix.** Verify Codex, Claude Code, ChatGPT
-   Desktop/remote connector, Claude remote and Gemini CLI. Finish pre-registered
+5. **Real-client/authentication matrix.** Current priority, updated 2026-10-13:
+   verify Codex, Claude Code and supported Claude desktop/remote paths. Gemini
+   CLI is ON HOLD by user decision, not passed and not a blocker for this focused
+   release. Standalone ChatGPT connector work stays queued after this focus.
+   Keep standard MCP support for later verification. Finish pre-registered
    local-client setup and controlled remote registration/discovery compatibility
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini

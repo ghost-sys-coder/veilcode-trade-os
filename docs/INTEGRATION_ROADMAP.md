@@ -1,6 +1,15 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Priority refinement 2026-10-13: current client acceptance focuses on Codex and
+Claude products. Finish Codex mutation/retry/concurrency/revocation, then Claude
+Code and supported Claude desktop/remote paths. Gemini is explicitly ON HOLD,
+not passed and not a blocker for this focused release. Standalone ChatGPT
+connector work remains queued after the current focus. Preserve provider-neutral
+MCP interfaces so deferred clients can be verified later without rebuilding.
+Future VPS operation remains an architectural requirement, not provisioning
+authorization or a claimed operational pass. See the deployment requirements in
+[MCP plan](MCP_INTEGRATION_PLAN.md) and [MT5 plan](MT5_INTEGRATION_PLAN.md).
 Installed Codex checkpoint 2026-10-13: user completed the app-downloaded companion
 installation and verified access. Native stdio flushing is fixed and the published
 installer matches the installed bytes. The installed launcher is now registered
