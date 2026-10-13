@@ -15,8 +15,9 @@ from trade_os_mt5.windows_security import CredentialError, SingleInstance, restr
 ISSUER = "https://nhwlxcrsivmawwmjiwck.supabase.co/auth/v1"
 APPLICATIONS = frozenset({"https://tradeos.veilcode.studio", "https://mcp-preview.veilcode.studio"})
 PORT_CLIENTS = {"http://127.0.0.1:9878/callback": "CODEX", "http://127.0.0.1:9880/callback": "CLAUDE_CODE",
-                "http://127.0.0.1:9882/callback": "GEMINI_CLI"}
-CLIENT_LABELS = {"CODEX": "Codex", "CLAUDE_CODE": "Claude Code", "GEMINI_CLI": "Gemini CLI"}
+                "http://127.0.0.1:9882/callback": "GEMINI_CLI", "http://127.0.0.1:9884/callback": "CLAUDE_DESKTOP"}
+CLIENT_LABELS = {"CODEX": "Codex", "CLAUDE_CODE": "Claude Code", "GEMINI_CLI": "Gemini CLI",
+                 "CLAUDE_DESKTOP": "Claude Desktop (Chat)"}
 MAX_PROFILES = 100
 
 

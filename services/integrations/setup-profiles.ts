@@ -6,6 +6,7 @@ import { getIntegrationConfig } from "@/config/integrations";
 import { setupClientName, setupProfileSchema, setupRequestSchema, mcpSetupConfiguration, type SetupProfile } from "@/domain/integrations/setup";
 import { getVerifiedBrowserContext, verifiedBrowserClaims } from "@/services/integrations/browser-context";
 import type { IntegrationDatabase } from "@/types/integration-database";
+import { claudeDesktopDistribution } from "@/domain/integrations/claude-desktop-distribution";
 
 type Client = SupabaseClient<IntegrationDatabase>;
 export class IntegrationSetupError extends Error {
@@ -32,11 +33,14 @@ function databaseFailure(code: string | undefined): never {
   throw new IntegrationSetupError(code === "PT409" ? "CONFLICT" : code === "54000" ? "LIMIT" : "UNAVAILABLE");
 }
 export async function readSetupState(client: Client) {
-  if (process.env.TRADE_OS_INTEGRATION_SETUP_ENABLED !== "true") return { profiles: [], databaseEnabled: { MT5: false, MCP: false } };
+  if (process.env.TRADE_OS_INTEGRATION_SETUP_ENABLED !== "true") return { profiles: [], databaseEnabled: { MT5: false, MCP: false }, desktopEnabled: false };
   await getVerifiedBrowserContext(client);
-  const response = await client.rpc("list_integration_setups");
+  const desktop = process.env.TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED === "true";
+  const response = await client.rpc(desktop ? "list_integration_setups_v2" : "list_integration_setups");
   if (response.error) databaseFailure(response.error.code);
-  return z.object({ profiles: z.array(setupProfileSchema).max(20), databaseEnabled: z.object({ MT5: z.boolean(), MCP: z.boolean() }).strict() }).strict().parse(response.data);
+  const schema = z.object({ profiles: z.array(setupProfileSchema).max(20), databaseEnabled: z.object({ MT5: z.boolean(), MCP: z.boolean() }).strict() });
+  if (desktop) return schema.extend({ desktopEnabled: z.boolean() }).strict().parse(response.data);
+  return { ...schema.strict().parse(response.data), desktopEnabled: false };
 }
 export async function listSetupProfiles(client: Client): Promise<SetupProfile[]> {
   return (await readSetupState(client)).profiles;
@@ -79,6 +83,8 @@ export async function createSetupProfile(client: Client, input: unknown): Promis
   const data = setupRequestSchema.parse(input);
   const purpose = data.clientKind === "MT5_WINDOWS" ? "MT5" : "MCP";
   const configuration = configured(purpose);
+  if (data.clientKind === "CLAUDE_DESKTOP" && (!claudeDesktopDistribution(process.env)
+    || !(await readSetupState(client)).desktopEnabled)) throw new IntegrationSetupError("DISABLED");
   const context = await getVerifiedBrowserContext(client);
   if (!integrationSetupAvailability(purpose).provisioning) throw new IntegrationSetupError("NOT_CONFIGURED");
   const response = await client.rpc("reserve_integration_setup", { p_operation_id: data.operationId,

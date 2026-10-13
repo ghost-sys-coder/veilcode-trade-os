@@ -8,9 +8,10 @@ export const INTEGRATION_SETUP_DATABASE_FUNCTIONS = [
   "private.approve_mt5_setup_pairing(jsonb)", "private.get_mt5_setup_pairing(uuid,text)",
   "public.approve_mt5_setup_pairing(jsonb)", "public.get_mt5_setup_pairing(uuid,text)",
 ] as const;
-export function applicationDatabaseFunctions(env: { TRADE_OS_INTEGRATION_SETUP_ENABLED?: string }) {
+export function applicationDatabaseFunctions(env: { TRADE_OS_INTEGRATION_SETUP_ENABLED?: string; TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED?: string }) {
   return env.TRADE_OS_INTEGRATION_SETUP_ENABLED === "true"
-    ? [...APPLICATION_DATABASE_FUNCTIONS, ...INTEGRATION_SETUP_DATABASE_FUNCTIONS]
+    ? [...APPLICATION_DATABASE_FUNCTIONS, ...INTEGRATION_SETUP_DATABASE_FUNCTIONS,
+      ...(env.TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED === "true" ? ["private.list_integration_setups_v2()", "public.list_integration_setups_v2()"] : [])]
     : [...APPLICATION_DATABASE_FUNCTIONS];
 }
 export const APPLICATION_DATABASE_FUNCTIONS = [

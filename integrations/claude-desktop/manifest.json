@@ -1,0 +1,34 @@
+{
+  "manifest_version": "0.3",
+  "name": "trade-os-windows",
+  "display_name": "Trade OS (Windows preview)",
+  "version": "0.1.0",
+  "description": "Connect Claude Desktop Chat to your explicitly authorized Trade OS workspace through the verified Windows companion.",
+  "author": { "name": "VeilCode Studio", "url": "https://tradeos.veilcode.studio" },
+  "homepage": "https://mcp-preview.veilcode.studio/settings/integrations/connect/mcp",
+  "privacy_policies": ["https://mcp-preview.veilcode.studio/integration-privacy"],
+  "server": {
+    "type": "node",
+    "entry_point": "server.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server.mjs", "${user_config.companion_folder}", "${user_config.setup_file}"]
+    }
+  },
+  "tools_generated": true,
+  "compatibility": { "platforms": ["win32"], "runtimes": { "node": ">=20" } },
+  "user_config": {
+    "companion_folder": {
+      "type": "directory",
+      "title": "Installed Trade OS companion folder",
+      "description": "Choose the companion-* folder containing TradeOS.exe and TradeOSMcp.exe from the exact companion preview downloaded alongside this extension.",
+      "required": true
+    },
+    "setup_file": {
+      "type": "file",
+      "title": "Claude Desktop app setup file",
+      "description": "Choose the tradeos-claude_desktop-*.json downloaded from Trade OS. Import and authorize it in the companion first. Do not select bundle-manifest.json or a Claude Code/Codex setup.",
+      "required": true
+    }
+  }
+}

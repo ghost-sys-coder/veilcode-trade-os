@@ -10,9 +10,9 @@ import { prepareIntegrationSetup, checkIntegrationSetup, type SetupActionState }
 
 const initial: SetupActionState = { message: "", profileId: null, ready: false };
 const selectClass = "h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/25";
-export function IntegrationSetupForm({ purpose, accounts, operationId, available }: {
+export function IntegrationSetupForm({ purpose, accounts, operationId, available, desktopAvailable = false }: {
   purpose: "MT5" | "MCP"; accounts: { id: string; name: string; currency_code: string }[];
-  operationId: string; available: boolean;
+  operationId: string; available: boolean; desktopAvailable?: boolean;
 }) {
   const [kind, setKind] = useState<SetupKind>(purpose === "MT5" ? "MT5_WINDOWS" : "CODEX");
   const [state, action, pending] = useActionState(prepareIntegrationSetup, initial);
@@ -22,9 +22,11 @@ export function IntegrationSetupForm({ purpose, accounts, operationId, available
       <div className="grid gap-2"><Label htmlFor="setup-client">Integration client</Label>
         <select id="setup-client" name="client_kind" className={selectClass} value={kind}
           onChange={event => setKind(event.target.value as SetupKind)} disabled={!available || Boolean(state.profileId)}>
-          {(purpose === "MT5" ? ["MT5_WINDOWS"] as const : ["CODEX", "CLAUDE_CODE", "GEMINI_CLI"] as const)
-            .map(value => <option key={value} value={value}>{setupLabels[value]}</option>)}
+          {(purpose === "MT5" ? ["MT5_WINDOWS"] as const : ["CODEX", "CLAUDE_CODE", "CLAUDE_DESKTOP", "GEMINI_CLI"] as const)
+            .map(value => <option key={value} value={value} disabled={value === "GEMINI_CLI" || (value === "CLAUDE_DESKTOP" && !desktopAvailable)}>
+              {setupLabels[value]}{value === "GEMINI_CLI" ? " — on hold" : value === "CLAUDE_DESKTOP" && !desktopAvailable ? " — preview not released" : ""}</option>)}
         </select>
+        {purpose === "MCP" ? <p className="text-xs leading-5 text-muted-foreground">Desktop Chat uses its own extension and authorization. Claude Code and the Desktop Code tab use the Claude Code path; remote connectors are separate.</p> : null}
       </div>
       {purpose === "MT5" ? <div className="grid gap-2"><Label htmlFor="setup-account">Trade OS account</Label>
         <select id="setup-account" name="account_id" className={selectClass} required defaultValue=""

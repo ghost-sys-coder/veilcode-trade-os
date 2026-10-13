@@ -10,6 +10,7 @@ import { createSetupProfile, listSetupProfiles, reconcileSetupProfile } from "@/
 import { setupClientName, setupProfileSchema } from "@/domain/integrations/setup";
 import type { IntegrationDatabase } from "@/types/integration-database";
 import { companionDistribution } from "@/domain/integrations/companion-distribution";
+import { claudeDesktopDistribution } from "@/domain/integrations/claude-desktop-distribution";
 
 const origin = "http://127.0.0.1:3100";
 let db: pg.Client | undefined, admin: ReturnType<typeof createClient> | undefined;
@@ -17,8 +18,11 @@ let client: SupabaseClient<IntegrationDatabase>, ui: Browser | undefined, page: 
 let owner: string | undefined, account: string, email: string, password: string;
 let locked = false, schemaCreated = false, changed = false, diagnosticHintsChanged = false;
 let pairingSchemaCreated = false;
+let desktopSchemaCreated = false;
+let previousDesktopDefinitions: string[] = [];
+let previousDesktopConstraints: { name: string; definition: string }[] = [];
 let previousResources: { purpose: string; resource: string; enabled: boolean }[] = [];
-let previousPolicies: { purpose: string; enabled: boolean }[] = [];
+let previousPolicies: { purpose: string; enabled: boolean; claude_desktop_enabled: boolean }[] = [];
 let previousRpcDefinitions: string[] = [];
 const browserErrors: string[] = [];
 function localDiagnosticHints(action: "disable" | "restore") {
@@ -68,16 +72,27 @@ beforeAll(async () => {
     try { await db.query(await readFile("supabase/migrations/20261013023643_mt5_companion_pairing.sql", "utf8")); await db.query("commit"); pairingSchemaCreated = true; }
     catch { await db.query("rollback"); throw Error("Disposable pairing schema preparation failed"); }
   }
+  if (!(await db.query("select to_regprocedure('private.list_integration_setups_v2()') as fn")).rows[0].fn) {
+    previousDesktopDefinitions = (await db.query("select pg_get_functiondef(name::regprocedure) as definition from unnest(array['private.reserve_integration_setup(uuid,text,uuid,text)','private.list_integration_setups()']) name")).rows.map(row => row.definition);
+    previousDesktopConstraints = (await db.query(`select conname as name,pg_get_constraintdef(oid) as definition from pg_constraint
+      where conrelid='private.integration_setup_profiles'::regclass and contype='c'
+      and (pg_get_constraintdef(oid) like '%callback_uri%' or (cardinality(conkey)=1 and pg_get_constraintdef(oid) like '%client_kind%'))`)).rows;
+    if (previousDesktopConstraints.length !== 2) throw Error("Unexpected disposable setup constraints");
+    await db.query("begin");
+    try { await db.query(await readFile("supabase/migrations/20261013184134_claude_desktop_setup.sql", "utf8")); await db.query("commit"); desktopSchemaCreated = true; }
+    catch { await db.query("rollback"); throw Error("Disposable Desktop schema preparation failed"); }
+  }
   previousResources = (await db.query("select purpose,resource,enabled from private.integration_resources")).rows;
-  previousPolicies = (await db.query("select purpose,enabled from private.integration_setup_policies")).rows;
+  previousPolicies = (await db.query("select purpose,enabled,claude_desktop_enabled from private.integration_setup_policies")).rows;
   await db.query("insert into private.integration_resources(purpose,resource,enabled) values('MCP',$1,true),('MT5',$2,true) on conflict(purpose) do update set resource=excluded.resource,enabled=true", [`${origin}/mcp`, `${origin}/api/integrations/v1`]);
   changed = true;
   await db.query("insert into private.integration_setup_policies(purpose,enabled) values('MCP',true),('MT5',true) on conflict(purpose) do update set enabled=true");
+  await db.query("update private.integration_setup_policies set claude_desktop_enabled=true where purpose='MCP'");
   try {
     const preflight = execFileSync(process.execPath, ["--experimental-strip-types", "scripts/check-application-database.mts", "--local"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30000,
-        env: { ...process.env, TRADE_OS_INTEGRATION_SETUP_ENABLED: "true" } });
-    expect(preflight).toContain("Application database preflight PASS: 46 functions and 14 version/order columns.");
+        env: { ...process.env, TRADE_OS_INTEGRATION_SETUP_ENABLED: "true", TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED: "true" } });
+    expect(preflight).toContain("Application database preflight PASS: 48 functions and 14 version/order columns.");
   } catch { throw Error("Enabled disposable setup database preflight failed; details suppressed"); }
   const options = requestOptions;
   admin = createClient(api.origin, status.SECRET_KEY ?? status.SERVICE_ROLE_KEY, options);
@@ -93,6 +108,7 @@ beforeAll(async () => {
   vi.stubEnv("TRADE_OS_INTEGRATION_ORIGIN", origin); vi.stubEnv("TRADE_OS_MT5_ENABLED", "true"); vi.stubEnv("TRADE_OS_MCP_ENABLED", "true");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", api.origin); vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", status.ANON_KEY);
   vi.stubEnv("SUPABASE_SECRET_KEY", status.SECRET_KEY ?? status.SERVICE_ROLE_KEY);
+  vi.stubEnv("TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED", "true");
   ui = await chromium.launch({ channel: "chrome", headless: true });
   console.info(`Setup browser: Chrome ${ui.version()}`);
   page = await ui.newPage();
@@ -110,6 +126,43 @@ beforeAll(async () => {
 }, 120000);
 
 describe("disposable app-led setup provider and browser gate", () => {
+  it("prepares Desktop Chat separately and downloads its matched extension in both themes", async () => {
+    const distribution = claudeDesktopDistribution(process.env);
+    if (!distribution) throw Error("Start the disposable app with matched fixture release metadata");
+    await page.goto(`${origin}/settings/integrations/connect/mcp`);
+    await page.getByLabel("Integration client", { exact: true }).selectOption("CLAUDE_DESKTOP");
+    await page.getByRole("button", { name: "Prepare connection setup", exact: true }).click();
+    await page.getByRole("link", { name: "Continue saved setup →", exact: true }).click();
+    await page.waitForURL(/\/settings\/integrations\/setup\/[0-9a-f-]{36}$/);
+    await browserExpect(page.getByRole("heading", { name: "Claude Desktop (Chat) setup", exact: true })).toBeVisible();
+    const id = new URL(page.url()).pathname.split("/").at(-1)!;
+    const publicFile = await page.request.get(`${origin}/api/integrations/setup/${id}/configuration`);
+    expect(publicFile.status()).toBe(200);
+    expect(await publicFile.json()).toMatchObject({ profile: "tradeos-" + id, redirectUri: "http://127.0.0.1:9884/callback" });
+    const extension = await page.request.get(`${origin}/api/integrations/setup/${id}/desktop-extension`, { maxRedirects: 0 });
+    expect(extension.status()).toBe(302); expect(extension.headers().location).toBe(distribution.url);
+    expect(extension.headers()["cache-control"]).toContain("no-store");
+    const denied = await fetch(`${origin}/api/integrations/setup/${id}/desktop-extension`, { redirect: "manual" });
+    expect(denied.status).toBe(403); await denied.body?.cancel();
+    const privacy = await fetch(`${origin}/integration-privacy`, { redirect: "manual" });
+    expect(privacy.status).toBe(200); await privacy.body?.cancel();
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(value => { localStorage.setItem("trade-os-theme", value); document.documentElement.classList.toggle("dark", value === "dark"); }, theme);
+      await page.setViewportSize({ width: 390, height: 844 }); await page.reload();
+      const button = page.getByRole("button", { name: "Download Claude Desktop extension preview", exact: true });
+      await browserExpect(button).toBeEnabled();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      expect(await button.evaluate(element => element.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
+      await mkdir(".artifacts/integration-setup", { recursive: true });
+      await page.screenshot({ path: `.artifacts/integration-setup/claude-desktop-${theme}-mobile.png`, fullPage: true });
+    }
+    await db!.query("update private.integration_setup_policies set claude_desktop_enabled=false where purpose='MCP'");
+    await page.goto(`${origin}/settings/integrations/connect/mcp`);
+    await browserExpect(page.locator('option[value="CLAUDE_DESKTOP"]')).toBeDisabled();
+    await browserExpect(page.locator('option[value="CODEX"]')).toBeEnabled();
+    await db!.query("update private.integration_setup_policies set claude_desktop_enabled=true where purpose='MCP'");
+    expect(browserErrors).toEqual([]);
+  });
   it("concurrent real provider reservations create one public client and no grant", async () => {
     const operationId = randomUUID();
     const input = { operationId, clientKind: "CODEX", accountId: null };
@@ -150,12 +203,13 @@ describe("disposable app-led setup provider and browser gate", () => {
   });
   it("prepares a client through the real UI and downloads only public adapter metadata", async () => {
     await page.goto(`${origin}/settings/integrations/connect/mcp`);
-    await page.getByLabel("Integration client", { exact: true }).selectOption("GEMINI_CLI");
+    await browserExpect(page.locator('option[value="GEMINI_CLI"]')).toBeDisabled();
+    await page.getByLabel("Integration client", { exact: true }).selectOption("CLAUDE_CODE");
     await browserExpect(page.getByRole("button", { name: "Prepare connection setup", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Prepare connection setup", exact: true }).click();
     await page.getByRole("link", { name: "Continue saved setup →", exact: true }).click();
     await page.waitForURL(/\/settings\/integrations\/setup\/[0-9a-f-]{36}$/);
-    await browserExpect(page.getByRole("heading", { name: "Gemini CLI setup", exact: true })).toBeVisible();
+    await browserExpect(page.getByRole("heading", { name: "Claude Code setup", exact: true })).toBeVisible();
     const distribution = companionDistribution(process.env);
     if (distribution) {
       await browserExpect(page.getByRole("button", {name: "Download Windows companion preview", exact: true})).toHaveAttribute("href", distribution.url);
@@ -190,7 +244,7 @@ describe("disposable app-led setup provider and browser gate", () => {
     expect(response.status()).toBe(200);
     expect(response.headers()["cache-control"]).toContain("no-store");
     const config = await response.json();
-    expect(config.resource).toBe(`${origin}/mcp`); expect(config.redirectUri).toBe("http://127.0.0.1:9882/callback");
+    expect(config.resource).toBe(`${origin}/mcp`); expect(config.redirectUri).toBe("http://127.0.0.1:9880/callback");
     expect(Object.keys(config).sort()).toEqual(["allowLoopback", "clientId", "issuer", "profile", "redirectUri", "resource", "version"].sort());
     const anonymous = await fetch(`${origin}/api/integrations/setup/${id}/configuration`, { redirect: "manual" });
     expect(anonymous.status).not.toBe(200); await anonymous.body?.cancel();
@@ -215,7 +269,7 @@ describe("disposable app-led setup provider and browser gate", () => {
     await page.goto(`${origin}/settings/integrations/connect/mcp`);
     await browserExpect(page.getByText("New setup is disabled by the database rollout policy.", { exact: false })).toBeVisible();
     await browserExpect(page.getByRole("button", { name: "Prepare connection setup", exact: true })).toBeDisabled();
-    const saved = (await listSetupProfiles(client)).find(row => row.clientKind === "GEMINI_CLI")!;
+    const saved = (await listSetupProfiles(client)).find(row => row.clientKind === "CLAUDE_CODE")!;
     await page.goto(origin + "/settings/integrations/setup/" + saved.id);
     await browserExpect(page.getByRole("button", {name:"Download Windows companion preview",exact:true})).toHaveCount(0);
     await db!.query("update private.integration_setup_policies set enabled=true where purpose='MCP'");
@@ -304,11 +358,20 @@ afterAll(async () => {
       if (changed) {
         for (const purpose of ["MT5", "MCP"]) {
           const policy = previousPolicies.find(row => row.purpose === purpose);
-          if (policy) await db.query("update private.integration_setup_policies set enabled=$2 where purpose=$1", [purpose, policy.enabled]);
+          if (policy) await db.query("update private.integration_setup_policies set enabled=$2,claude_desktop_enabled=$3 where purpose=$1", [purpose, policy.enabled, policy.claude_desktop_enabled]);
           else await db.query("delete from private.integration_setup_policies where purpose=$1", [purpose]);
           const resource = previousResources.find(row => row.purpose === purpose);
           if (resource) await db.query("update private.integration_resources set resource=$2,enabled=$3 where purpose=$1", [purpose, resource.resource, resource.enabled]);
           else await db.query("delete from private.integration_resources where purpose=$1", [purpose]);
+        }
+      }
+      if (desktopSchemaCreated) {
+        if ((await db.query("select count(*)::int as count from private.integration_setup_profiles where client_kind='CLAUDE_DESKTOP'")).rows[0].count) throw Error("Another owner's Desktop setup must be preserved");
+        for (const definition of previousDesktopDefinitions) await db.query(definition);
+        await db.query("drop function public.list_integration_setups_v2(),private.list_integration_setups_v2(); alter table private.integration_setup_policies drop constraint desktop_policy_mcp_only; alter table private.integration_setup_policies drop column claude_desktop_enabled; alter table private.integration_setup_profiles drop constraint integration_setup_client_kind; alter table private.integration_setup_profiles drop constraint integration_setup_callback_binding;");
+        for (const constraint of previousDesktopConstraints) {
+          if (!/^[a-z0-9_]+$/.test(constraint.name)) throw Error("Invalid original fixture constraint");
+          await db.query(`alter table private.integration_setup_profiles add constraint ${constraint.name} ${constraint.definition}`);
         }
       }
       if (pairingSchemaCreated) {

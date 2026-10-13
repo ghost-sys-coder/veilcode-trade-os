@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IntegrationDatabase } from "@/types/integration-database";
 const { factory } = vi.hoisted(() => ({ factory: vi.fn() }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: factory }));
-import { createSetupProfile, listSetupProfiles, downloadSetupConfiguration, reconcileSetupProfile } from "@/services/integrations/setup-profiles";
+import { createSetupProfile, listSetupProfiles, downloadSetupConfiguration, reconcileSetupProfile, readSetupState } from "@/services/integrations/setup-profiles";
 
 const owner = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -46,6 +46,47 @@ function fixture() {
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 const request = { operationId, clientKind: "CODEX", accountId: null };
 describe("owned setup services", () => {
+  function desktopRelease() {
+    for (const [name, value] of Object.entries({ TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED: "true",
+      TRADE_OS_COMPANION_PREVIEW_TAG: "companion-preview-20261013-abcdef0", TRADE_OS_COMPANION_PREVIEW_SHA256: "a".repeat(64),
+      TRADE_OS_COMPANION_PREVIEW_BYTES: "59000000", TRADE_OS_CLAUDE_DESKTOP_PREVIEW_TAG: "companion-preview-20261013-abcdef0",
+      TRADE_OS_CLAUDE_DESKTOP_PREVIEW_SHA256: "b".repeat(64), TRADE_OS_CLAUDE_DESKTOP_PREVIEW_BYTES: "12000" })) vi.stubEnv(name, value);
+  }
+  it("uses the unchanged legacy RPC while Desktop is not enabled", async () => {
+    const f = fixture(); vi.stubEnv("TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED", "false");
+    expect((await readSetupState(f.client)).desktopEnabled).toBe(false);
+    expect(f.rpc).toHaveBeenCalledExactlyOnceWith("list_integration_setups");
+  });
+  it("blocks Desktop provisioning before reservation when no matched release exists", async () => {
+    const f = fixture(); vi.stubEnv("TRADE_OS_CLAUDE_DESKTOP_SETUP_ENABLED", "false");
+    await expect(createSetupProfile(f.client, { ...request, clientKind: "CLAUDE_DESKTOP" })).rejects.toMatchObject({ code: "DISABLED" });
+    expect(f.rpc).not.toHaveBeenCalled(); expect(factory).not.toHaveBeenCalled();
+  });
+  it("does not fall back to a legacy list when Desktop prerequisites are missing", async () => {
+    const f = fixture(); desktopRelease(); f.rpc.mockResolvedValueOnce({ error: { code: "42883" }, data: null } as never);
+    await expect(readSetupState(f.client)).rejects.toThrow();
+    expect(f.rpc).toHaveBeenCalledExactlyOnceWith("list_integration_setups_v2");
+  });
+  it("database Desktop rollout policy still prevents provider creation", async () => {
+    const f = fixture(); desktopRelease();
+    f.rpc.mockResolvedValueOnce({ error: null, data: { profiles: [], databaseEnabled: { MT5: true, MCP: true }, desktopEnabled: false } } as never);
+    await expect(createSetupProfile(f.client, { ...request, clientKind: "CLAUDE_DESKTOP" })).rejects.toMatchObject({ code: "DISABLED" });
+    expect(f.create).not.toHaveBeenCalled(); expect(f.rpc).toHaveBeenCalledTimes(1);
+  });
+  it("Desktop provisions its own public client and never reuses Claude Code's callback", async () => {
+    const f = fixture(); desktopRelease();
+    const desktop = { ...base, clientKind: "CLAUDE_DESKTOP", callbackUri: "http://127.0.0.1:9884/callback" };
+    f.setProfile(desktop);
+    const normal = f.rpc.getMockImplementation()!;
+    f.rpc.mockImplementation(async name => name === "list_integration_setups_v2"
+      ? { error: null, data: { profiles: [{ ...desktop, clientId, status: "READY", version: "2" }], databaseEnabled: { MT5: true, MCP: true }, desktopEnabled: true } }
+      : normal(name));
+    const result = await createSetupProfile(f.client, { ...request, clientKind: "CLAUDE_DESKTOP" });
+    expect(result.clientKind).toBe("CLAUDE_DESKTOP");
+    expect(f.create).toHaveBeenCalledExactlyOnceWith({ client_name: `Trade OS CLAUDE_DESKTOP setup ${id}`,
+      redirect_uris: ["http://127.0.0.1:9884/callback"], token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] });
+  });
   it("reserves before exactly one public provider registration and verifies stored metadata", async () => {
     const f = fixture(); const result = await createSetupProfile(f.client, request);
     expect(result.status).toBe("READY");
