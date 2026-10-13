@@ -52,3 +52,20 @@ The release must be published and the app's pinned metadata updated before askin
 the user to retry. No replacement installer is delivered as a local-folder
 workaround. Actual owner browser approval through the updated installer remains
 pending the user's retry; successful subprocess resolution is not consent.
+
+## Application delivery
+
+Source `82bc37b92f870673ff9eaa5148026bf1f1bd8412` is committed and pushed.
+Public prerelease `companion-preview-20261013-82bc37b`, asset `636563486`, retains
+the exact size/checksum above and is not Latest. GitHub upload metadata and the
+complete anonymous streamed download both match.
+
+Updated only the three artifact metadata variables on `feature/mcp-access`
+Preview, then read each back exactly and requested a fresh deployment:
+`dpl_8RuFEL6ta1GBK6WmCgrZQAJbUMED`,
+`https://trade-hf36cj6ie-ghostsyscoders-projects.vercel.app`.
+Build preflight passed 46 functions / 14 version-order columns.
+Deployment is READY; fresh staging hostname readback resolves this exact deployment
+and source. Owner consent/connection verification remains pending user retry.
+The saved application setup page is the download route; the current public JSON
+configuration remains valid. No local-folder replacement was performed.
