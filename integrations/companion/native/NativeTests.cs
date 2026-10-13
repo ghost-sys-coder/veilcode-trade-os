@@ -47,8 +47,8 @@ namespace TradeOS.Companion {
             AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling", false);
             AppContext.SetSwitch("Switch.System.IO.BlockLongPaths", false);
             try {
-                if (args.Length != 3 || !new[] {"install", "runtime"}.Contains(args[2])) throw new Exception("Exact fixture payload, destination and test phase required");
-                bool runtimePhase = args[2] == "runtime";
+                if (args.Length != 3 || !new[] {"install", "runtime", "relay"}.Contains(args[2])) throw new Exception("Exact fixture payload, destination and test phase required");
+                bool runtimePhase = args[2] != "install";
                 string payload = Path.GetFullPath(args[0]), fixture = PackageInstaller.SafePath(Path.GetFullPath(args[1]));
                 if (!fixture.StartsWith(Path.GetFullPath(Path.Combine(Runtime.Root, "..", "fixtures")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || Directory.Exists(fixture) != runtimePhase) throw new Exception("Exact contained fixture phase required");
                 Runtime.LocalData = Path.Combine(fixture, "local-data");
@@ -70,10 +70,17 @@ namespace TradeOS.Companion {
                 }
                 installed = PackageInstaller.SafePath(Directory.GetDirectories(Path.Combine(fixture, "installed"), "companion-*").Single());
                 Runtime.Root = installed; // Test-only assembly, not a product CLI switch.
+                if (args[2] == "relay") {
+                    using (var child = new System.Diagnostics.Process {StartInfo = Runtime.Command(false, new[] {Path.Combine(installed, "packaged-runtime-test.mjs"), "--server"})}) {
+                        child.Start(); using (var job = new OwnedJob(child)) {
+                            return Runtime.Relay(child, Console.OpenStandardInput(), Console.OpenStandardOutput(), Console.OpenStandardError());
+                        }
+                    }
+                }
                 string packagedTest = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "packaged-runtime.mjs");
                 string installedTest = Path.Combine(installed, "packaged-runtime-test.mjs");
                 File.Copy(packagedTest, installedTest, false); // New test-only file in this isolated install, never shipped.
-                string runtimeResult = Runtime.Run(Runtime.Command(false, new[] {installedTest}), null, 30).GetAwaiter().GetResult();
+                string runtimeResult = Runtime.Run(Runtime.Command(false, new[] {installedTest, "--native-relay", System.Reflection.Assembly.GetExecutingAssembly().Location, payload, fixture}), null, 30).GetAwaiter().GetResult();
                 Assert(runtimeResult == "PACKAGED_RUNTIME_VERIFIED\n", "packaged MCP imports, legacy/modern SDK forwarding, DPAPI, locking and restart work with no global runtimes or network");
                 var start = Runtime.Command(true, new[] {"-I", "-u", "-m", "trade_os_companion.cli"});
                 Assert(!start.UseShellExecute && start.CreateNoWindow && !start.EnvironmentVariables.ContainsKey("NODE_OPTIONS") && !start.EnvironmentVariables.ContainsKey("PYTHONPATH"), "fixed hidden subprocess excludes environment injection");

@@ -124,6 +124,27 @@ namespace TradeOS.Companion {
             var profile = response["profile"] as Dictionary<string, object>;
             if (profile == null || (string)profile["purpose"] != "MCP") throw new InvalidOperationException();
         }
+        static void Forward(Stream source, Stream target) {
+            var buffer = new byte[8192]; int count;
+            while ((count = source.Read(buffer, 0, buffer.Length)) > 0) {
+                target.Write(buffer, 0, count);
+                // Interactive protocol messages must arrive before stdin closes.
+                // Process pipe streams can otherwise retain small messages in a
+                // buffer while each endpoint waits for the other's response.
+                target.Flush();
+            }
+        }
+        internal static int Relay(Process child, Stream input, Stream output, Stream errors) {
+            // Framework anonymous/console pipe reads can block while beginning a
+            // CopyToAsync. Start all directions on independent workers before
+            // waiting: initialization input must reach a server with no output yet.
+            Task outgoing = Task.Run(() => Forward(child.StandardOutput.BaseStream, output));
+            Task diagnostics = Task.Run(() => Forward(child.StandardError.BaseStream, errors));
+            Task incoming = Task.Run(() => { Forward(input, child.StandardInput.BaseStream); child.StandardInput.Close(); });
+            Task finished = Task.Run(() => child.WaitForExit());
+            if (Task.WhenAny(finished, incoming).GetAwaiter().GetResult() == incoming && !child.WaitForExit(2000)) child.Kill();
+            child.WaitForExit(); Task.WaitAll(outgoing, diagnostics); return child.ExitCode;
+        }
     }
 
     internal sealed class OwnedJob : IDisposable {
@@ -420,12 +441,7 @@ namespace TradeOS.Companion {
                 string id = args[1]; Runtime.VerifyMcp(id).GetAwaiter().GetResult();
                 using (var child = new Process { StartInfo = Runtime.Command(false, new[] {Path.Combine(Runtime.Root, "integrations", "mcp", "cli.mjs"), "run", "--config", Runtime.ProfilePath(id)}) }) {
                     child.Start(); using (var job = new OwnedJob(child)) {
-                        Task outgoing = child.StandardOutput.BaseStream.CopyToAsync(Console.OpenStandardOutput());
-                        Task errors = child.StandardError.BaseStream.CopyToAsync(Console.OpenStandardError());
-                        Task incoming = Task.Run(async () => { await Console.OpenStandardInput().CopyToAsync(child.StandardInput.BaseStream); child.StandardInput.Close(); });
-                        Task finished = Task.Run(() => child.WaitForExit());
-                        if (Task.WhenAny(finished, incoming).GetAwaiter().GetResult() == incoming && !child.WaitForExit(2000)) child.Kill();
-                        child.WaitForExit(); Task.WaitAll(outgoing, errors); return child.ExitCode;
+                        return Runtime.Relay(child, Console.OpenStandardInput(), Console.OpenStandardOutput(), Console.OpenStandardError());
                     }
                 }
             } catch { Console.Error.WriteLine("Trade OS companion: MCP unavailable. Import a valid app setup and approve access in the companion."); return 1; }
