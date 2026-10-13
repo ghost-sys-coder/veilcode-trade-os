@@ -127,6 +127,8 @@ namespace TradeOS.Companion {
         readonly Label state = new Label { AutoSize = true, MaximumSize = new Size(750, 0) };
         readonly Button consent, verify, reconnect, copy, openSetup;
         readonly List<Button> actions = new List<Button>();
+        readonly List<Button> mt5Actions = new List<Button>();
+        readonly Dictionary<string,string> proposals = new Dictionary<string,string>();
         bool busy;
         internal CompanionWindow() {
             Text = "Trade OS companion"; Size = new Size(840, 650); MinimumSize = new Size(720, 610);
@@ -171,7 +173,14 @@ namespace TradeOS.Companion {
                 }
             };
             body.Controls.Add(TextBlock("MT5 setup", 8));
-            body.Controls.Add(TextBlock("Imported MT5 bootstraps are configuration only. Dedicated-terminal selection, verified browser mapping and collector initialization must finish before collection/startup controls become available. Existing terminals are never opened automatically.", 16));
+            body.Controls.Add(TextBlock("Verify only the dedicated demo installation you explicitly select. SDK connection may launch that terminal; no passwords, order APIs or account switching are used. Then review the proposal in Trade OS and import its approved mapping. Collection/startup controls are not enabled by pairing.", 16));
+            var pairButtons = new FlowLayoutPanel { Width = 750, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MaximumSize = new Size(750, 0), WrapContents = true };
+            foreach (var button in new[] {
+                Action("Choose dedicated demo terminal", async () => await ProbeTerminal(false)),
+                Action("Adopt existing PAUSED manifest", async () => await ProbeTerminal(true)),
+                Action("Import approved mapping (PAUSED)", async () => await ActivateMapping())
+            }) { mt5Actions.Add(button); pairButtons.Controls.Add(button); }
+            body.Controls.Add(pairButtons);
             openSetup = Action("Open Trade OS setup", () => {
                 ProfileItem selected = Selected(); Process.Start(new ProcessStartInfo(selected.Origin + "/settings/integrations/setup/" + selected.Id) { UseShellExecute = true }); return Task.FromResult(0);
             }); body.Controls.Add(openSetup);
@@ -202,6 +211,7 @@ namespace TradeOS.Companion {
             if (reconnect != null) reconnect.Enabled = !busy && selected != null;
             if (copy != null) copy.Enabled = !busy && selected != null && selected.Purpose == "MCP";
             if (openSetup != null) openSetup.Enabled = !busy && selected != null;
+            foreach (Button button in mt5Actions) button.Enabled = !busy && selected != null && selected.Purpose == "MT5";
         }
         async Task LoadProfiles() {
             var result = await Runtime.Request(new {action = "LIST"});
@@ -231,6 +241,51 @@ namespace TradeOS.Companion {
                     state.Text = "Live account-specific access verified. Terminal selection/mapping is still required; no capture, startup or publication was enabled.";
                 }
             });
+        }
+        async Task ProbeTerminal(bool adopt) {
+            ProfileItem selected = Selected();
+            if (selected.Purpose != "MT5") throw new InvalidOperationException();
+            if (MessageBox.Show(this, "Verify only your dedicated DEMO terminal? The selected installation may open. No account login/switch, trade history read or order operation is performed. Existing adoption requires PAUSED state and zero pending uploads.", "Explicit terminal verification", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            string executable, oldManifest = null; bool portable = false;
+            using (var chooser = new OpenFileDialog { CheckFileExists = true, Multiselect = false,
+                Filter = adopt ? "Existing collector manifest (connection.json)|connection.json" : "MT5 64-bit terminal (terminal64.exe)|terminal64.exe" }) {
+                if (chooser.ShowDialog(this) != DialogResult.OK) return;
+                executable = chooser.FileName;
+                if (adopt) oldManifest = chooser.FileName;
+            }
+            await Execute(async () => {
+                if (adopt) {
+                    var old = await Runtime.Request(new {action = "INSPECT_EXISTING", profileId = selected.Id, manifestPath = oldManifest});
+                    executable = (string)old["executable"]; portable = (bool)old["portable"];
+                } else {
+                    portable = MessageBox.Show(this, "Is this dedicated terminal explicitly configured in PORTABLE mode? Choose No for a normal installation.", "Terminal mode", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+                }
+                var result = await Runtime.Request(new {action = "PROBE", profileId = selected.Id, executable, portable, existingManifest = oldManifest, dedicatedApproved = true});
+                string path = (string)result["proposalPath"];
+                proposals[selected.Id] = path; Clipboard.SetText(path);
+                state.Text = "Demo identity verified. Review-file path copied: " + path + ". Open Trade OS setup, select this file and explicitly approve mapping within 15 minutes. No collector started.";
+            });
+        }
+        async Task ActivateMapping() {
+            ProfileItem selected = Selected();
+            if (selected.Purpose != "MT5") throw new InvalidOperationException();
+            string proposal;
+            if (!proposals.TryGetValue(selected.Id, out proposal)) {
+                using (var chooser = new OpenFileDialog { Filter = "Saved terminal review (pairing-*.json)|pairing-*.json", CheckFileExists = true,
+                    InitialDirectory = Path.GetDirectoryName(Runtime.ProfilePath(selected.Id)), Title = "Choose the original saved terminal proposal" }) {
+                    if (chooser.ShowDialog(this) != DialogResult.OK) return; proposal = chooser.FileName;
+                }
+            }
+            using (var chooser = new OpenFileDialog { Filter = "Approved Trade OS mapping (*.json)|*.json", CheckFileExists = true, Title = "Choose the mapping downloaded after browser approval" }) {
+                if (chooser.ShowDialog(this) != DialogResult.OK) return;
+                if (MessageBox.Show(this, "Verify the live server approval and selected terminal again, then initialize PAUSED? Existing adoption updates only the selected manifest's public client configuration and preserves its spool. No startup or collection is enabled.", "Import reviewed mapping", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+                string mapping = chooser.FileName;
+                await Execute(async () => {
+                    var result = await Runtime.Request(new {action = "ACTIVATE", profileId = selected.Id, proposalPath = proposal, manifestPath = mapping});
+                    if ((string)result["state"] != "PAUSED") throw new InvalidOperationException();
+                    state.Text = "Server-approved mapping initialized PAUSED. Pending uploads: " + result["pendingPages"] + ". History approval, collection and startup remain separate. Manifest: " + result["manifestPath"];
+                });
+            }
         }
     }
 

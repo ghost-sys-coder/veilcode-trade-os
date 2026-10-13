@@ -32,21 +32,28 @@ namespace TradeOS.Companion {
             AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling", false);
             AppContext.SetSwitch("Switch.System.IO.BlockLongPaths", false);
             try {
-                if (args.Length != 2) throw new Exception("Exact fixture payload and local workspace destination required");
+                if (args.Length != 3 || !new[] {"install", "runtime"}.Contains(args[2])) throw new Exception("Exact fixture payload, destination and test phase required");
+                bool runtimePhase = args[2] == "runtime";
                 string payload = Path.GetFullPath(args[0]), fixture = PackageInstaller.SafePath(Path.GetFullPath(args[1]));
-                if (!fixture.StartsWith(Path.GetFullPath(Path.Combine(Runtime.Root, "..", "fixtures")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || Directory.Exists(fixture)) throw new Exception("New contained fixture required");
-                Directory.CreateDirectory(fixture); PackageInstaller.Protect(fixture); Runtime.LocalData = Path.Combine(fixture, "local-data"); Directory.CreateDirectory(Runtime.LocalData);
+                if (!fixture.StartsWith(Path.GetFullPath(Path.Combine(Runtime.Root, "..", "fixtures")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || Directory.Exists(fixture) != runtimePhase) throw new Exception("Exact contained fixture phase required");
+                Runtime.LocalData = Path.Combine(fixture, "local-data");
+                string installed;
+                if (!runtimePhase) {
+                Directory.CreateDirectory(fixture); PackageInstaller.Protect(fixture); Directory.CreateDirectory(Runtime.LocalData);
                 Rejected(() => Runtime.ProfilePath("../other"), "profile path traversal rejected");
                 Rejected(() => Runtime.Quote("line\ncommand"), "control characters rejected in native argv");
                 Assert(Runtime.Quote("path with spaces").StartsWith("\""), "argv uses Windows quoting without a shell");
                 foreach (string bad in new[] {"../other", "a\\b", "C:/other", "a/NUL", "a/stream:other", "a/b.", "a/../b"}) Rejected(() => PackageInstaller.RelativePath(bad), "unsafe archive path rejected");
                 Rejected(() => PackageInstaller.SafePath("\\\\server\\share"), "remote installation path rejected");
-                string installed;
                 using (var input = File.OpenRead(payload)) installed = PackageInstaller.Install(input, Path.Combine(fixture, "installed"));
                 Assert(File.Exists(Path.Combine(installed, "TradeOS.exe")), "real bundle installs into a new protected version folder");
                 Assert(File.Exists(Path.Combine(installed, "runtime/python/python.exe")), "bundled Python installed without a global runtime");
                 using (var input = File.OpenRead(payload)) Rejected(() => PackageInstaller.Install(input, Path.Combine(fixture, "installed")), "same version is not overwritten");
                 var acl = Directory.GetAccessControl(installed); Assert(acl.AreAccessRulesProtected, "installation DACL remains current-user protected");
+                Console.WriteLine("Installation phase verified: " + checks + " checks");
+                return 0;
+                }
+                installed = PackageInstaller.SafePath(Directory.GetDirectories(Path.Combine(fixture, "installed"), "companion-*").Single());
                 Runtime.Root = installed; // Test-only assembly, not a product CLI switch.
                 string packagedTest = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "packaged-runtime.mjs");
                 string installedTest = Path.Combine(installed, "packaged-runtime-test.mjs");
@@ -84,6 +91,7 @@ namespace TradeOS.Companion {
                     Assert(buttons.Single(button => button.Text.StartsWith("3.")).Enabled == false, "verification disabled without a saved MCP profile");
                     Assert(Descendants(window).OfType<ComboBox>().Single().AccessibleName == "Saved integration setup", "native profile selector has an accessible name");
                     Render(window, Path.Combine(fixture, "companion.png"));
+                    Assert(Descendants(window).OfType<Button>().Where(button => button.Text.StartsWith("Choose dedicated") || button.Text.StartsWith("Adopt existing") || button.Text.StartsWith("Import approved")).All(button => !button.Enabled), "MCP profiles cannot probe or activate MT5 terminals");
                     window.Size = window.MinimumSize; window.PerformLayout();
                     Assert(Descendants(window).OfType<ComboBox>().Single().Width <= window.ClientSize.Width - 56, "native selector fits the minimum-size viewport");
                     Render(window, Path.Combine(fixture, "companion-minimum.png"));
@@ -93,7 +101,7 @@ namespace TradeOS.Companion {
                 return 0;
             } catch (Exception error) {
                 var frame = new System.Diagnostics.StackTrace(error, true).GetFrames().FirstOrDefault(item => item.GetFileLineNumber() > 0);
-                Console.Error.WriteLine("Native companion verification failed: " + error.GetType().Name + " at " + (frame == null ? "unknown" : frame.GetMethod().Name + ":" + frame.GetFileLineNumber()));
+                Console.Error.WriteLine("Native companion verification failed: " + error.GetType().Name + " HRESULT " + error.HResult.ToString("X8") + " at " + (frame == null ? "unknown" : frame.GetMethod().Name + ":" + frame.GetFileLineNumber()));
                 return 1;
             }
         }

@@ -1,6 +1,12 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Pairing checkpoint 2026-10-13: explicit companion terminal selection, metadata-only
+demo verification, browser mapping approval, same-terminal paused adoption and
+server-verified PAUSED initialization are implemented. Local startup/running
+controls and telemetry, real-terminal acceptance, vendor-client matrix and hosted
+rollout remain pending. No hosted grant, task or pilot was changed. See
+[pairing evidence](MT5_COMPANION_PAIRING_VERIFICATION.md).
 Windows companion checkpoint: per-user packaging, private setup import and consent
 adapters are implemented with bundled runtimes and isolated native tests. This is
 only the packaging substep of app-led setup increment 2: terminal pairing/mapping,

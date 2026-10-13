@@ -34,10 +34,12 @@ The deferred VPS/extended soak remain separate from this delivery.
 
 Increment 2 checkpoint: native per-user packaging, bundled runtimes, protected
 setup import, explicit consent/reconnect and packaged MCP launcher are implemented
-and locally verified. Dedicated-terminal selection/identity probe, approved browser
-mapping/adoption, mapped-manifest initialization, startup/control UI and telemetry
-are still pending. Installer is unsigned/unreleased; no hosted flag or existing
+and locally verified. The next checkpoint adds dedicated-terminal selection,
+demo identity probe, approved browser mapping/same-terminal adoption and PAUSED
+manifest initialization. Startup/control UI and telemetry are still pending.
+Installer is unsigned/unreleased; no hosted flag or existing
 pilot changed. See [companion evidence](WINDOWS_COMPANION_VERIFICATION.md).
+See [pairing evidence](MT5_COMPANION_PAIRING_VERIFICATION.md).
 
 ## Registration security and recovery
 

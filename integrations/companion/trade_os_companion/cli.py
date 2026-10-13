@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from trade_os_mt5.api import ApiError, IntegrationApi
+from trade_os_mt5.broker import BrokerError
 from trade_os_mt5.consent import authorize
 from trade_os_mt5.json_boundary import reject_constant, unique_object
 from trade_os_mt5.oauth import OAuthClient, OAuthConfiguration
@@ -17,6 +18,20 @@ def perform(request: dict) -> dict:
     if not isinstance(request, dict):
         raise SetupError()
     profiles = default_profiles()
+    if (set(request) == {"action", "profileId", "manifestPath"} and request["action"] == "INSPECT_EXISTING"
+            and isinstance(request["manifestPath"], str)):
+        from .pairing import inspect_existing
+        return inspect_existing(profiles, request["profileId"], request["manifestPath"])
+    if (set(request) == {"action", "profileId", "executable", "portable", "existingManifest", "dedicatedApproved"}
+            and request["action"] == "PROBE" and request["dedicatedApproved"] is True
+            and isinstance(request["executable"], str) and type(request["portable"]) is bool
+            and (request["existingManifest"] is None or isinstance(request["existingManifest"], str))):
+        from .pairing import prepare_probe
+        return prepare_probe(profiles, request["profileId"], request["executable"], request["portable"], request["existingManifest"])
+    if (set(request) == {"action", "profileId", "proposalPath", "manifestPath"} and request["action"] == "ACTIVATE"
+            and isinstance(request["proposalPath"], str) and isinstance(request["manifestPath"], str)):
+        from .pairing import activate
+        return activate(profiles, request["profileId"], request["proposalPath"], request["manifestPath"])
     if request == {"action": "LIST"}:
         return {"profiles": profiles.list()}
     if set(request) == {"action", "path"} and request["action"] == "IMPORT" and isinstance(request["path"], str):
@@ -53,7 +68,7 @@ def main():
         result = perform(request)
         print(json.dumps(result, separators=(",", ":"), allow_nan=False))
         return 0
-    except (SetupError, CredentialError, ApiError) as error:
+    except (SetupError, CredentialError, ApiError, BrokerError) as error:
         print(json.dumps({"error": error.code}, separators=(",", ":")))
     except Exception:
         print('{"error":"COMPANION_UNAVAILABLE"}')

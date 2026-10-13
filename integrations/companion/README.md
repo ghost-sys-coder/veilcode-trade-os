@@ -21,9 +21,14 @@ complete MT5 pairing/startup UI or a publicly downloadable installer. See
 
 Installation imports no accounts/trades, creates no application grants or
 startup tasks and never launches MT5. Configuration import is not authorization.
-An authorized MT5 bootstrap still cannot collect: terminal identity selection,
-browser-approved mapping, mapped manifest and PAUSED initialization are next.
-The existing paused pilot, outbox and manually used terminals are not adopted.
+An authorized MT5 bootstrap still cannot collect. The GUI now offers dedicated
+demo-terminal verification, explicit existing PAUSED-manifest adoption and
+server-verified mapped configuration import. Upload the copied public review-file
+path in the app, approve the displayed identity, download the approved mapping and
+import it into the companion. Initialization remains PAUSED. Local collection,
+startup and telemetry controls are next. The actual pilot and terminals were not
+adopted during implementation; adoption preserves its existing spool and requires
+zero pending uploads, unchanged identity, a reason and a browser-approved fence.
 
 ## Developer verification
 

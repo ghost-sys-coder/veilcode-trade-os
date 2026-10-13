@@ -79,6 +79,12 @@ namespace TradeOS.Companion {
                 if ((int)manifest["version"] != 1 || (string)manifest["platform"] != "win-x64" || (string)manifest["releaseState"] != "UNRELEASED") throw new InvalidOperationException();
                 var files = manifest["files"] as IList;
                 if (files == null || files.Count + 1 != entries.Count) throw new InvalidOperationException();
+                string revision;
+                using (var raw = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(manifestText))) revision = Digest(raw, raw.Length).Substring(0, 16);
+                string destination = SafePath(Path.Combine(root, "companion-" + revision));
+                // Refusal performs no write. Don't decompress/hash an already
+                // installed version again merely to reject its overwrite.
+                if (Directory.Exists(destination) || File.Exists(destination)) throw new InvalidOperationException();
                 var expected = new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
                 foreach (var item in files) {
                     var file = item as Dictionary<string, object>;
@@ -91,10 +97,6 @@ namespace TradeOS.Companion {
                 }
                 foreach (var required in new[] {"TradeOS.exe", "TradeOSMcp.exe", "runtime/node/node.exe", "runtime/python/python.exe", "runtime/python/pythonw.exe"})
                     if (!expected.ContainsKey(required)) throw new InvalidOperationException();
-                string revision;
-                using (var raw = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(manifestText))) revision = Digest(raw, raw.Length).Substring(0, 16);
-                string destination = SafePath(Path.Combine(root, "companion-" + revision));
-                if (Directory.Exists(destination) || File.Exists(destination)) throw new InvalidOperationException();
                 Directory.CreateDirectory(root); // No ACL/contents change to an existing selected parent.
                 string staging = SafePath(Path.Combine(root, "install-" + Guid.NewGuid().ToString("D")));
                 Directory.CreateDirectory(staging); Protect(staging);
@@ -108,7 +110,18 @@ namespace TradeOS.Companion {
                     if (file != null) using (var actual = File.OpenRead(target)) if (Digest(actual, Convert.ToInt64(file["size"])) != (string)file["sha256"]) throw new InvalidOperationException();
                 }
                 // Both explicit absolute paths were validated inside the chosen root.
-                SafePath(staging); SafePath(destination); Directory.Move(staging, destination);
+                for (int attempt = 0; ; attempt++) {
+                    SafePath(staging); SafePath(destination);
+                    try { Directory.Move(staging, destination); break; }
+                    catch (IOException error) {
+                        int windowsError = error.HResult & 0xFFFF;
+                        // Antivirus/indexing can briefly hold an extracted file.
+                        // Only sharing/lock violations are retryable; never retry
+                        // disk-full, permission, destination-exists or bad paths.
+                        if (attempt >= 3 || (windowsError != 32 && windowsError != 33)) throw;
+                        System.Threading.Thread.Sleep(100 * (attempt + 1));
+                    }
+                }
                 return destination;
             }
         }

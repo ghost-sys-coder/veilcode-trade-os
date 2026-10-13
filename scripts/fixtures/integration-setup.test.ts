@@ -15,6 +15,7 @@ let db: pg.Client | undefined, admin: ReturnType<typeof createClient> | undefine
 let client: SupabaseClient<IntegrationDatabase>, ui: Browser | undefined, page: Page;
 let owner: string | undefined, account: string, email: string, password: string;
 let locked = false, schemaCreated = false, changed = false, diagnosticHintsChanged = false;
+let pairingSchemaCreated = false;
 let previousResources: { purpose: string; resource: string; enabled: boolean }[] = [];
 let previousPolicies: { purpose: string; enabled: boolean }[] = [];
 let previousRpcDefinitions: string[] = [];
@@ -61,6 +62,11 @@ beforeAll(async () => {
     try { await db.query(await readFile("supabase/migrations/20261012145812_integration_setup_profiles.sql", "utf8")); await db.query("commit"); schemaCreated = true; }
     catch(error) { await db.query("rollback"); throw Error(`Disposable setup schema preparation failed (${error instanceof Error ? error.message.slice(0, 150) : "unknown"})`); }
   }
+  if (!(await db.query("select to_regclass('private.mt5_setup_pairings') as relation")).rows[0].relation) {
+    await db.query("begin");
+    try { await db.query(await readFile("supabase/migrations/20261012200515_mt5_companion_pairing.sql", "utf8")); await db.query("commit"); pairingSchemaCreated = true; }
+    catch { await db.query("rollback"); throw Error("Disposable pairing schema preparation failed"); }
+  }
   previousResources = (await db.query("select purpose,resource,enabled from private.integration_resources")).rows;
   previousPolicies = (await db.query("select purpose,enabled from private.integration_setup_policies")).rows;
   await db.query("insert into private.integration_resources(purpose,resource,enabled) values('MCP',$1,true),('MT5',$2,true) on conflict(purpose) do update set resource=excluded.resource,enabled=true", [`${origin}/mcp`, `${origin}/api/integrations/v1`]);
@@ -70,7 +76,7 @@ beforeAll(async () => {
     const preflight = execFileSync(process.execPath, ["--experimental-strip-types", "scripts/check-application-database.mts", "--local"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30000,
         env: { ...process.env, TRADE_OS_INTEGRATION_SETUP_ENABLED: "true" } });
-    expect(preflight).toContain("Application database preflight PASS: 42 functions and 14 version/order columns.");
+    expect(preflight).toContain("Application database preflight PASS: 46 functions and 14 version/order columns.");
   } catch { throw Error("Enabled disposable setup database preflight failed; details suppressed"); }
   const options = requestOptions;
   admin = createClient(api.origin, status.SECRET_KEY ?? status.SERVICE_ROLE_KEY, options);
@@ -202,6 +208,32 @@ describe("disposable app-led setup provider and browser gate", () => {
     await page.screenshot({ path: ".artifacts/integration-setup/dark-desktop.png", fullPage: true });
     expect(browserErrors).toEqual([]);
   });
+  it("reviews a fixture terminal in the browser and downloads only its approved paused mapping", async () => {
+    // This seeded grant represents completed consent; it is NOT proof of a real
+    // terminal or a new provider approval. No broker SDK/terminal is invoked.
+    const profile = (await listSetupProfiles(client)).find(row => row.clientKind === "MT5_WINDOWS" && row.status === "READY")!;
+    await db!.query("insert into private.integration_grants(owner_id,client_id,purpose,account_id,resource,authorization_id,status) values($1,$2,'MT5',$3,$4,$5,'ACTIVE')",
+      [owner, profile.clientId, account, profile.resource, "pair-browser-" + randomUUID()]);
+    await page.setViewportSize({width: 390, height: 844});
+    await page.goto(origin + "/settings/integrations/setup/" + profile.id);
+    const proposal = {format: "trade-os-mt5-pairing", version: 1, profileId: profile.id, ownerId: owner, accountId: account,
+      clientId: profile.clientId, observedAt: new Date().toISOString(), existingConnectionId: null, terminal: {
+        executable: "D:\\DedicatedFixture\\terminal64.exe", dataPath: "D:\\DedicatedFixture\\data", portable: false, dedicatedApproved: true,
+        identity: {server: "Fixture-Demo", login: "123456", terminalInstallationId: randomUUID(), currencyCode: "USD", currencyPrecision: 2, accountKind: "DEMO", positionMode: "HEDGING"},
+      }};
+    await page.getByLabel("Companion terminal review file").setInputFiles({name: "pairing-fixture.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(proposal))});
+    await browserExpect(page.getByText("Fixture-Demo · 123456 · DEMO", {exact: true})).toBeVisible();
+    await page.getByLabel("Mapping approval reason").fill("Review isolated demo terminal fixture");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", {name: "Approve terminal mapping", exact: true}).click();
+    await browserExpect(page.getByText("Mapping approved at", {exact: false})).toBeVisible();
+    const response = await page.request.get(origin + "/api/integrations/setup/" + profile.id + "/pairing");
+    expect(response.status()).toBe(200); expect(response.headers()["cache-control"]).toContain("no-store");
+    expect(await response.json()).toMatchObject({version: 1, binding: {ownerId: owner, accountId: account}, terminal: proposal.terminal});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({path: ".artifacts/integration-setup/pairing-dark-mobile.png", fullPage: true});
+    expect(browserErrors).toEqual([]);
+  });
   it("returns bounded HTTP conflicts for stale activation and revocation without changing access", async () => {
     const profile = (await listSetupProfiles(client)).find(row => row.clientKind === "CODEX" && row.status === "READY")!;
     const grantId = randomUUID();
@@ -227,6 +259,10 @@ afterAll(async () => {
       await db.query("begin");
       if (owner) {
         await db.query("set local session_replication_role=replica");
+        await db.query("delete from private.mt5_setup_pairings where owner_id=$1", [owner]);
+        await db.query("delete from private.integration_mutation_audits where owner_id=$1", [owner]);
+        await db.query("delete from private.integration_operations where owner_id=$1", [owner]);
+        await db.query("delete from private.mt5_connections where owner_id=$1", [owner]);
         await db.query("delete from private.integration_setup_events where actor_user_id=$1", [owner]);
         await db.query("delete from private.integration_setup_profiles where owner_id=$1", [owner]);
         await db.query("delete from private.integration_grant_events where actor_user_id=$1", [owner]);
@@ -242,6 +278,10 @@ afterAll(async () => {
           if (resource) await db.query("update private.integration_resources set resource=$2,enabled=$3 where purpose=$1", [purpose, resource.resource, resource.enabled]);
           else await db.query("delete from private.integration_resources where purpose=$1", [purpose]);
         }
+      }
+      if (pairingSchemaCreated) {
+        if ((await db.query("select count(*)::int as count from private.mt5_setup_pairings")).rows[0].count) throw Error("Another owner's pairing must be preserved");
+        await db.query("drop function public.approve_mt5_setup_pairing(jsonb),public.get_mt5_setup_pairing(uuid,text); drop function private.approve_mt5_setup_pairing(jsonb),private.get_mt5_setup_pairing(uuid,text); drop function private.mt5_pairing_view(private.mt5_setup_pairings),private.mt5_pairing_path_valid(text); drop table private.mt5_setup_pairings;");
       }
       if (schemaCreated) {
         if ((await db.query("select count(*)::int as count from private.integration_setup_profiles")).rows[0].count) throw Error("Another owner's setup must be preserved");

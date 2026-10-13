@@ -14,6 +14,9 @@ import { listConnectedGrants } from "@/services/integrations/grant-management";
 import { listMt5Connections } from "@/services/mt5/onboarding";
 import { setupLabels, setupProgress, type SetupProfile } from "@/domain/integrations/setup";
 import { CheckSetupRegistration } from "@/features/integrations/setup-form";
+import { Mt5PairingForm } from "@/features/integrations/mt5-pairing-form";
+import { getBrowserMt5Pairing } from "@/services/integrations/mt5-pairing";
+import { randomUUID } from "node:crypto";
 import type { IntegrationDatabase } from "@/types/integration-database";
 
 export default async function IntegrationSetupPage({ params }: { params: Promise<{ profileId: string }> }) {
@@ -37,13 +40,22 @@ export default async function IntegrationSetupPage({ params }: { params: Promise
   let grantsUnavailable = false;
   let grant: Awaited<ReturnType<typeof listConnectedGrants>>[number] | undefined;
   let reviewId: string | undefined;
+  let existing: {id: string; version: string; status: string} | null = null;
+  let pairing: Awaited<ReturnType<typeof getBrowserMt5Pairing>> = null;
+  let pairingUnavailable = false;
   try {
     const grants = await listConnectedGrants(client);
     grant = grants.find(item => item.client_id === profile!.clientId && item.purpose === profile!.purpose
       && item.resource === profile!.resource && item.account_id === profile!.accountId);
-    if (profile.purpose === "MT5" && grant) reviewId = (await listMt5Connections(client)).find(row => row.grantId === grant!.id)?.id;
+    if (profile.purpose === "MT5") {
+      existing = (await listMt5Connections(client)).find(row => row.accountId === profile!.accountId) ?? null;
+      if (existing?.id) reviewId = existing.id;
+    }
   } catch { grantsUnavailable = true; }
   const progress = setupProgress(profile, grant);
+  if (profile.purpose === "MT5" && available) {
+    try { pairing = await getBrowserMt5Pairing(client, profile.id); } catch { pairingUnavailable = true; }
+  }
   return <div className="space-y-6">
     <PageHeader eyebrow="Saved connection setup" title={`${setupLabels[profile.clientKind]} setup`}
       description="Configuration, consent and verified activity are separate milestones. No setup step silently grants access." />
@@ -70,7 +82,15 @@ export default async function IntegrationSetupPage({ params }: { params: Promise
               : "Start authorization from the configured client or companion, then approve the verified browser consent request. Opening the consent page without a request cannot authorize anything."}</p>
           <Link href="/settings/integrations" className="text-sm font-semibold text-primary hover:underline">Manage authorized clients</Link>
         </section>
-        <section className="space-y-3 border-t border-border/70 pt-5"><h2 className="text-sm font-semibold">4. Verify activity and review</h2>
+        {profile.purpose === "MT5" && profile.clientId && profile.accountId ? <section className="space-y-3 border-t border-border/70 pt-5">
+          <h2 className="text-sm font-semibold">4. Review dedicated-terminal mapping</h2>
+          {pairingUnavailable ? <p role="alert" className="text-sm">Mapping state is unavailable. No approval or empty state is inferred.</p>
+            : pairing ? <><p className="text-sm leading-6 text-muted-foreground">Mapping approved at {pairing.approvedAt}. Import this mapped configuration into the companion to initialize PAUSED; it is not evidence of collection or reconciliation.</p>
+              <Button variant="outline" nativeButton={false} render={<a href={"/api/integrations/setup/" + profile.id + "/pairing"} />}><Download className="size-4" aria-hidden="true" />Download approved mapping</Button></>
+              : <Mt5PairingForm profileId={profile.id} version={profile.version} clientId={profile.clientId} accountId={profile.accountId}
+                operationId={randomUUID()} existing={existing} available={available && !grantsUnavailable && grant?.status === "ACTIVE" && !grant.revoked_at} />}
+        </section> : null}
+        <section className="space-y-3 border-t border-border/70 pt-5"><h2 className="text-sm font-semibold">5. Verify activity and review</h2>
           <p className="text-sm leading-6 text-muted-foreground">{profile.purpose === "MT5" ? "A heartbeat and durable sync must be observed. Review symbol mappings, missing history, account cash and the balance bridge before approving publication."
             : "Verify discovery and a real owner-scoped read in the selected AI client. Configuration and provider consent alone are not successful tool execution."}</p>
           {reviewId ? <Button variant="outline" nativeButton={false} render={<Link href={`/settings/integrations/mt5/${reviewId}`} />}>Review MT5 history and balance bridge</Button> : null}

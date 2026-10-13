@@ -4,10 +4,11 @@ Approved setup contract: [INTEGRATION_SETUP_UX_PLAN.md](INTEGRATION_SETUP_UX_PLA
 Reuse the delivered MT5 coordinator, OAuth/DPAPI vault, startup controls and MCP
 stdio adapter; do not duplicate financial/domain services or broker execution.
 
-Current checkpoint: packaging, protected import and consent adapters implemented;
-dedicated-terminal pairing/manifest activation and local controls/telemetry remain
-unfinished. This is a substep of increment 2, not its completion or release.
+Current checkpoint: packaging, protected import, consent and reviewed-terminal
+pairing/PAUSED activation implemented. Local running controls/startup and telemetry
+remain unfinished. This is a substep of increment 2, not its completion or release.
 See [verification](WINDOWS_COMPANION_VERIFICATION.md).
+See [pairing verification](MT5_COMPANION_PAIRING_VERIFICATION.md) for the next checkpoint.
 
 ## Delivery
 

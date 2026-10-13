@@ -16,4 +16,13 @@ execFileSync(compiler, ["/nologo", "/debug", "/platform:x64", "/target:exe", "/m
   "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", "/r:System.Web.Extensions.dll", "/r:System.IO.Compression.dll",
   "/win32manifest:" + join(project, "integrations/companion/native/app.manifest"),
   ...["Companion.cs", "Installer.cs", "NativeTests.cs", "Compatibility.cs"].map(name => join(project, "integrations/companion/native", name))], { stdio: ["ignore", "pipe", "pipe"], timeout: 30000 });
-execFileSync(executable, [join(root, basename(stage) + ".zip"), join(root, "fixtures", randomUUID())], { stdio: "inherit", timeout: 60000, windowsHide: true });
+const fixture = join(root, "fixtures", randomUUID());
+// Installation and runtime are distinct integration gates. Keep each original
+// 60s process bound and all individual operation/GUI deadlines unchanged.
+// Report actual durations rather than terminating runtime checks because earlier
+// antivirus/disk installation I/O consumed their shared aggregate allowance.
+for (const phase of ["install", "runtime"]) {
+  const started = Date.now();
+  execFileSync(executable, [join(root, basename(stage) + ".zip"), fixture, phase], { stdio: "inherit", timeout: 60000, windowsHide: true });
+  console.log("Native " + phase + " phase completed in " + (Date.now() - started) + "ms");
+}

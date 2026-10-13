@@ -526,6 +526,15 @@ Recover the same registration instead of creating another client. Do not show a
 download/install button until the relevant artifact exists and passes its gate.
 No new colors, loading animations, theme implementation or external icon assets.
 
+Pairing update (2026-10-13): companion file upload and terminal review use shared
+Input/Label/Textarea/Button inside MutationForm, with space-y-4 grouping and
+border-border/70 bg-muted/30 p-4 evidence. Display broker server/login, demo mode,
+account-currency precision, executable/data folder and UTC observation time before
+the unchecked acknowledgement. Disabled consent/mapping prerequisites remain
+explicit. File selection never approves mapping; rapid file changes cannot replace
+the selected preview with an older asynchronous read. Mapping download is only
+available after authoritative approval. No new colors or animations.
+
 ### Native Windows companion and installer
 
 Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs
@@ -549,3 +558,10 @@ profile selection and all actions during a request. Reset old verification copy
 when switching profiles. Empty, configured, authorized and observed-active states
 remain distinct. No generic success badge for imported setup. Installer clearly
 states unsigned/private status and that installing files starts no integration.
+
+Pairing update (2026-10-13): dedicated-terminal and same-terminal adoption actions
+are MT5-only and require a native explicit confirmation/file choice. Prompt that
+SDK connection may launch the selected installation. Copy only the public review
+file path; no token is displayed. Approved manifest import explicitly reports
+PAUSED and pending uploads, not online/reconciled. Wrapped actions remain vertical
+scroll content, and all profile/action controls lock together during the request.
