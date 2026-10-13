@@ -27,9 +27,12 @@ for (const file of JSON.parse(manifest).files) {
 await writeFile(join(sealed, "bundle-manifest.json"), manifest, { flag: "wx" });
 await verifyInstallation(sealed, pin);
 // The exact packaged bootstrap must recognize Desktop, not just the development source.
-execFileSync(join(sealed, "runtime/python/python.exe"), ["-I", "-c",
+execFileSync(join(sealed, "runtime/python/python.exe"), ["-B", "-I", "-c",
   'from trade_os_companion.setup import PORT_CLIENTS;assert PORT_CLIENTS.get("http://127.0.0.1:9884/callback")=="CLAUDE_DESKTOP"'],
   { windowsHide: true, stdio: ["ignore", "pipe", "pipe"], timeout: 30_000 });
+// Imports must not mutate the installation accepted by the Desktop extension.
+// Re-check the entire exact inventory after running the actual packaged bootstrap.
+await verifyInstallation(sealed, pin);
 for (const name of ["manifest.json", "server.mjs"])
   await copyFile(join(project, "integrations/claude-desktop", name), join(output, name));
 await writeFile(join(output, "trusted-release.json"), JSON.stringify(pin) + "\n", { flag: "wx" });

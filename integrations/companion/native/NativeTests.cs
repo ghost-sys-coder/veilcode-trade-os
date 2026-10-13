@@ -83,6 +83,7 @@ namespace TradeOS.Companion {
                 string runtimeResult = Runtime.Run(Runtime.Command(false, new[] {installedTest, "--native-relay", System.Reflection.Assembly.GetExecutingAssembly().Location, payload, fixture}), null, 30).GetAwaiter().GetResult();
                 Assert(runtimeResult == "PACKAGED_RUNTIME_VERIFIED\n", "packaged MCP imports, legacy/modern SDK forwarding, DPAPI, locking and restart work with no global runtimes or network");
                 var start = Runtime.Command(true, new[] {"-I", "-u", "-m", "trade_os_companion.cli"});
+                Assert(start.Arguments.StartsWith("\"-B\" \"-I\""), "native Python disables bytecode writes explicitly under isolated mode");
                 Assert(!start.UseShellExecute && start.CreateNoWindow && !start.EnvironmentVariables.ContainsKey("NODE_OPTIONS") && !start.EnvironmentVariables.ContainsKey("PYTHONPATH"), "fixed hidden subprocess excludes environment injection");
                 Assert(start.EnvironmentVariables["SystemRoot"] == Environment.GetFolderPath(Environment.SpecialFolder.Windows), "browser OS path is derived from Windows rather than an inherited override");
                 var browserFailure = CompanionFailure.FromOutput("", "https://private.invalid/?code=SECRET\nTRADE_OS_MCP_ERROR:BROWSER_UNAVAILABLE\nraw private traceback");
@@ -207,6 +208,7 @@ namespace TradeOS.Companion {
                     Legible(selector, "larger text profile remains visible and fits selector height");
                 }
                 using (var window = new InstallerWindow()) { Render(window, Path.Combine(fixture, "installer.png")); }
+                Assert(!Directory.GetDirectories(installed, "__pycache__", SearchOption.AllDirectories).Any(), "actual vault, setup IPC and bounded worker imports leave the sealed installation free of Python caches");
                 Console.WriteLine("Native fixture retained for inspection: " + fixture);
                 return 0;
             } catch (Exception error) {

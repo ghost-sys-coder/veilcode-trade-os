@@ -1,6 +1,11 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Claude Desktop startup fix 2026-10-14: owner installation exposed Python cache
+writes conflicting with the sealed-release check. Corrected launch paths prevent
+bytecode writes; real packaged startup discovers 84 tools/eight resources and
+leaves the pinned inventory unchanged. Actual Desktop UI acceptance remains
+pending. See [cache fix and replacement delivery](MCP_CLAUDE_DESKTOP_CACHE_FIX.md).
 Claude Desktop Chat Preview rollout 2026-10-13: implementation `1358cca` is pushed;
 the single hosted prerequisite and branch-only config are verified, with existing
 grant/profile/MT5 fingerprints unchanged. Matched unsigned app downloads are

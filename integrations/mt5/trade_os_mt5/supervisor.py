@@ -33,7 +33,7 @@ def _worker_command() -> list[str]:
         interpreter = interpreter.with_name("python.exe")
         if not interpreter.is_file():
             raise SupervisorError("WORKER_START_FAILED", retryable=True)
-    return [str(interpreter), "-m", "trade_os_mt5.worker"]
+    return [str(interpreter), "-B", "-m", "trade_os_mt5.worker"]
 
 
 RETRYABLE_CODES = {

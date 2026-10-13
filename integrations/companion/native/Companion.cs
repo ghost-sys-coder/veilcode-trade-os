@@ -70,7 +70,10 @@ namespace TradeOS.Companion {
         internal static ProcessStartInfo Command(bool python, IEnumerable<string> arguments) {
             string executable = Path.Combine(Root, "runtime", python ? "python" : "node", python ? "python.exe" : "node.exe");
             if (!File.Exists(executable)) throw new InvalidOperationException();
-            var info = new ProcessStartInfo(executable, string.Join(" ", arguments.Select(Quote))) {
+            // The installed inventory is sealed. -I ignores PYTHONDONTWRITEBYTECODE,
+            // so use the interpreter flag for every native Python invocation.
+            var commandArguments = python ? new[] {"-B"}.Concat(arguments) : arguments;
+            var info = new ProcessStartInfo(executable, string.Join(" ", commandArguments.Select(Quote))) {
                 WorkingDirectory = Root, UseShellExecute = false, CreateNoWindow = true,
                 RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true
             };

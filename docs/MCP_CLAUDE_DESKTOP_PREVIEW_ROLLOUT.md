@@ -90,6 +90,14 @@ existing actor/error implementation; no authentication behavior changed. Status
 alone is not evidence of enablement; production's false flag and unchanged
 deployment were independently verified.
 
+## Owner startup defect — 2026-10-14
+
+The first real Desktop installation failed because companion imports generated
+unlisted Python caches inside the pinned installation. This is a packaging defect,
+not a passed client gate. See [targeted fix, regression and replacement artifacts](MCP_CLAUDE_DESKTOP_CACHE_FIX.md).
+Use that document's owner retest instructions after the matched update; the
+original release evidence above remains historical, not a claim of acceptance.
+
 ## Owner acceptance still required
 
 1. Choose Claude Desktop (Chat) in staging and prepare a new setup. Download

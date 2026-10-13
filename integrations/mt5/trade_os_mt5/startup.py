@@ -110,6 +110,7 @@ def task_xml(configuration, *, user_sid: str, python_executable: Path, working_d
         "Arguments",
         subprocess.list2cmdline(
             [
+                "-B",
                 "-m",
                 "trade_os_mt5.cli",
                 "run",
@@ -162,7 +163,12 @@ def _owned_xml(raw, expected):
         previous = old.findtext(field, namespaces=ns)
         if field.endswith(":RunLevel") and previous is None:
             previous = "LeastPrivilege"
-        if previous != new.findtext(field, namespaces=ns):
+        current = new.findtext(field, namespaces=ns)
+        # Recognize only the exact previously shipped action for safe inspection,
+        # disable and explicit repair. No arbitrary argument changes are accepted.
+        if field == "t:Actions/t:Exec/t:Arguments" and current.startswith("-B ") and previous == current[3:]:
+            previous = current
+        if previous != current:
             raise CredentialError("STARTUP_REPAIR_REJECTED")
     if len(old.findall("t:Actions/t:Exec", ns)) != 1 or len(old.findall("t:Actions/*", ns)) != 1:
         raise CredentialError("STARTUP_REPAIR_REJECTED")

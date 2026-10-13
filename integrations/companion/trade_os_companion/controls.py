@@ -97,7 +97,7 @@ def launch(configuration):
     environment = {key: value for key in ("SystemRoot", "WINDIR", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP")
                    if (value := os.environ.get(key)) is not None}
     environment["PATH"] = str(interpreter.parent) + os.pathsep + str(Path(environment["SystemRoot"]) / "System32")
-    subprocess.Popen([str(interpreter), "-I", "-m", "trade_os_mt5.cli", "run", "--config", str(configuration.path)],
+    subprocess.Popen([str(interpreter), "-B", "-I", "-m", "trade_os_mt5.cli", "run", "--config", str(configuration.path)],
                      cwd=interpreter.parent, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      env=environment, close_fds=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP)
     # Only handshake on same-generation telemetry/lock; process creation is not

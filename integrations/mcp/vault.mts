@@ -17,7 +17,7 @@ export class WindowsVault implements CredentialStore {
   private closed = false;
   private chain: Promise<unknown> = Promise.resolve();
   constructor(config: LocalMcpConfig) {
-    this.child = spawn("python", ["-I", "-u", fileURLToPath(new URL("./vault.py", import.meta.url))], {
+    this.child = spawn("python", ["-B", "-I", "-u", fileURLToPath(new URL("./vault.py", import.meta.url))], {
       windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
     });
     this.child.stdout.setEncoding("utf8");

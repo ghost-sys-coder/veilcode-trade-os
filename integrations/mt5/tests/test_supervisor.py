@@ -38,6 +38,7 @@ class ProcessBoundaryTests(unittest.TestCase):
                 timeout=5,
             )
         self.assertEqual(Path(command[0]).name.lower(), "python.exe")
+        self.assertEqual(command[1:], ["-B", "-m", "trade_os_mt5.worker"])
         self.assertEqual(result, {"kind": "OK"})
 
     def child(self, code, payload=None, timeout=5):
@@ -314,7 +315,7 @@ class WorkerWorkflowTests(unittest.TestCase):
         }
         with patch("trade_os_mt5.supervisor._run_process", return_value=response) as run:
             self.assertEqual(supervised_capture(self.binding, self.terminal, self.spool), response)
-            self.assertEqual(run.call_args.args[0], [sys.executable, "-m", "trade_os_mt5.worker"])
+            self.assertEqual(run.call_args.args[0], [sys.executable, "-B", "-m", "trade_os_mt5.worker"])
         for key, value in (
             ("checkpoint", "bad"),
             ("collectionId", "bad"),
@@ -337,7 +338,7 @@ class WorkerWorkflowTests(unittest.TestCase):
         }
         with patch("trade_os_mt5.supervisor._run_process", return_value=response) as run:
             self.assertEqual(supervised_upload(self.binding, self.configuration, self.spool, WORKER), response)
-            self.assertEqual(run.call_args.args[0], [sys.executable, "-m", "trade_os_mt5.worker"])
+            self.assertEqual(run.call_args.args[0], [sys.executable, "-B", "-m", "trade_os_mt5.worker"])
         with patch("trade_os_mt5.supervisor._run_process", return_value={**response, "serverCheckpoint": "bad"}):
             with self.assertRaises(SupervisorError):
                 supervised_upload(self.binding, self.configuration, self.spool, WORKER)

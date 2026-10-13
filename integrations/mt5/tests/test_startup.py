@@ -33,7 +33,7 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(root.findtext("t:Settings/t:RestartOnFailure/t:Interval", namespaces=ns), "PT1M")
         self.assertIsNone(root.find("t:Triggers/t:BootTrigger", ns))
         self.assertEqual(root.findtext("t:Triggers/t:TimeTrigger/t:Repetition/t:Interval", namespaces=ns), "PT1M")
-        self.assertIn("-m trade_os_mt5.cli run --config", root.findtext("t:Actions/t:Exec/t:Arguments", namespaces=ns))
+        self.assertTrue(root.findtext("t:Actions/t:Exec/t:Arguments", namespaces=ns).startswith("-B -m trade_os_mt5.cli run --config"))
         self.assertEqual(
             root.findtext("t:Triggers/t:LogonTrigger/t:UserId", namespaces=ns),
             root.findtext("t:Principals/t:Principal/t:UserId", namespaces=ns),
@@ -53,6 +53,16 @@ class StartupTests(unittest.TestCase):
         self.assertFalse(Path(args[-1]).exists())
         self.assertFalse(result["startedNow"])
         self.assertFalse(list(self.configuration.path.parent.glob(".startup-*.xml")))
+
+    def test_exact_legacy_arguments_remain_owned_but_other_changes_are_rejected(self):
+        xml = specification(self.configuration).encode()
+        legacy = xml.replace(b"<Arguments>-B ", b"<Arguments>")
+        with patch("trade_os_mt5.startup.subprocess.run", return_value=Mock(returncode=0, stdout=legacy)):
+            self.assertTrue(inspect(self.configuration, require_owned=True)["ownershipVerified"])
+        for changed in (xml.replace(b"<Arguments>-B ", b"<Arguments>-E "), legacy.replace(b"run --config", b"run --other")):
+            with patch("trade_os_mt5.startup.subprocess.run", return_value=Mock(returncode=0, stdout=changed)):
+                with self.assertRaisesRegex(CredentialError, "STARTUP_REPAIR_REJECTED"):
+                    inspect(self.configuration, require_owned=True)
 
     def test_failed_and_uncertain_install_are_explicit_without_force_retry(self):
         perform("init", self.configuration)

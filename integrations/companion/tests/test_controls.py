@@ -158,7 +158,7 @@ class ControlsTests(unittest.TestCase):
             launch(self.configuration)
         args, options = process.call_args.args[0], process.call_args.kwargs
         self.assertTrue(args[0].endswith("pythonw.exe"))
-        self.assertEqual(args[1:], ["-I", "-m", "trade_os_mt5.cli", "run", "--config", str(self.path)])
+        self.assertEqual(args[1:], ["-B", "-I", "-m", "trade_os_mt5.cli", "run", "--config", str(self.path)])
         self.assertNotIn("shell", options)
         self.assertFalse({"NODE_OPTIONS", "PYTHONPATH", "SUPABASE_SECRET_KEY"}.intersection(options["env"]))
         self.assertTrue(options["close_fds"])

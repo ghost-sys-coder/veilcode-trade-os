@@ -71,6 +71,13 @@ describe("Claude Desktop isolated onboarding and sealed release", () => {
     const { root, pin } = await installation(); await writeFile(join(root, "runtime/node/injected.dll"), "bad");
     await expect(verifyInstallation(root, pin)).rejects.toThrow("MODIFIED_COMPANION");
   });
+  it("does not exempt unlisted Python bytecode from release integrity checks", async () => {
+    const { root, pin } = await installation();
+    const cache = join(root, "integrations/companion/__pycache__");
+    await mkdir(cache, { recursive: true });
+    await writeFile(join(cache, "setup.cpython-313.pyc"), "unlisted executable bytecode");
+    await expect(verifyInstallation(root, pin)).rejects.toThrow("MODIFIED_COMPANION");
+  });
   it.each(["relative/folder", "\\\\server\\share", "D:\\folder\\..\\file", "D:\\file:stream"])("rejects unsafe path %s", async value => {
     await expect(localPath(value)).rejects.toThrow();
   });

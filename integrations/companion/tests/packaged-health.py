@@ -26,7 +26,7 @@ def run():
                 timer.cancel()
         return
     perform("init", configuration)
-    process = subprocess.Popen([sys.executable, "-I", __file__, "worker", str(configuration.path)],
+    process = subprocess.Popen([sys.executable, "-B", "-I", __file__, "worker", str(configuration.path)],
                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                close_fds=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP)
     deadline = time.monotonic() + 4

@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "trade-os-windows",
   "display_name": "Trade OS (Windows preview)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Connect Claude Desktop Chat to your explicitly authorized Trade OS workspace through the verified Windows companion.",
   "author": { "name": "VeilCode Studio", "url": "https://tradeos.veilcode.studio" },
   "homepage": "https://mcp-preview.veilcode.studio/settings/integrations/connect/mcp",

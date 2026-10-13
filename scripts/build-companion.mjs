@@ -98,7 +98,7 @@ console.log(`Native executables compiled; ${files.length} packaged files hashed`
 const manifest = { version: 1, releaseState: "UNRELEASED", platform: "win-x64", inputs, files };
 await writeFile(join(stage, "bundle-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 const packagedNode = execFileSync(join(stage, "runtime/node/node.exe"), ["--version"], { encoding: "utf8" }).trim();
-const packagedPython = execFileSync(join(stage, "runtime/python/python.exe"), ["-I", "-c", "import sys,sqlite3,ssl,MetaTrader5,numpy,trade_os_companion.cli;print(sys.version.split()[0])"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30000 }).trim();
+const packagedPython = execFileSync(join(stage, "runtime/python/python.exe"), ["-B", "-I", "-c", "import sys,sqlite3,ssl,MetaTrader5,numpy,trade_os_companion.cli;print(sys.version.split()[0])"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30000 }).trim();
 if (packagedNode !== `v${inputs.node.version}` || packagedPython !== inputs.python.version) throw Error("Bundled runtime smoke check failed");
 const payload = join(base, `${basename(stage)}.zip`);
 python(["pack", "--path", stage, "--destination", payload]);
