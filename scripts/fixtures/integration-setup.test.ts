@@ -9,6 +9,7 @@ import { databaseTestConnection } from "../lib/database-test-safety.mjs";
 import { createSetupProfile, listSetupProfiles, reconcileSetupProfile } from "@/services/integrations/setup-profiles";
 import { setupClientName, setupProfileSchema } from "@/domain/integrations/setup";
 import type { IntegrationDatabase } from "@/types/integration-database";
+import { companionDistribution } from "@/domain/integrations/companion-distribution";
 
 const origin = "http://127.0.0.1:3100";
 let db: pg.Client | undefined, admin: ReturnType<typeof createClient> | undefined;
@@ -59,12 +60,12 @@ beforeAll(async () => {
       'private.revoke_integration_grant(uuid,text)','private.activate_integration_grant(text,text)',
       'private.application_mt5_set_connection_state_impl(uuid,text,uuid,text,text)']) name`)).rows.map(row => row.definition);
     await db.query("begin");
-    try { await db.query(await readFile("supabase/migrations/20261012145812_integration_setup_profiles.sql", "utf8")); await db.query("commit"); schemaCreated = true; }
+    try { await db.query(await readFile("supabase/migrations/20261013023636_integration_setup_profiles.sql", "utf8")); await db.query("commit"); schemaCreated = true; }
     catch(error) { await db.query("rollback"); throw Error(`Disposable setup schema preparation failed (${error instanceof Error ? error.message.slice(0, 150) : "unknown"})`); }
   }
   if (!(await db.query("select to_regclass('private.mt5_setup_pairings') as relation")).rows[0].relation) {
     await db.query("begin");
-    try { await db.query(await readFile("supabase/migrations/20261012200515_mt5_companion_pairing.sql", "utf8")); await db.query("commit"); pairingSchemaCreated = true; }
+    try { await db.query(await readFile("supabase/migrations/20261013023643_mt5_companion_pairing.sql", "utf8")); await db.query("commit"); pairingSchemaCreated = true; }
     catch { await db.query("rollback"); throw Error("Disposable pairing schema preparation failed"); }
   }
   previousResources = (await db.query("select purpose,resource,enabled from private.integration_resources")).rows;
@@ -155,7 +156,35 @@ describe("disposable app-led setup provider and browser gate", () => {
     await page.getByRole("link", { name: "Continue saved setup →", exact: true }).click();
     await page.waitForURL(/\/settings\/integrations\/setup\/[0-9a-f-]{36}$/);
     await browserExpect(page.getByRole("heading", { name: "Gemini CLI setup", exact: true })).toBeVisible();
-    await browserExpect(page.getByText("The packaged Windows companion is not released yet.", { exact: false })).toBeVisible();
+    const distribution = companionDistribution(process.env);
+    if (distribution) {
+      await browserExpect(page.getByRole("button", {name: "Download Windows companion preview", exact: true})).toHaveAttribute("href", distribution.url);
+      await browserExpect(page.getByText("Unsigned Windows 10/11 x64 preview", {exact: false})).toBeVisible();
+      await browserExpect(page.getByText("SHA-256: " + distribution.sha256, {exact: false})).toBeVisible();
+      for (const theme of ["light", "dark"]) {
+        await page.evaluate(value => {localStorage.setItem("trade-os-theme",value); document.documentElement.classList.toggle("dark",value === "dark");},theme);
+        await page.setViewportSize({width:390,height:844});
+        await page.reload();
+        await browserExpect(page.getByRole("button",{name:"Download Windows companion preview",exact:true})).toBeEnabled();
+        expect(await page.getByRole("button",{name:"Download Windows companion preview",exact:true}).evaluate(element => {
+          const child=element.getBoundingClientRect(), parent=element.parentElement!.getBoundingClientRect();
+          return child.right<=parent.right && child.left>=parent.left;
+        })).toBe(true);
+        expect(await page.locator('[data-slot="card-header"]').evaluate(header => {
+          const bounds=header.parentElement!.getBoundingClientRect();
+          return Array.from(header.querySelectorAll('[data-slot="badge"],[data-slot="card-description"]')).every(child => {
+            const rectangle=child.getBoundingClientRect();return rectangle.right<=bounds.right && rectangle.left>=bounds.left;
+          });
+        })).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await mkdir(".artifacts/integration-setup",{recursive:true});
+        await page.screenshot({path:`.artifacts/integration-setup/companion-${theme}-mobile.png`,fullPage:true});
+        expect(await page.locator('[data-slot="badge"]').evaluate(badge => badge.scrollHeight<=badge.clientHeight+1)).toBe(true);
+      }
+    } else {
+      await browserExpect(page.getByText("No verified companion download is available", {exact:false})).toBeVisible();
+      await browserExpect(page.getByRole("button", {name:"Download Windows companion preview",exact:true})).toHaveCount(0);
+    }
     const id = new URL(page.url()).pathname.split("/").at(-1)!;
     const response = await page.request.get(`${origin}/api/integrations/setup/${id}/configuration`);
     expect(response.status()).toBe(200);
@@ -186,6 +215,9 @@ describe("disposable app-led setup provider and browser gate", () => {
     await page.goto(`${origin}/settings/integrations/connect/mcp`);
     await browserExpect(page.getByText("New setup is disabled by the database rollout policy.", { exact: false })).toBeVisible();
     await browserExpect(page.getByRole("button", { name: "Prepare connection setup", exact: true })).toBeDisabled();
+    const saved = (await listSetupProfiles(client)).find(row => row.clientKind === "GEMINI_CLI")!;
+    await page.goto(origin + "/settings/integrations/setup/" + saved.id);
+    await browserExpect(page.getByRole("button", {name:"Download Windows companion preview",exact:true})).toHaveCount(0);
     await db!.query("update private.integration_setup_policies set enabled=true where purpose='MCP'");
     await mkdir(".artifacts/integration-setup", { recursive: true });
     for (const theme of ["light", "dark"]) {

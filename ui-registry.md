@@ -535,6 +535,14 @@ explicit. File selection never approves mapping; rapid file changes cannot repla
 the selected preview with an older asynchronous read. Mapping download is only
 available after authoritative approval. No new colors or animations.
 
+Distribution update (2026-10-13): expose a download only when complete verified
+preview metadata and setup availability are present. Reuse Button outline,
+border-border/70 bg-muted/30 p-4, space-y-3 and muted text. Display unsigned/test
+status before the action, version/byte size and a wrapping checksum afterward;
+link only to the pinned release repository. A download is not installed,
+authorized, online or production-certified. Never advise bypassing OS protections.
+Disabled/unconfigured setup retains explicit guidance without a fabricated link.
+
 ### Native Windows companion and installer
 
 Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs
@@ -565,3 +573,14 @@ SDK connection may launch the selected installation. Copy only the public review
 file path; no token is displayed. Approved manifest import explicitly reports
 PAUSED and pending uploads, not online/reconciled. Wrapped actions remain vertical
 scroll content, and all profile/action controls lock together during the request.
+
+Control update (2026-10-13): local health is text, not a generic green connection
+badge. Display saved intent, lock/tick liveness, pending pages and server-contact
+freshness separately; missing is unknown, never fabricated zero/online. Label the
+8-1000-character multiline reason, fit it to the viewport, disable writes until
+meaningful, and clear intent/health on profile changes. All controls are MT5-only.
+Read-only refresh/inspection do not require a reason. Start, pause and startup
+mutations require an exact-profile native confirmation, explain in-flight pause
+and GUI-close behavior, and preserve separate startup/publication approvals.
+Unknown acknowledgements direct users to inspect state before retrying. Use the
+existing navy/amber flat native controls and vertical scroll; no decorative motion.
