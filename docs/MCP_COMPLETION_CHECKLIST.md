@@ -86,8 +86,9 @@ that every requested real AI client has connected successfully.
    fixture is archived with four receipts/audits and account data unchanged.
    Live owner revocation denies the already-connected client discovery/read/write;
    independent readback confirms no denied-write receipt. Raw resource-control
-   probe is not a passed resource workflow. Reconnection, renewal,
-   independent-client concurrency and other Claude surfaces remain
+   probe is not a passed resource workflow. Owner reconnection restores ACTIVE
+   grant version 2; native reads and installed credential renewal pass.
+   Independent-client concurrency and other Claude surfaces remain
    pending. See [Claude Code evidence](MCP_CLAUDE_CODE_VERIFICATION.md).
    **Installed Codex mutation checkpoint, 2026-10-13:** configuration writes,
    durable status/replay, changed-payload rejection, null/omission, concurrent

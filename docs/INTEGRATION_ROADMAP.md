@@ -9,8 +9,10 @@ retry/concurrency/null/version safeguards, archival and fresh-process replay pas
 One inactive test strategy is archived with four receipts/four actor-bound audits;
 accounts, Codex configuration and MT5 state were not changed. Owner-browser live
 revocation denied the existing connected Claude client discovery/read/write with
-no committed rejected write. Reconnection, resource-path, other Claude surfaces and final activation remain
-pending. See [Claude Code evidence](MCP_CLAUDE_CODE_VERIFICATION.md).
+no committed rejected write. User reconnection restores the same binding at ACTIVE
+grant version 2; actual native reads and installed protected credential renewal
+pass. Resource-path, independent-client concurrency, other Claude surfaces and
+final activation remain pending. See [Claude Code evidence](MCP_CLAUDE_CODE_VERIFICATION.md).
 Codex mutation checkpoint 2026-10-13: installed actual-client configuration
 writes, duplicate-operation replay, changed-payload rejection, omitted/null
 patches, concurrent version conflict, reasoned archive and fresh-process replay

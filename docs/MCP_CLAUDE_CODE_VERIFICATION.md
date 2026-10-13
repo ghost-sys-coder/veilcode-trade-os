@@ -48,7 +48,9 @@ no model inference/API usage occurs. Permanent deletion is never attempted.
 | Full account dataset before/after each successful write/replay run | PASS, unchanged |
 | Native raw resource-control probe | NOT PASSED: no usable resource-list payload; normal Claude resource-path acceptance remains pending |
 | Live owner-browser revocation | PASS: existing connected client denied discovery/read/write after owner revocation |
-| Reconnection after revocation | Pending owner reconnection and native retest |
+| Reconnection after revocation | PASS: user reconnect/verify, ACTIVE grant version 2 with exact binding, native discovery/account/catalog reads |
+| Explicit installed-runtime credential renewal | PASS: refresh completes signed/resource/client validation, encrypted persistence and live discovery |
+| Independent native process after renewal | PASS: restored 84-tool discovery/account/catalog reads without another login, zero protocol errors/stderr |
 
 The single fixture `MCP acceptance - Claude 0853af6e`, ID
 `ea88978c-1f09-4bee-acbe-2921d44866e3`, remains archived with its audit evidence.
@@ -60,6 +62,23 @@ timestamp present, zero receipts for denied operation
 `54f3321c-963c-4cf1-bf18-91a4461f56a0`, and the same four fixture receipts/version 4.
 The bounded observer closed before requesting companion reconnection, releasing
 the single-profile lock. It did not revoke anything itself.
+
+The user subsequently reconnected and independently selected Verify application
+access; both returned the real-connection verification message. This is expected:
+the shipped CLI login/reconnect path completes browser authorization and then
+calls the same live `connectRemote`/tool discovery used by the status check before
+showing success. Verify application access repeats that live check; the initial
+success is not fabricated or proof of every client/tool workflow.
+
+Independent readback confirms ACTIVE grant version 2, no current revocation, READY
+setup and the unchanged owner/client/purpose/resource binding. Actual Claude Code
+2.1.119 subsequently passes 84-tool discovery and structured account/catalog
+reads with zero protocol errors/stderr. The installed bundled Node/Python adapter
+then explicitly renews only this profile's credentials and verifies the live
+connection (exit 0, protocol stdout 0 bytes). No validation/tolerance was relaxed,
+grant permission changed or new login requested for renewal.
+An independent fresh Claude Code process then reads the saved renewed credentials
+and passes the same discovery/account/catalog gate without browser interaction.
 
 An early write harness stopped after creation because Claude returns an MCP
 domain rejection through a control-error envelope rather than an ordinary tool
@@ -81,6 +100,9 @@ Successful discovery/read/write/restart runs have zero protocol errors/stderr.
 - `node .artifacts/mcp-clients/claude-companion-check.mjs --registered --write --resume-write --restart-replay`: PASS.
 - `node .artifacts/mcp-clients/claude-companion-check.mjs --registered --resources`: NOT PASSED, raw control response has no usable list; no general resource-support failure is inferred.
 - `node .artifacts/mcp-clients/claude-companion-check.mjs --registered --watch-revocation`: PASS; read before revocation, then same connected process denied protected discovery/read/write, zero protocol errors/stderr.
+- `node .artifacts/mcp-clients/claude-companion-check.mjs --registered --read` after owner restoration: PASS.
+- `node .artifacts/mcp-clients/check-installed-claude-renewal.mjs`: PASS, explicit refresh with installed runtimes, verified live connection, zero protocol stdout and no provider/model calls.
+- `node .artifacts/mcp-clients/claude-companion-check.mjs --registered --read` in a fresh process after renewal: PASS, no new login, zero protocol errors/stderr.
 
 Diagnostics/receipts are ignored local artifacts. No application code or schema
 changed, so full application/database/typecheck/lint/build suites were not rerun
@@ -90,7 +112,7 @@ Production MCP enablement was not changed. Gemini remains ON HOLD.
 
 ## Remaining gates
 
-Reconnection after passed live revocation, credential renewal, independent-client concurrency,
+Independent-client concurrency,
 broader tool-family acceptance, normal resource workflow, supported Claude
 desktop/remote paths and final production activation remain separate gates.
 One adapter per profile remains deliberate; use separate app-generated profiles
