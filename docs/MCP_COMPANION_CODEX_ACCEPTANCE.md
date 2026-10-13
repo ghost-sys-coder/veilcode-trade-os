@@ -1,5 +1,10 @@
 # Packaged companion / Codex acceptance — 2026-10-13
 
+Subsequent configuration mutation/retry/concurrency and fresh-process replay
+checks pass; live revocation and broader client acceptance remain pending. See
+[mutation checkpoint](MCP_CODEX_MUTATION_VERIFICATION.md). Earlier pending notes
+below describe the installation/registration checkpoint, not a request to repeat it.
+
 The user completed browser approval and application verification with the app-led
 Codex profile `2638fa90-01f6-4450-b3ae-a88eefe51304`. Public client ID
 `b4db4c19-015d-4431-b9d2-6b534deeed6e`, callback 127.0.0.1:9878, staging MCP resource.

@@ -79,6 +79,15 @@ that every requested real AI client has connected successfully.
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini
    consumer-app support. User browser consent may be needed for these checks.
+   **Installed Codex mutation checkpoint, 2026-10-13:** configuration writes,
+   durable status/replay, changed-payload rejection, null/omission, concurrent
+   version conflict and reasoned archival pass, including a fresh-process replay.
+   One inactive fixture is archived with four receipts/audits; account data is
+   unchanged. Same-profile parallel adapters are intentionally rejected;
+   competing requests passed within one authorized session. Broader family and
+   live revocation checks remain pending. Claude Code's separate app-led consent
+   is next; no model/API calls or Gemini work occurred. See
+   [mutation evidence](MCP_CODEX_MUTATION_VERIFICATION.md).
    **Partial actual-client acceptance, 2026-10-12:** staging-only enablement and
    the corrected production consent handoff are released. The user-approved Codex
    stdio grant passes signed/live connection, native 84-tool/eight-resource

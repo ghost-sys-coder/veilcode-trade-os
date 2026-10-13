@@ -1,6 +1,16 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Codex mutation checkpoint 2026-10-13: installed actual-client configuration
+writes, duplicate-operation replay, changed-payload rejection, omitted/null
+patches, concurrent version conflict, reasoned archive and fresh-process replay
+pass. Independent readback confirms four durable receipts/four owner-client
+audits, archived version 4 and no rejected-write receipts. No financial data or
+MT5 state changed. Same-profile multi-adapter use remains deliberately locked;
+concurrent requests were tested in one authorized native session. Claude Code
+2.1.119 is installed and separate app-led approval is next. Broader tool-family,
+revocation and final activation gates remain pending. See
+[Codex mutation evidence](MCP_CODEX_MUTATION_VERIFICATION.md).
 Priority refinement 2026-10-13: current client acceptance focuses on Codex and
 Claude products. Finish Codex mutation/retry/concurrency/revocation, then Claude
 Code and supported Claude desktop/remote paths. Gemini is explicitly ON HOLD,
