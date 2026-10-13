@@ -565,3 +565,14 @@ SDK connection may launch the selected installation. Copy only the public review
 file path; no token is displayed. Approved manifest import explicitly reports
 PAUSED and pending uploads, not online/reconciled. Wrapped actions remain vertical
 scroll content, and all profile/action controls lock together during the request.
+
+Control update (2026-10-13): local health is text, not a generic green connection
+badge. Display saved intent, lock/tick liveness, pending pages and server-contact
+freshness separately; missing is unknown, never fabricated zero/online. Label the
+8-1000-character multiline reason, fit it to the viewport, disable writes until
+meaningful, and clear intent/health on profile changes. All controls are MT5-only.
+Read-only refresh/inspection do not require a reason. Start, pause and startup
+mutations require an exact-profile native confirmation, explain in-flight pause
+and GUI-close behavior, and preserve separate startup/publication approvals.
+Unknown acknowledgements direct users to inspect state before retrying. Use the
+existing navy/amber flat native controls and vertical scroll; no decorative motion.

@@ -131,6 +131,11 @@ def activate(profiles, profile_id, proposal_path, manifest_path):
     proposal = load_public_file(proposal_path)
     local_record = load_public_file(proposal_path.with_name(proposal_path.stem + ".local.json"))
     manifest = load_public_file(local_path(Path(manifest_path)))
+    if (directory / "collector.json").exists():
+        from .controls import mapped
+        _, previous = mapped(profiles, profile_id)
+        if canonical(load_public_file(previous.path)) != canonical(manifest):
+            raise SetupError("PROFILE_CONFLICT")  # Reject retargeting before any mutation.
     api = client_api(profile)
     approved = api._request("/mt5/pairing/" + profile_id)
     connection_id = _uuid(approved.get("connectionId"))
@@ -158,7 +163,7 @@ def activate(profiles, profile_id, proposal_path, manifest_path):
         result = perform("init", configuration)
     else:
         target = local_path(Path(local_record["existingManifest"]))
-        with SingleInstance(target.parent / "worker.lock"):
+        with SingleInstance(target.parent / "worker.lock"), SingleInstance(target.parent / "collector.lock"):
             existing = load_configuration(target)
             current = status(existing)
             if current["mode"] != "PAUSED" or current["pendingPages"] != 0:
@@ -183,5 +188,7 @@ def activate(profiles, profile_id, proposal_path, manifest_path):
             result = status(configuration)
     if result["mode"] != "PAUSED":
         raise SetupError("EXISTING_COLLECTOR_NOT_READY")
+    from .controls import remember
+    remember(profiles, profile_id, target)
     return {"state": "PAUSED", "connectionId": configuration.binding.connection_id, "manifestPath": str(target),
             "pendingPages": result["pendingPages"]}

@@ -137,6 +137,77 @@ def specification(configuration) -> str:
     )
 
 
+def _scheduler():
+    if os.name != "nt":
+        raise CredentialError("WINDOWS_PROTECTION_REQUIRED")
+    system_root = Path(os.environ.get("SystemRoot", ""))
+    executable = system_root / "System32" / "schtasks.exe"
+    if not system_root.is_absolute() or not executable.is_file():
+        raise CredentialError("STARTUP_SERVICE_UNAVAILABLE")
+    return executable
+
+
+def _owned_xml(raw, expected):
+    if not isinstance(raw, bytes) or not 0 < len(raw) <= 65536:
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    existing = raw.decode("utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig")
+    old, new = ET.fromstring(re.sub(r"^\s*<\?xml[^?]*\?>", "", existing)), ET.fromstring(expected)
+    ns = {"t": NAMESPACE}
+    if len(old.findall("t:Principals/t:Principal", ns)) != 1:
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    if _principal_sid(old.findtext("t:Principals/t:Principal/t:UserId", namespaces=ns)) != new.findtext("t:Principals/t:Principal/t:UserId", namespaces=ns):
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    for field in ("t:Principals/t:Principal/t:LogonType", "t:Principals/t:Principal/t:RunLevel",
+                  "t:Actions/t:Exec/t:Command", "t:Actions/t:Exec/t:Arguments", "t:Actions/t:Exec/t:WorkingDirectory"):
+        previous = old.findtext(field, namespaces=ns)
+        if field.endswith(":RunLevel") and previous is None:
+            previous = "LeastPrivilege"
+        if previous != new.findtext(field, namespaces=ns):
+            raise CredentialError("STARTUP_REPAIR_REJECTED")
+    if len(old.findall("t:Actions/t:Exec", ns)) != 1 or len(old.findall("t:Actions/*", ns)) != 1:
+        raise CredentialError("STARTUP_REPAIR_REJECTED")
+    return old
+
+
+def inspect(configuration, *, require_owned=False):
+    """Nonzero query results are UNKNOWN, never guessed to mean not installed."""
+    executable, expected = _scheduler(), specification(configuration)
+    task_name = "TradeOS-MT5-" + configuration.binding.connection_id
+    try:
+        result = subprocess.run([str(executable), "/Query", "/TN", task_name, "/XML"], stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=15, check=False,
+                                creationflags=subprocess.CREATE_NO_WINDOW)
+        if result.returncode != 0:
+            raise CredentialError("STARTUP_REPAIR_REJECTED")
+        root = _owned_xml(result.stdout, expected)
+        enabled = root.findtext("t:Settings/t:Enabled", namespaces={"t": NAMESPACE})
+        if enabled not in (None, "true", "false"):
+            raise CredentialError("STARTUP_REPAIR_REJECTED")
+        return {"taskName": task_name, "state": "ENABLED" if enabled != "false" else "DISABLED", "ownershipVerified": True}
+    except (OSError, subprocess.TimeoutExpired, ET.ParseError, UnicodeError, CredentialError):
+        if require_owned:
+            raise CredentialError("STARTUP_REPAIR_REJECTED") from None
+        return {"taskName": task_name, "state": "UNVERIFIED_OR_NOT_INSTALLED", "ownershipVerified": False}
+
+
+def set_enabled(configuration, enabled):
+    if enabled is not False:
+        raise CredentialError("INVALID_STARTUP_CONFIGURATION")
+    current = inspect(configuration, require_owned=True)
+    try:
+        result = subprocess.run([str(_scheduler()), "/Change", "/TN", current["taskName"], "/DISABLE"],
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                timeout=15, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
+        if result.returncode != 0:
+            raise CredentialError("STARTUP_CHANGE_REQUIRES_INSPECTION")
+    except (OSError, subprocess.TimeoutExpired):
+        raise CredentialError("STARTUP_CHANGE_REQUIRES_INSPECTION") from None
+    after = inspect(configuration, require_owned=True)
+    if after["state"] != "DISABLED":
+        raise CredentialError("STARTUP_CHANGE_REQUIRES_INSPECTION")
+    return after
+
+
 def install(configuration, *, repair_owned=False) -> dict:
     if os.name != "nt":
         raise CredentialError("WINDOWS_PROTECTION_REQUIRED")
@@ -157,25 +228,7 @@ def install(configuration, *, repair_owned=False) -> dict:
                 timeout=15, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
             if current.returncode != 0 or len(current.stdout) > 65536:
                 raise CredentialError("STARTUP_REPAIR_REJECTED")
-            raw = current.stdout
-            existing_xml = raw.decode("utf-16" if raw.startswith((b"\xff\xfe",b"\xfe\xff")) else "utf-8-sig")
-            # schtasks can emit UTF-8 bytes with a UTF-16 declaration. Parse the
-            # verified Unicode document without that contradictory declaration.
-            existing_xml = re.sub(r"^\s*<\?xml[^?]*\?>", "", existing_xml)
-            old, new = ET.fromstring(existing_xml), ET.fromstring(xml)
-            namespace = {"t": NAMESPACE}
-            if _principal_sid(old.findtext("t:Principals/t:Principal/t:UserId",namespaces=namespace)) != new.findtext("t:Principals/t:Principal/t:UserId",namespaces=namespace):
-                raise CredentialError("STARTUP_REPAIR_REJECTED")
-            for field in ("t:Principals/t:Principal/t:LogonType",
-                "t:Principals/t:Principal/t:RunLevel", "t:Actions/t:Exec/t:Command",
-                "t:Actions/t:Exec/t:Arguments", "t:Actions/t:Exec/t:WorkingDirectory"):
-                previous = old.findtext(field, namespaces=namespace)
-                if field.endswith(":RunLevel") and previous is None:
-                    previous = "LeastPrivilege"  # Scheduler's omitted default.
-                if previous != new.findtext(field, namespaces=namespace):
-                    raise CredentialError("STARTUP_REPAIR_REJECTED")
-            if len(old.findall("t:Actions/t:Exec", namespace)) != 1 or len(old.findall("t:Actions/*", namespace)) != 1:
-                raise CredentialError("STARTUP_REPAIR_REJECTED")
+            _owned_xml(current.stdout, xml)
         except (OSError, subprocess.TimeoutExpired, ET.ParseError, UnicodeError):
             raise CredentialError("STARTUP_REPAIR_REQUIRES_INSPECTION") from None
     temporary = None

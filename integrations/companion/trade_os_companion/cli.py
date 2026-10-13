@@ -18,6 +18,13 @@ def perform(request: dict) -> dict:
     if not isinstance(request, dict):
         raise SetupError()
     profiles = default_profiles()
+    if (set(request) == {"action", "profileId"} and request["action"] in ("HEALTH", "STARTUP_STATUS")):
+        from .controls import control
+        return control(profiles, request["profileId"], request["action"])
+    if (set(request) == {"action", "profileId", "reason"} and request["action"] in
+            ("PAUSE", "START", "INSTALL_STARTUP", "REPAIR_STARTUP", "DISABLE_STARTUP")):
+        from .controls import control
+        return control(profiles, request["profileId"], request["action"], reason=request["reason"])
     if (set(request) == {"action", "profileId", "manifestPath"} and request["action"] == "INSPECT_EXISTING"
             and isinstance(request["manifestPath"], str)):
         from .pairing import inspect_existing

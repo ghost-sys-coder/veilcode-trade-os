@@ -73,6 +73,25 @@ namespace TradeOS.Companion {
                 Assert((string)summary["state"] == "CONFIGURED", "bundled native IPC imports public setup without authorization or collection");
                 var replayed = Runtime.Request(new {action = "IMPORT", path = publicFile}).GetAwaiter().GetResult();
                 Assert((string)((Dictionary<string, object>)replayed["profile"])["configurationHash"] == (string)summary["configurationHash"], "native profile import replay preserves its exact configuration");
+                // Fixed offline fixture only: a bounded PAUSED worker cannot call
+                // SDK/network. Prove breakaway from the short-lived GUI IPC job.
+                string healthTest = Path.Combine(installed, "packaged-health-test.py");
+                File.Copy(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "packaged-health.py"), healthTest);
+                string connectionDir = Path.Combine(fixture, "cccccccc-cccc-4ccc-8ccc-cccccccccccc"); Directory.CreateDirectory(connectionDir);
+                string terminal = Path.Combine(fixture, "terminal64.exe"); File.WriteAllText(terminal, "fixture-not-an-executable");
+                string data = Path.Combine(fixture, "terminal-data"); Directory.CreateDirectory(data);
+                string manifest = Path.Combine(connectionDir, "connection.json");
+                File.WriteAllText(manifest, Runtime.Json.Serialize(new {version = 1,
+                    binding = new {ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", accountId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", connectionId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"},
+                    oauth = new {issuer = "https://nhwlxcrsivmawwmjiwck.supabase.co/auth/v1", applicationOrigin = "https://tradeos.veilcode.studio", clientId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd", allowLocalHttp = false},
+                    terminal = new {executable = terminal, dataPath = data, dedicatedApproved = true, portable = false,
+                        identity = new {server = "Fixture-Demo", login = "1", terminalInstallationId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", currencyCode = "USD", currencyPrecision = 2, accountKind = "DEMO", positionMode = "HEDGING"}},
+                    callbackUri = "http://127.0.0.1:9876/callback"}));
+                var workerReply = Runtime.Json.Deserialize<Dictionary<string,object>>(Runtime.Run(Runtime.Command(true, new[] {"-I", healthTest, "parent", manifest}), null, 15).GetAwaiter().GetResult());
+                using (var worker = System.Diagnostics.Process.GetProcessById((int)workerReply["pid"])) {
+                    Assert(!worker.HasExited && (string)workerReply["mode"] == "PAUSED", "bounded PAUSED packaged coordinator survives IPC job closure without broker or network activity");
+                    Assert(worker.WaitForExit(10000), "owned fixture worker stops on its deadline without terminating any terminal");
+                }
                 using (var launcher = new System.Diagnostics.Process {
                     StartInfo = new System.Diagnostics.ProcessStartInfo(Path.Combine(installed, "TradeOSMcp.exe"), "--profile invalid") {
                         UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
@@ -83,6 +102,11 @@ namespace TradeOS.Companion {
                     if (!launcher.WaitForExit(10000)) { launcher.Kill(); throw new Exception("Invalid-profile launcher did not stop"); }
                     Assert(launcher.ExitCode == 1 && output.Result == "" && errors.Result.Contains("MCP unavailable"), "real console launcher fails closed without corrupting protocol stdout");
                 }
+                string mt5Setup = Path.Combine(fixture, "public-mt5.json");
+                File.WriteAllText(mt5Setup, Runtime.Json.Serialize(new {format = "trade-os-setup", version = 1, purpose = "MT5", profileId = "ffffffff-ffff-4fff-8fff-ffffffffffff",
+                    ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", account = new {id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name = "Fixture demo", currencyCode = "USD", currencyPrecision = 2},
+                    oauth = new {issuer = "https://nhwlxcrsivmawwmjiwck.supabase.co/auth/v1", applicationOrigin = "https://tradeos.veilcode.studio", clientId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd", callbackUri = "http://127.0.0.1:9876/callback", allowLocalHttp = false}}));
+                Runtime.Request(new {action = "IMPORT", path = mt5Setup}).GetAwaiter().GetResult();
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
                 using (var window = new CompanionWindow()) {
                     window.CreateControl(); window.PerformLayout();
@@ -92,9 +116,35 @@ namespace TradeOS.Companion {
                     Assert(Descendants(window).OfType<ComboBox>().Single().AccessibleName == "Saved integration setup", "native profile selector has an accessible name");
                     Render(window, Path.Combine(fixture, "companion.png"));
                     Assert(Descendants(window).OfType<Button>().Where(button => button.Text.StartsWith("Choose dedicated") || button.Text.StartsWith("Adopt existing") || button.Text.StartsWith("Import approved")).All(button => !button.Enabled), "MCP profiles cannot probe or activate MT5 terminals");
+                    Assert(Descendants(window).OfType<Button>().Where(button => new[] {"Refresh local health", "Start / recover collector", "Pause local collection", "Inspect startup", "Enable sign-in startup", "Repair owned startup", "Disable startup and pause"}.Contains(button.Text)).All(button => !button.Enabled), "MCP profiles cannot run MT5 control or startup actions");
+                    Assert(Descendants(window).OfType<TextBox>().Single().AccessibleName == "Collector control reason" && !Descendants(window).OfType<TextBox>().Single().Enabled, "labelled control reason is disabled for MCP profiles");
+                    string healthText = CompanionWindow.HealthText(new Dictionary<string,object> {
+                        {"coordinatorActive", false}, {"localStale", true}, {"mode", "RUNNING"}, {"pendingPages", 2}, {"observedAt", null},
+                        {"lastContactAt", null}, {"stale", true}, {"observedState", null}, {"code", null}, {"retryCode", null}, {"pausePending", false}
+                    });
+                    Assert(healthText.Contains("not running") && healthText.Contains("Pending upload pages: 2") && healthText.Contains("unknown"), "saved running intent with missing worker is not a healthy badge");
                     window.Size = window.MinimumSize; window.PerformLayout();
                     Assert(Descendants(window).OfType<ComboBox>().Single().Width <= window.ClientSize.Width - 56, "native selector fits the minimum-size viewport");
+                    Assert(Descendants(window).OfType<TextBox>().Single().Width <= window.ClientSize.Width - 56, "control reason fits the minimum-size viewport without horizontal clipping");
                     Render(window, Path.Combine(fixture, "companion-minimum.png"));
+                    var selector = Descendants(window).OfType<ComboBox>().Single();
+                    selector.SelectedItem = selector.Items.OfType<ProfileItem>().Single(item => item.Purpose == "MT5");
+                    var input = Descendants(window).OfType<TextBox>().Single();
+                    var startButton = Descendants(window).OfType<Button>().Single(button => button.Text == "Start / recover collector");
+                    Assert(input.Enabled && !startButton.Enabled, "MT5 controls require a meaningful reason without implying authorization");
+                    input.Text = "short"; Assert(!startButton.Enabled, "short reasons cannot enable collector writes");
+                    input.Text = "Explicit fixture operator intent"; Assert(startButton.Enabled, "explicit reason enables confirmation path only; no worker or task starts from typing");
+                    Render(window, Path.Combine(fixture, "companion-mt5.png"));
+                    var body = (FlowLayoutPanel)window.Controls[0];
+                    body.ScrollControlIntoView(input); window.PerformLayout();
+                    Assert(input.Bounds.Right <= body.ClientSize.Width - body.Padding.Right, "scrolled reason remains inside the minimum-width content area");
+                    Render(window, Path.Combine(fixture, "companion-controls.png"));
+                    var disable = Descendants(window).OfType<Button>().Single(button => button.Text == "Disable startup and pause");
+                    body.ScrollControlIntoView(disable.Parent); window.PerformLayout();
+                    Assert(disable.Right <= disable.Parent.ClientSize.Width, "wrapped startup controls remain horizontally reachable");
+                    Render(window, Path.Combine(fixture, "companion-controls-bottom.png"));
+                    selector.SelectedItem = selector.Items.OfType<ProfileItem>().Single(item => item.Purpose == "MCP");
+                    Assert(input.Text == "" && !startButton.Enabled, "profile switch clears control intent and prevents cross-profile actions");
                 }
                 using (var window = new InstallerWindow()) { Render(window, Path.Combine(fixture, "installer.png")); }
                 Console.WriteLine("Native fixture retained for inspection: " + fixture);

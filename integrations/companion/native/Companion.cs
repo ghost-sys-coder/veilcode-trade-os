@@ -129,6 +129,9 @@ namespace TradeOS.Companion {
         readonly List<Button> actions = new List<Button>();
         readonly List<Button> mt5Actions = new List<Button>();
         readonly Dictionary<string,string> proposals = new Dictionary<string,string>();
+        readonly List<Button> reasonActions = new List<Button>();
+        readonly TextBox reason = new TextBox { Width = 740, Height = 58, Multiline = true, MaxLength = 1000, AccessibleName = "Collector control reason", BackColor = Color.FromArgb(21,28,39), ForeColor = Color.FromArgb(239,240,243) };
+        readonly Label health = new Label { AutoSize = true, MaximumSize = new Size(740,0), AccessibleName = "Local collector health", Text = "Local health has not been checked." };
         bool busy;
         internal CompanionWindow() {
             Text = "Trade OS companion"; Size = new Size(840, 650); MinimumSize = new Size(720, 610);
@@ -148,6 +151,8 @@ namespace TradeOS.Companion {
             body.Controls.Add(TextBlock("Saved integration setup", 6));
             var selector = new Panel { Width = 740, Height = 38, Margin = new Padding(0, 0, 0, 16) }; selector.Controls.Add(profiles); body.Controls.Add(selector);
             profiles.SelectedIndexChanged += (sender, args) => {
+                health.Text = "Local health has not been checked for this profile.";
+                reason.Clear();
                 UpdateActions();
                 if (!busy) state.Text = "Configuration selected. Approve access and verify this profile separately; earlier verification is not carried across profiles.";
             };
@@ -169,7 +174,7 @@ namespace TradeOS.Companion {
                 foreach (Control control in body.Controls) {
                     if (control is Label) control.MaximumSize = new Size(width, 0);
                     else if (control is FlowLayoutPanel) { control.MaximumSize = new Size(width, 0); control.Width = width; }
-                    else if (control is Panel) control.Width = width;
+                    else if (control is Panel || control is TextBox) control.Width = width;
                 }
             };
             body.Controls.Add(TextBlock("MT5 setup", 8));
@@ -181,6 +186,23 @@ namespace TradeOS.Companion {
                 Action("Import approved mapping (PAUSED)", async () => await ActivateMapping())
             }) { mt5Actions.Add(button); pairButtons.Controls.Add(button); }
             body.Controls.Add(pairButtons);
+            body.Controls.Add(TextBlock("Collector controls / local observations", 8));
+            body.Controls.Add(TextBlock("Start or recover checks live access and mapping before resuming local intent. Server pause, reconciliation and publication approval remain in Trade OS. The hidden worker can continue after this window closes; use Pause to stop new work. An in-flight bounded request may finish first. No process is force-killed.", 12));
+            body.Controls.Add(health);
+            body.Controls.Add(TextBlock("Reason (8-1000 characters) for every control change", 6));
+            body.Controls.Add(reason); reason.TextChanged += (sender,args) => UpdateActions();
+            var controlButtons = new FlowLayoutPanel { Width = 750, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MaximumSize = new Size(750,0), WrapContents = true };
+            foreach (var entry in new[] {
+                new[] {"Refresh local health", "HEALTH"}, new[] {"Start / recover collector", "START"}, new[] {"Pause local collection", "PAUSE"},
+                new[] {"Inspect startup", "STARTUP_STATUS"}, new[] {"Enable sign-in startup", "INSTALL_STARTUP"},
+                new[] {"Repair owned startup", "REPAIR_STARTUP"}, new[] {"Disable startup and pause", "DISABLE_STARTUP"}
+            }) {
+                string command = entry[1];
+                var button = Action(entry[0], async () => await Operate(command));
+                mt5Actions.Add(button); controlButtons.Controls.Add(button);
+                if (command != "HEALTH" && command != "STARTUP_STATUS") reasonActions.Add(button);
+            }
+            body.Controls.Add(controlButtons);
             openSetup = Action("Open Trade OS setup", () => {
                 ProfileItem selected = Selected(); Process.Start(new ProcessStartInfo(selected.Origin + "/settings/integrations/setup/" + selected.Id) { UseShellExecute = true }); return Task.FromResult(0);
             }); body.Controls.Add(openSetup);
@@ -212,6 +234,42 @@ namespace TradeOS.Companion {
             if (copy != null) copy.Enabled = !busy && selected != null && selected.Purpose == "MCP";
             if (openSetup != null) openSetup.Enabled = !busy && selected != null;
             foreach (Button button in mt5Actions) button.Enabled = !busy && selected != null && selected.Purpose == "MT5";
+            reason.Enabled = !busy && selected != null && selected.Purpose == "MT5";
+            foreach (Button button in reasonActions) button.Enabled = !busy && selected != null && selected.Purpose == "MT5" && reason.Text.Trim().Length >= 8;
+        }
+        internal static string HealthText(Dictionary<string,object> result) {
+            bool active = (bool)result["coordinatorActive"], stale = (bool)result["localStale"];
+            string local = !active ? "not running" : stale ? "lock held; tick stale or unknown" : "recent tick observed";
+            return "Local intent: " + result["mode"] + " | Coordinator: " + local + "\r\nPending upload pages: " + result["pendingPages"] +
+                " | Local tick: " + (result["observedAt"] ?? "not observed") + "\r\nServer contact: " + (result["lastContactAt"] ?? "not received") +
+                ((bool)result["stale"] ? " (stale)" : "") + " | State: " + (result["observedState"] ?? "unknown") +
+                " | Attention/retry: " + (result["code"] ?? result["retryCode"] ?? "none observed") +
+                ((bool)result["pausePending"] ? "\r\nPause requested; waiting for the worker's next bounded checkpoint." : "") +
+                "\r\nLocal observations are not proof of publication or balance reconciliation. Refresh for current health.";
+        }
+        async Task Operate(string command) {
+            ProfileItem selected = Selected(); if (selected.Purpose != "MT5") throw new InvalidOperationException();
+            bool read = command == "HEALTH" || command == "STARTUP_STATUS";
+            string why = reason.Text.Trim();
+            if (!read) {
+                string warning = command == "START" ? "Resume this mapped demo collector? Pending uploads drain before new broker reads. The worker continues after closing the companion. Server-paused connections must be resumed separately in Trade OS. No order operation is available." :
+                    command == "PAUSE" ? "Pause new local work? The current bounded request may finish; pending uploads and audit evidence are preserved. Startup remains a separate setting." :
+                    command == "DISABLE_STARTUP" ? "Disable only the exactly verified current-user startup task and pause local collection? No task, terminal, trade or pending upload will be deleted." :
+                    "Register or repair only this collector's exact current-user sign-in task? Pause locally first. This is a separate startup opt-in, not collection approval. The watchdog may launch a PAUSED coordinator. No boot/SYSTEM task or unrelated task is changed.";
+                if (why.Length < 8 || MessageBox.Show(this, selected.Label + "\r\n\r\n" + warning + "\r\n\r\nReason: " + why, "Confirm collector control", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            }
+            await Execute(async () => {
+                object request = read ? (object)new {action = command, profileId = selected.Id} : new {action = command, profileId = selected.Id, reason = why};
+                string output = await Runtime.Run(Runtime.Command(true,new[] {"-I", "-u", "-m", "trade_os_companion.cli"}), Runtime.Json.Serialize(request), 60);
+                var result = Runtime.Json.Deserialize<Dictionary<string,object>>(output);
+                if (result.ContainsKey("error")) throw new InvalidOperationException();
+                if (result.ContainsKey("coordinatorActive")) health.Text = HealthText(result);
+                state.Text = read ? (command == "HEALTH" ? "Local health refreshed. No network or broker read was performed." : "Startup inspection: " + result["state"] + ". Unknown is not proof that a task is absent.") :
+                    command == "START" ? "Local resume requested. Read health for actual activity; server approval and publication remain separate." :
+                    command == "PAUSE" ? "Local pause persisted with its reason. Pending uploads are preserved; an in-flight request may finish." :
+                    command == "DISABLE_STARTUP" ? "Exactly owned startup disabled and local pause persisted. No task or data deleted." :
+                    "Separate sign-in startup opt-in saved. Local intent remains PAUSED; no task was explicitly run.";
+            });
         }
         async Task LoadProfiles() {
             var result = await Runtime.Request(new {action = "LIST"});
@@ -223,7 +281,7 @@ namespace TradeOS.Companion {
         async Task Execute(Func<Task> work) {
             busy = true; UpdateActions(); state.Text = "Working. No additional action can run while this request is pending.";
             try { await work(); }
-            catch { state.Text = "The action could not be completed safely. Check the saved setup and application access. No raw credential or provider error is displayed."; }
+            catch { state.Text = "The acknowledgement is unavailable. Check saved setup/access; refresh local health and inspect startup before retrying a control. A write may have completed. No process is force-killed or raw provider error displayed."; }
             finally { busy = false; if (!IsDisposed) UpdateActions(); }
         }
         async Task Connect(string command, bool freshConsent = false) {

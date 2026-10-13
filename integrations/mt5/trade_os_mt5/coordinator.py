@@ -264,6 +264,21 @@ class Coordinator:
         """
         if not isinstance(stop, threading.Event):
             raise SupervisorError("INVALID_WORKER_CONFIGURATION")
+        from .health import observe
+        observed_state, next_observation = None, 0.0
         while not stop.is_set():
-            stop.wait(self.tick())
+            # First write precedes potentially bounded native/network operations.
+            # A stale tick is visible even when the process lock remains held.
+            _, steady = self._clock()
+            state = self.status()["state"]
+            if state != observed_state or steady >= next_observation:
+                observe(self)
+                observed_state, next_observation = state, steady + 15
+            delay = self.tick()
+            state = self.status()["state"]
+            if state != observed_state:
+                observe(self)  # Retry/attention is not a healthy RUNNING badge.
+                observed_state = state
+            stop.wait(delay)
+        observe(self)
         return self.status()

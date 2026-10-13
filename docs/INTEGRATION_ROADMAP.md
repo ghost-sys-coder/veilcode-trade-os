@@ -1,16 +1,24 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Local controls checkpoint 2026-10-13: MCP branch fast-forwarded to consolidated
+master `5895ded`. Companion now remembers the reviewed mapping, exposes local
+health/pending pages, explicit reasoned start/recovery and offline pause, plus
+separate current-user startup inspection/install/owned repair/disable. A hidden
+worker survives GUI closure; stale/unknown held locks are never force-restarted.
+No hosted schema/flag, real task, grant or pilot changed. Private installer release,
+real-user installation/terminal checks and actual MCP client matrix remain pending.
+See [control evidence](MT5_COMPANION_CONTROLS_VERIFICATION.md).
 Pairing checkpoint 2026-10-13: explicit companion terminal selection, metadata-only
 demo verification, browser mapping approval, same-terminal paused adoption and
-server-verified PAUSED initialization are implemented. Local startup/running
+server-verified PAUSED initialization are implemented. At that checkpoint local startup/running
 controls and telemetry, real-terminal acceptance, vendor-client matrix and hosted
 rollout remain pending. No hosted grant, task or pilot was changed. See
 [pairing evidence](MT5_COMPANION_PAIRING_VERIFICATION.md).
 Windows companion checkpoint: per-user packaging, private setup import and consent
 adapters are implemented with bundled runtimes and isolated native tests. This is
 only the packaging substep of app-led setup increment 2: terminal pairing/mapping,
-startup/control UI and local telemetry remain unfinished. No installer was publicly
+startup/control UI and local telemetry were then unfinished. No installer was publicly
 released, production MCP enabled or pilot resumed. See
 [companion verification](WINDOWS_COMPANION_VERIFICATION.md).
 Latest app-led setup checkpoint 2026-10-12: increment 1 adds owned public-client

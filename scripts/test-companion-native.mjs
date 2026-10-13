@@ -9,6 +9,7 @@ const root = dirname(index.stage), stage = index.stage;
 if (!stage.startsWith(join(project, ".artifacts/companion/build-")) || index.state !== "UNRELEASED") throw Error("Exact unreleased local bundle required");
 const tests = join(root, "native-tests"); await mkdir(tests, { recursive: true });
 await copyFile(join(project, "integrations/companion/tests/packaged-runtime.mjs"), join(tests, "packaged-runtime.mjs"));
+await copyFile(join(project, "integrations/companion/tests/packaged-health.py"), join(tests, "packaged-health.py"));
 await mkdir(join(root, "fixtures"), { recursive: true });
 const executable = join(tests, "NativeTests.exe");
 const compiler = join(process.env.SystemRoot, "Microsoft.NET/Framework64/v4.0.30319/csc.exe");

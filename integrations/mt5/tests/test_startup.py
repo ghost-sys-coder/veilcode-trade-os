@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import test_cli
 
 from trade_os_mt5.cli import load_configuration, perform
-from trade_os_mt5.startup import NAMESPACE, install, specification, task_xml
+from trade_os_mt5.startup import NAMESPACE, inspect, install, set_enabled, specification, task_xml
 from trade_os_mt5.windows_security import CredentialError
 
 
@@ -122,3 +122,38 @@ class StartupTests(unittest.TestCase):
         xml=b'<?xml version="1.0" encoding="UTF-16"?>\r\n'+ET.tostring(root,encoding="utf-8")
         with patch("trade_os_mt5.startup.subprocess.run",side_effect=[Mock(returncode=0,stdout=xml),Mock(returncode=0)]):
             self.assertTrue(install(self.configuration,repair_owned=True)["repairedOwnedTask"])
+
+    def test_readonly_inspection_does_not_guess_missing_from_query_failure(self):
+        with patch("trade_os_mt5.startup.subprocess.run", return_value=Mock(returncode=1, stdout=b"")) as run:
+            result = inspect(self.configuration)
+        self.assertEqual(result["state"], "UNVERIFIED_OR_NOT_INSTALLED")
+        self.assertFalse(result["ownershipVerified"])
+        self.assertEqual(run.call_count, 1)
+        self.assertIn("/Query", run.call_args.args[0])
+
+    def test_unknown_wrong_user_multiple_actions_and_malformed_xml_rejected(self):
+        xml = specification(self.configuration).encode()
+        for raw in (b"bad xml", xml.replace(b"InteractiveToken", b"Password"), xml.replace(b"LeastPrivilege", b"HighestAvailable"),
+                    xml.replace(b"<Exec>", b"<Exec/><Exec>"), xml.replace(b"pythonw.exe", b"other.exe"), b"a" * 65537):
+            with patch("trade_os_mt5.startup.subprocess.run", return_value=Mock(returncode=0, stdout=raw)) as run:
+                self.assertFalse(inspect(self.configuration)["ownershipVerified"])
+                with self.assertRaises(CredentialError):
+                    set_enabled(self.configuration, False)
+                self.assertTrue(all("/Query" in call.args[0] for call in run.call_args_list))
+
+    def test_owned_disable_is_verified_after_change_no_run_end_delete(self):
+        xml = specification(self.configuration).encode()
+        root = ET.fromstring(xml)
+        root.find("t:Settings/t:Enabled", {"t": NAMESPACE}).text = "false"
+        with patch("trade_os_mt5.startup.subprocess.run", side_effect=[Mock(returncode=0, stdout=xml), Mock(returncode=0),
+                   Mock(returncode=0, stdout=ET.tostring(root))]) as run:
+            self.assertEqual(set_enabled(self.configuration, False)["state"], "DISABLED")
+        self.assertEqual(run.call_args_list[1].args[0][1:], ["/Change", "/TN", "TradeOS-MT5-" + self.configuration.binding.connection_id, "/DISABLE"])
+        self.assertTrue(all(not {"/Run", "/End", "/Delete", "/F"}.intersection(call.args[0]) for call in run.call_args_list))
+
+    def test_lost_disable_acknowledgement_requires_inspection_no_automatic_retry(self):
+        xml = specification(self.configuration).encode()
+        with patch("trade_os_mt5.startup.subprocess.run", side_effect=[Mock(returncode=0, stdout=xml), subprocess.TimeoutExpired("fixture", 15)]) as run:
+            with self.assertRaisesRegex(CredentialError, "STARTUP_CHANGE_REQUIRES_INSPECTION"):
+                set_enabled(self.configuration, False)
+            self.assertEqual(run.call_count, 2)
