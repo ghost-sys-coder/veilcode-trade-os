@@ -13,6 +13,38 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace TradeOS.Companion {
+    internal sealed class CompanionFailure : Exception {
+        internal static readonly Dictionary<string,string> Messages = new Dictionary<string,string> {
+            {"INVALID_SETUP", "This is not a Trade OS setup file. Select the tradeos-*.json downloaded from your application setup page, rather than bundle-manifest.json."},
+            {"INVALID_CONFIG", "The setup configuration is invalid. Download it again from your application setup page."},
+            {"PROFILE_CONFLICT", "A different configuration already uses this profile. Existing setup was preserved; review the profile in Trade OS."},
+            {"PROFILE_BUSY", "This connection is already in use. Close its other adapter before trying again."},
+            {"BROWSER_UNAVAILABLE", "Windows could not open the consent browser. Check your default browser and retry Approve browser access."},
+            {"LOGIN_TIMEOUT", "Browser approval timed out. Click Approve browser access and complete consent in the browser."},
+            {"LOGIN_REQUIRED", "Browser approval is required. Click Approve browser access before verifying this connection."},
+            {"ACCESS_DENIED", "Application access was denied. Check this connection in Trade OS Settings > Integrations, then retry approval."},
+            {"VAULT_UNAVAILABLE", "Windows could not access the protected credential store. Check that this connection is running under your Windows account."},
+            {"INVALID_DISCOVERY", "The application discovery response does not match this setup. Download a fresh configuration from Trade OS."},
+            {"REFRESH_UNCERTAIN", "Credential renewal could not be confirmed. Reconnect browser access before retrying."},
+            {"UNAVAILABLE", "The application or network could not be reached. Check your connection and retry browser approval."}
+        };
+        internal CompanionFailure(string code) : base(Messages[code]) { }
+        internal static Exception FromOutput(string output, string errors) {
+            try {
+                var result = Runtime.Json.Deserialize<Dictionary<string,object>>(output);
+                if (result != null && result.Count == 1 && result.ContainsKey("error") && result["error"] is string && Messages.ContainsKey((string)result["error"]))
+                    return new CompanionFailure((string)result["error"]);
+            } catch { }
+            foreach (string line in errors.Split(new[] {'\r','\n'}, StringSplitOptions.RemoveEmptyEntries)) {
+                const string marker = "TRADE_OS_MCP_ERROR:";
+                if (line.StartsWith(marker, StringComparison.Ordinal)) {
+                    string code = line.Substring(marker.Length);
+                    if (Messages.ContainsKey(code)) return new CompanionFailure(code);
+                }
+            }
+            return new InvalidOperationException();
+        }
+    }
     internal static class Runtime {
         internal static string Root = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
         internal static string LocalData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -44,10 +76,12 @@ namespace TradeOS.Companion {
             };
             // No NODE_OPTIONS/PYTHONPATH, dotenv, provider credentials or global PATH.
             info.EnvironmentVariables.Clear();
-            foreach (string name in new[] {"SystemRoot", "WINDIR", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"}) {
+            foreach (string name in new[] {"LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"}) {
                 string value = Environment.GetEnvironmentVariable(name);
                 if (value != null) info.EnvironmentVariables[name] = value;
             }
+            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            info.EnvironmentVariables["SystemRoot"] = windows; info.EnvironmentVariables["WINDIR"] = windows;
             info.EnvironmentVariables["PATH"] = Path.Combine(Root, "runtime", "python") + ";" + Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32");
             info.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
             info.EnvironmentVariables["LOCALAPPDATA"] = LocalData; // OS-derived; isolated override exists only in the native test assembly.
@@ -73,8 +107,8 @@ namespace TradeOS.Companion {
                     Task all = Task.WhenAll(completion, output, errors);
                     if (await Task.WhenAny(all, Task.Delay(TimeSpan.FromSeconds(seconds), Lifetime.Token)) != all) throw new InvalidOperationException();
                     await all;
-                    string result = await output; await errors;
-                    if (process.ExitCode != 0) throw new InvalidOperationException();
+                    string result = await output; string errorText = await errors;
+                    if (process.ExitCode != 0) throw CompanionFailure.FromOutput(result, errorText);
                     return result;
                 }
             }
@@ -119,20 +153,22 @@ namespace TradeOS.Companion {
             Runtime.ProfilePath(Id);
             if (!new[] {"MCP", "MT5"}.Contains(Purpose) || !new[] {"https://tradeos.veilcode.studio", "https://mcp-preview.veilcode.studio"}.Contains(Origin)) throw new InvalidOperationException();
         }
-        public override string ToString() { return Label + "  ·  " + Purpose; }
+        public override string ToString() { return Label + "  ·  " + Purpose + "  ·  " + (Origin.Contains("mcp-preview") ? "Staging" : "Production") + "  ·  " + Id.Substring(0, 8); }
     }
 
     internal sealed class CompanionWindow : Form {
-        readonly ComboBox profiles = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "Saved integration setup" };
-        readonly Label state = new Label { AutoSize = true, MaximumSize = new Size(750, 0) };
+        readonly ComboBox profiles = new ProfileSelector { Dock = DockStyle.Top };
+        readonly Label state = new Label { AutoSize = true, MaximumSize = new Size(750, 0), BackColor = NativeTheme.Surface, ForeColor = NativeTheme.Muted, Padding = new Padding(12), AccessibleName = "Connection status" };
         readonly Button consent, verify, reconnect, copy, openSetup;
         readonly List<Button> actions = new List<Button>();
         readonly List<Button> mt5Actions = new List<Button>();
+        readonly List<Control> mt5Sections = new List<Control>();
         readonly Dictionary<string,string> proposals = new Dictionary<string,string>();
         readonly List<Button> reasonActions = new List<Button>();
         readonly TextBox reason = new TextBox { Width = 740, Height = 58, Multiline = true, MaxLength = 1000, AccessibleName = "Collector control reason", BackColor = Color.FromArgb(21,28,39), ForeColor = Color.FromArgb(239,240,243) };
         readonly Label health = new Label { AutoSize = true, MaximumSize = new Size(740,0), AccessibleName = "Local collector health", Text = "Local health has not been checked." };
         bool busy;
+        internal bool ProfilesLoaded { get; private set; }
         internal CompanionWindow() {
             Text = "Trade OS companion"; Size = new Size(840, 650); MinimumSize = new Size(720, 610);
             StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.Dpi;
@@ -145,16 +181,23 @@ namespace TradeOS.Companion {
             var imported = Action("1. Open app setup file", async () => {
                 using (var chooser = new OpenFileDialog { Filter = "Trade OS public setup (*.json)|*.json", CheckFileExists = true, Multiselect = false, Title = "Choose the configuration downloaded from Trade OS" }) {
                     if (chooser.ShowDialog(this) != DialogResult.OK) return;
-                    await Execute(async () => { await Runtime.Request(new {action = "IMPORT", path = chooser.FileName}); await LoadProfiles(); state.Text = "Configuration imported. No access, startup task or collector was enabled."; });
+                    await Execute(async () => {
+                        var reply = await Runtime.Request(new {action = "IMPORT", path = chooser.FileName});
+                        await LoadProfiles((string)((Dictionary<string, object>)reply["profile"])["profileId"]);
+                        state.Text = "Setup imported. Next: approve browser access, then verify the connection.";
+                    });
                 }
             }); body.Controls.Add(imported);
             body.Controls.Add(TextBlock("Saved integration setup", 6));
-            var selector = new Panel { Width = 740, Height = 38, Margin = new Padding(0, 0, 0, 16) }; selector.Controls.Add(profiles); body.Controls.Add(selector);
+            var selector = new Panel { Width = 740, Height = Math.Max(42, profiles.PreferredHeight), Margin = new Padding(0, 0, 0, 12) }; selector.Controls.Add(profiles); body.Controls.Add(selector);
+            profiles.SizeChanged += (sender, args) => { selector.Height = Math.Max(42, profiles.PreferredHeight); };
+            profiles.Items.Add("Loading saved setups..."); profiles.SelectedIndex = 0;
+            state.Margin = new Padding(0, 0, 0, 16); body.Controls.Add(state);
             profiles.SelectedIndexChanged += (sender, args) => {
                 health.Text = "Local health has not been checked for this profile.";
                 reason.Clear();
                 UpdateActions();
-                if (!busy) state.Text = "Configuration selected. Approve access and verify this profile separately; earlier verification is not carried across profiles.";
+                if (!busy) state.Text = "Setup selected. Approve browser access, then verify this connection.";
             };
             var buttons = new FlowLayoutPanel { Width = 750, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MaximumSize = new Size(750, 0), WrapContents = true, Margin = new Padding(0, 0, 0, 12) };
             consent = Action("2. Approve browser access", async () => await Connect("login"));
@@ -177,6 +220,7 @@ namespace TradeOS.Companion {
                     else if (control is Panel || control is TextBox) control.Width = width;
                 }
             };
+            int mt5StartIndex = body.Controls.Count;
             body.Controls.Add(TextBlock("MT5 setup", 8));
             body.Controls.Add(TextBlock("Verify only the dedicated demo installation you explicitly select. SDK connection may launch that terminal; no passwords, order APIs or account switching are used. Then review the proposal in Trade OS and import its approved mapping. Collection/startup controls are not enabled by pairing.", 16));
             var pairButtons = new FlowLayoutPanel { Width = 750, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MaximumSize = new Size(750, 0), WrapContents = true };
@@ -203,11 +247,11 @@ namespace TradeOS.Companion {
                 if (command != "HEALTH" && command != "STARTUP_STATUS") reasonActions.Add(button);
             }
             body.Controls.Add(controlButtons);
+            for (int index = mt5StartIndex; index < body.Controls.Count; index++) mt5Sections.Add(body.Controls[index]);
             openSetup = Action("Open Trade OS setup", () => {
                 ProfileItem selected = Selected(); Process.Start(new ProcessStartInfo(selected.Origin + "/settings/integrations/setup/" + selected.Id) { UseShellExecute = true }); return Task.FromResult(0);
             }); body.Controls.Add(openSetup);
-            state.Text = "No setup selected. No integration is connected by installing this companion.";
-            state.Margin = new Padding(0, 20, 0, 16); body.Controls.Add(state);
+            state.Text = "Loading saved setups...";
             body.Controls.Add(TextBlock("No broker orders, passwords or AI-provider API keys. Revocation remains in Trade OS Settings > Integrations.", 0));
             Shown += async (sender, args) => await Execute(LoadProfiles);
             FormClosing += (sender, args) => Runtime.Lifetime.Cancel();
@@ -215,7 +259,7 @@ namespace TradeOS.Companion {
         }
         Label TextBlock(string text, int bottom) { return new Label { Text = text, AutoSize = true, MaximumSize = new Size(740, 0), ForeColor = Color.FromArgb(160, 177, 199), Margin = new Padding(0, 0, 0, bottom) }; }
         Button Action(string title, Func<Task> action) {
-            var button = new Button { Text = title, AutoSize = true, Padding = new Padding(12, 7, 12, 7), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(21, 28, 39), ForeColor = ForeColor, Margin = new Padding(0, 0, 12, 10) };
+            var button = new ThemedButton { Text = title, AutoSize = true, Padding = new Padding(12, 7, 12, 7), Primary = title.StartsWith("1."), Margin = new Padding(0, 0, 12, 10) };
             button.FlatAppearance.BorderColor = Color.FromArgb(54, 64, 78);
             button.Click += async (sender, args) => {
                 if (busy) return;
@@ -226,7 +270,7 @@ namespace TradeOS.Companion {
         ProfileItem Selected() { var value = profiles.SelectedItem as ProfileItem; if (value == null) throw new InvalidOperationException(); return value; }
         void UpdateActions() {
             foreach (Button button in actions) button.Enabled = !busy;
-            profiles.Enabled = !busy;
+            profiles.Enabled = !busy && profiles.Items.OfType<ProfileItem>().Any();
             var selected = profiles.SelectedItem as ProfileItem;
             if (consent != null) consent.Enabled = !busy && selected != null;
             if (verify != null) verify.Enabled = !busy && selected != null;
@@ -234,6 +278,8 @@ namespace TradeOS.Companion {
             if (copy != null) copy.Enabled = !busy && selected != null && selected.Purpose == "MCP";
             if (openSetup != null) openSetup.Enabled = !busy && selected != null;
             foreach (Button button in mt5Actions) button.Enabled = !busy && selected != null && selected.Purpose == "MT5";
+            foreach (Control section in mt5Sections) section.Visible = selected != null && selected.Purpose == "MT5";
+            if (copy != null) copy.Visible = selected != null && selected.Purpose == "MCP";
             reason.Enabled = !busy && selected != null && selected.Purpose == "MT5";
             foreach (Button button in reasonActions) button.Enabled = !busy && selected != null && selected.Purpose == "MT5" && reason.Text.Trim().Length >= 8;
         }
@@ -271,16 +317,24 @@ namespace TradeOS.Companion {
                     "Separate sign-in startup opt-in saved. Local intent remains PAUSED; no task was explicitly run.";
             });
         }
-        async Task LoadProfiles() {
+        async Task LoadProfiles() { await LoadProfiles(null); }
+        async Task LoadProfiles(string preferredId) {
+            var previous = profiles.SelectedItem as ProfileItem;
+            string selectedId = preferredId ?? (previous == null ? null : previous.Id);
             var result = await Runtime.Request(new {action = "LIST"});
             var rows = result["profiles"] as IList; if (rows == null) throw new InvalidOperationException();
             profiles.Items.Clear(); foreach (var row in rows) profiles.Items.Add(new ProfileItem((Dictionary<string, object>)row));
-            if (profiles.Items.Count > 0) profiles.SelectedIndex = 0;
-            state.Text = profiles.Items.Count > 0 ? "Configuration ready. Consent and a live connection check are still required." : "No saved setup. Open the public configuration downloaded from Trade OS.";
+            bool any = profiles.Items.Count > 0;
+            if (!any) profiles.Items.Add("No saved setups — open your app setup file above");
+            profiles.SelectedItem = profiles.Items.OfType<ProfileItem>().FirstOrDefault(item => item.Id == selectedId);
+            if (profiles.SelectedIndex < 0) profiles.SelectedIndex = 0;
+            ProfilesLoaded = true;
+            state.Text = any ? "Setup ready. Next: approve browser access, then verify the connection." : "Start with step 1: open the public configuration downloaded from Trade OS. Approval becomes available after import.";
         }
         async Task Execute(Func<Task> work) {
             busy = true; UpdateActions(); state.Text = "Working. No additional action can run while this request is pending.";
             try { await work(); }
+            catch (CompanionFailure error) { state.Text = error.Message; }
             catch { state.Text = "The acknowledgement is unavailable. Check saved setup/access; refresh local health and inspect startup before retrying a control. A write may have completed. No process is force-killed or raw provider error displayed."; }
             finally { busy = false; if (!IsDisposed) UpdateActions(); }
         }
@@ -289,7 +343,7 @@ namespace TradeOS.Companion {
                 ProfileItem selected = Selected();
                 if (selected.Purpose == "MCP") {
                     await Runtime.VerifyMcp(selected.Id);
-                    await Runtime.Run(Runtime.Command(false, new[] { Path.Combine(Runtime.Root, "integrations", "mcp", "cli.mjs"), command, "--config", Runtime.ProfilePath(selected.Id) }), null, 360);
+                    await Runtime.Run(Runtime.Command(false, new[] { Path.Combine(Runtime.Root, "integrations", "mcp", "cli.mjs"), command, "--config", Runtime.ProfilePath(selected.Id), "--gui" }), null, 360);
                     state.Text = "A real MCP connection was verified. This does not prove every tool/client workflow passed; revocation remains separate.";
                 } else {
                     object request = command == "login" ? (object)new {action = "CONSENT", profileId = selected.Id, reconnect = freshConsent} : new {action = "VERIFY_ACCESS", profileId = selected.Id};

@@ -16,7 +16,7 @@ const compiler = join(process.env.SystemRoot, "Microsoft.NET/Framework64/v4.0.30
 execFileSync(compiler, ["/nologo", "/debug", "/platform:x64", "/target:exe", "/main:TradeOS.Companion.NativeTests", "/out:" + executable,
   "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", "/r:System.Web.Extensions.dll", "/r:System.IO.Compression.dll",
   "/win32manifest:" + join(project, "integrations/companion/native/app.manifest"),
-  ...["Companion.cs", "Installer.cs", "NativeTests.cs", "Compatibility.cs"].map(name => join(project, "integrations/companion/native", name))], { stdio: ["ignore", "pipe", "pipe"], timeout: 30000 });
+  ...["Companion.cs", "Installer.cs", "NativeTests.cs", "Compatibility.cs", "NativeTheme.cs"].map(name => join(project, "integrations/companion/native", name))], { stdio: ["ignore", "pipe", "pipe"], timeout: 30000 });
 const fixture = join(root, "fixtures", randomUUID());
 // Installation and runtime are distinct integration gates. Keep each original
 // 60s process bound and all individual operation/GUI deadlines unchanged.

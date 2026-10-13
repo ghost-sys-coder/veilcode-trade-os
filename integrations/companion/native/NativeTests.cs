@@ -21,12 +21,27 @@ namespace TradeOS.Companion {
             window.StartPosition = FormStartPosition.Manual; window.Location = new Point(-32000, -32000);
             window.Show(); Application.DoEvents();
             var deadline = DateTime.UtcNow.AddSeconds(30);
-            while (Descendants(window).OfType<ComboBox>().Any(box => !box.Enabled || box.SelectedItem == null) && DateTime.UtcNow < deadline) Application.DoEvents();
-            Assert(!Descendants(window).OfType<ComboBox>().Any(box => !box.Enabled || box.SelectedItem == null), "fixture profile really loads before rendering");
+            while (window is CompanionWindow && !((CompanionWindow)window).ProfilesLoaded && DateTime.UtcNow < deadline) Application.DoEvents();
+            Assert(!(window is CompanionWindow) || ((CompanionWindow)window).ProfilesLoaded, "fixture profile loading finishes before rendering");
             Assert(Descendants(window).OfType<ComboBox>().All(box => box.Parent.Height >= box.PreferredHeight), "native selector is not vertically clipped");
             Assert(Descendants(window).OfType<Button>().Any(button => button.IsHandleCreated), "native form children really render");
             window.PerformLayout();
             using (var image = new Bitmap(window.ClientSize.Width, window.ClientSize.Height)) { window.DrawToBitmap(image, window.ClientRectangle); image.Save(path); }
+        }
+        static void Legible(Control control, string name) {
+            using (var image = new Bitmap(control.Width, control.Height)) {
+                control.DrawToBitmap(image, control.ClientRectangle);
+                int ink = 0;
+                // Ignore borders, focus rings and dropdown arrow: test actual
+                // bright label pixels on the dark control, including disabled ink.
+                for (int y = 7; y < image.Height - 7; y++)
+                    for (int x = 12; x < image.Width - 35; x++) {
+                        Color pixel = image.GetPixel(x, y);
+                        if (pixel.R > 140 && pixel.G > 140 && pixel.B > 140) ink++;
+                    }
+                Color surface = image.GetPixel(10, 3);
+                Assert(surface.R < 100 && surface.G < 100 && surface.B < 100 && ink > 30, name);
+            }
         }
         [STAThread] static int Main(string[] args) {
             AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling", false);
@@ -62,8 +77,36 @@ namespace TradeOS.Companion {
                 Assert(runtimeResult == "PACKAGED_RUNTIME_VERIFIED\n", "packaged MCP imports, legacy/modern SDK forwarding, DPAPI, locking and restart work with no global runtimes or network");
                 var start = Runtime.Command(true, new[] {"-I", "-u", "-m", "trade_os_companion.cli"});
                 Assert(!start.UseShellExecute && start.CreateNoWindow && !start.EnvironmentVariables.ContainsKey("NODE_OPTIONS") && !start.EnvironmentVariables.ContainsKey("PYTHONPATH"), "fixed hidden subprocess excludes environment injection");
+                Assert(start.EnvironmentVariables["SystemRoot"] == Environment.GetFolderPath(Environment.SpecialFolder.Windows), "browser OS path is derived from Windows rather than an inherited override");
+                var browserFailure = CompanionFailure.FromOutput("", "https://private.invalid/?code=SECRET\nTRADE_OS_MCP_ERROR:BROWSER_UNAVAILABLE\nraw private traceback");
+                Assert(browserFailure is CompanionFailure && browserFailure.Message.Contains("default browser") && !browserFailure.Message.Contains("SECRET"), "browser launch failure becomes specific guidance without disclosing raw output");
+                var invalidSetup = CompanionFailure.FromOutput("{\"error\":\"INVALID_SETUP\"}", "");
+                Assert(invalidSetup is CompanionFailure && invalidSetup.Message.Contains("tradeos-*.json"), "wrong bundle manifest gets setup-file guidance");
+                Assert(!(CompanionFailure.FromOutput("", "TRADE_OS_MCP_ERROR:SECRET_OR_UNKNOWN") is CompanionFailure), "unrecognized subprocess diagnostics are not displayed");
+                bool diagnosed = false;
+                try { Runtime.Run(Runtime.Command(false, new[] {"-e", "process.stderr.write('private=SECRET\\nTRADE_OS_MCP_ERROR:BROWSER_UNAVAILABLE\\n');process.exitCode=1;"}), null, 10).GetAwaiter().GetResult(); }
+                catch (CompanionFailure error) { diagnosed = error.Message.Contains("default browser") && !error.Message.Contains("SECRET"); }
+                Assert(diagnosed, "actual packaged subprocess failure reaches the GUI as fixed browser guidance");
+                bool setupRejected = false;
+                try { Runtime.Request(new {action = "IMPORT", path = Path.Combine(installed, "bundle-manifest.json")}).GetAwaiter().GetResult(); }
+                catch (CompanionFailure error) { setupRejected = error.Message.Contains("tradeos-*.json"); }
+                Assert(setupRejected, "actual packaged manifest rejection returns actionable setup guidance");
                 var empty = Runtime.Request(new {action = "LIST"}).GetAwaiter().GetResult();
                 Assert(((IList)empty["profiles"]).Count == 0, "bundled Python IPC lists only the isolated empty fixture profile store");
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                using (var window = new CompanionWindow()) {
+                    Render(window, Path.Combine(fixture, "companion-empty.png"));
+                    var selector = Descendants(window).OfType<ComboBox>().Single();
+                    Assert(!selector.Enabled && selector.Text.Contains("No saved setups"), "empty selector explains import prerequisite without a fake selectable profile");
+                    Legible(selector, "empty selector placeholder paints readable ink on a dark surface");
+                    var approval = Descendants(window).OfType<Button>().Single(button => button.Text.StartsWith("2."));
+                    Legible(approval, "disabled approval text remains visible with Windows visual styles enabled");
+                    int clicks = 0; approval.Click += (sender, args2) => clicks++; approval.PerformClick();
+                    Assert(!approval.Enabled && clicks == 0, "readable disabled control still rejects activation");
+                    var status = Descendants(window).OfType<Label>().Single(label => label.AccessibleName == "Connection status");
+                    Assert(status.Visible && status.Bottom < approval.Parent.Top, "empty-state guidance is visible beside setup controls");
+                    Assert(!Descendants(window).OfType<TextBox>().Single().Visible, "empty setup hides unrelated collector controls");
+                }
                 string publicFile = Path.Combine(fixture, "public-setup.json");
                 File.WriteAllText(publicFile, Runtime.Json.Serialize(new {version = 1, profile = "tradeos-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                     resource = "https://mcp-preview.veilcode.studio/mcp", issuer = "https://nhwlxcrsivmawwmjiwck.supabase.co/auth/v1",
@@ -107,7 +150,6 @@ namespace TradeOS.Companion {
                     ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", account = new {id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name = "Fixture demo", currencyCode = "USD", currencyPrecision = 2},
                     oauth = new {issuer = "https://nhwlxcrsivmawwmjiwck.supabase.co/auth/v1", applicationOrigin = "https://tradeos.veilcode.studio", clientId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd", callbackUri = "http://127.0.0.1:9876/callback", allowLocalHttp = false}}));
                 Runtime.Request(new {action = "IMPORT", path = mt5Setup}).GetAwaiter().GetResult();
-                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
                 using (var window = new CompanionWindow()) {
                     window.CreateControl(); window.PerformLayout();
                     var buttons = Descendants(window).OfType<Button>().ToArray();
@@ -115,6 +157,10 @@ namespace TradeOS.Companion {
                     Assert(buttons.Single(button => button.Text.StartsWith("3.")).Enabled == false, "verification disabled without a saved MCP profile");
                     Assert(Descendants(window).OfType<ComboBox>().Single().AccessibleName == "Saved integration setup", "native profile selector has an accessible name");
                     Render(window, Path.Combine(fixture, "companion.png"));
+                    var populated = Descendants(window).OfType<ComboBox>().Single();
+                    Assert(populated.Text.Contains("Codex") && populated.Text.Contains("Staging"), "selected profile shows its client and environment");
+                    Legible(populated, "selected profile text is visible on a dark dropdown");
+                    Assert(!Descendants(window).OfType<TextBox>().Single().Visible, "MCP setup hides the MT5 workflow");
                     Assert(Descendants(window).OfType<Button>().Where(button => button.Text.StartsWith("Choose dedicated") || button.Text.StartsWith("Adopt existing") || button.Text.StartsWith("Import approved")).All(button => !button.Enabled), "MCP profiles cannot probe or activate MT5 terminals");
                     Assert(Descendants(window).OfType<Button>().Where(button => new[] {"Refresh local health", "Start / recover collector", "Pause local collection", "Inspect startup", "Enable sign-in startup", "Repair owned startup", "Disable startup and pause"}.Contains(button.Text)).All(button => !button.Enabled), "MCP profiles cannot run MT5 control or startup actions");
                     Assert(Descendants(window).OfType<TextBox>().Single().AccessibleName == "Collector control reason" && !Descendants(window).OfType<TextBox>().Single().Enabled, "labelled control reason is disabled for MCP profiles");
@@ -130,6 +176,7 @@ namespace TradeOS.Companion {
                     var selector = Descendants(window).OfType<ComboBox>().Single();
                     selector.SelectedItem = selector.Items.OfType<ProfileItem>().Single(item => item.Purpose == "MT5");
                     var input = Descendants(window).OfType<TextBox>().Single();
+                    Assert(input.Visible, "selecting MT5 reveals its existing workflow");
                     var startButton = Descendants(window).OfType<Button>().Single(button => button.Text == "Start / recover collector");
                     Assert(input.Enabled && !startButton.Enabled, "MT5 controls require a meaningful reason without implying authorization");
                     input.Text = "short"; Assert(!startButton.Enabled, "short reasons cannot enable collector writes");
@@ -145,6 +192,12 @@ namespace TradeOS.Companion {
                     Render(window, Path.Combine(fixture, "companion-controls-bottom.png"));
                     selector.SelectedItem = selector.Items.OfType<ProfileItem>().Single(item => item.Purpose == "MCP");
                     Assert(input.Text == "" && !startButton.Enabled, "profile switch clears control intent and prevents cross-profile actions");
+                    window.Size = new Size(1600, 900);
+                    Render(window, Path.Combine(fixture, "companion-wide.png"));
+                    window.Font = new Font("Segoe UI", 15);
+                    window.Size = new Size(1000, 850);
+                    Render(window, Path.Combine(fixture, "companion-large-text.png"));
+                    Legible(selector, "larger text profile remains visible and fits selector height");
                 }
                 using (var window = new InstallerWindow()) { Render(window, Path.Combine(fixture, "installer.png")); }
                 Console.WriteLine("Native fixture retained for inspection: " + fixture);

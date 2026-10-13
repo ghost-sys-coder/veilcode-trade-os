@@ -138,9 +138,10 @@ namespace TradeOS.Companion {
             body.Controls.Add(new Label { Text = "Trade OS companion", Font = new Font("Segoe UI", 22, FontStyle.Bold), AutoSize = true });
             body.Controls.Add(new Label { Text = "Unsigned private test artifact. This installs files only: no registry changes, startup task, terminal launch or connection approval.", AutoSize = true, MaximumSize = new Size(650, 0), Margin = new Padding(0, 15, 0, 15) });
             location.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "TradeOS"); body.Controls.Add(location);
-            var browse = new Button { Text = "Choose another local drive/folder", AutoSize = true, Margin = new Padding(0, 10, 0, 10) };
+            location.BackColor = NativeTheme.Surface; location.ForeColor = NativeTheme.Text;
+            var browse = new ThemedButton { Text = "Choose another local drive/folder", AutoSize = true, Padding = new Padding(10, 6, 10, 6), Margin = new Padding(0, 10, 0, 10) };
             browse.Click += (sender, args) => { using (var chooser = new FolderBrowserDialog { Description = "Choose a local parent folder. Existing files will not be replaced.", ShowNewFolderButton = true }) if (chooser.ShowDialog(this) == DialogResult.OK) location.Text = chooser.SelectedPath; }; body.Controls.Add(browse);
-            install = new Button { Text = "Install private test build", AutoSize = true, Padding = new Padding(10), BackColor = Color.FromArgb(239, 177, 37), ForeColor = Color.Black };
+            install = new ThemedButton { Text = "Install private test build", AutoSize = true, Padding = new Padding(10), Primary = true };
             install.Click += async (sender, args) => {
                 install.Enabled = false; browse.Enabled = false; location.Enabled = false; status.Text = "Verifying package and installing into a new protected version folder…";
                 try {
