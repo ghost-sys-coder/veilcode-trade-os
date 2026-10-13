@@ -1,6 +1,15 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Claude Desktop Chat local-build checkpoint 2026-10-13: distinct app-led profile,
+default-off policy, backward-compatible versioned setup listing and owned MCPB
+download are implemented. A sealed, release-pinned launcher reuses the existing
+protected adapter. All 1,206 unit tests, 1,184 database assertions, eight local
+browser/provider checks, 44 Python tests, 82 native checks and static/build gates
+pass. Matched unsigned artifacts are built, not published/installed. Hosted
+rollout and actual Desktop Chat acceptance remain pending; no existing grant,
+production flag, MT5 terminal/task or installation changed. See
+[Desktop setup evidence](MCP_CLAUDE_DESKTOP_SETUP_VERIFICATION.md).
 Cross-client checkpoint 2026-10-13: actual Codex CLI 0.147.0 and Claude Code
 2.1.119 connect simultaneously with separate approved installed profiles. Shared
 owner reads, receipt namespace isolation, a competing versioned edit, canonical

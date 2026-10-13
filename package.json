@@ -27,6 +27,7 @@
     "check:companion-python": "node scripts/run-companion-python.mjs --check",
     "prepare:companion-runtime": "node scripts/prepare-companion-runtime.mjs",
     "build:companion": "node scripts/build-companion.mjs",
+    "build:claude-desktop": "node scripts/build-claude-desktop.mjs",
     "test:companion-native": "node scripts/test-companion-native.mjs",
     "check:mcp-python": "node scripts/run-mcp-python.mjs --check",
     "dev:integration": "node scripts/start-local-integration-app.mjs",

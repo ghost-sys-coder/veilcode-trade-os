@@ -12,6 +12,7 @@ import { integrationSetupAvailability, readSetupState } from "@/services/integra
 import { setupLabels, type SetupProfile } from "@/domain/integrations/setup";
 import { IntegrationSetupForm } from "@/features/integrations/setup-form";
 import type { IntegrationDatabase } from "@/types/integration-database";
+import { claudeDesktopDistribution } from "@/domain/integrations/claude-desktop-distribution";
 
 export default async function ConnectIntegrationPage({ params }: { params: Promise<{ purpose: string }> }) {
   await requireUserId();
@@ -21,6 +22,7 @@ export default async function ConnectIntegrationPage({ params }: { params: Promi
   const availability = integrationSetupAvailability(purpose);
   let unavailable = false;
   let databaseEnabled = false;
+  let desktopAvailable = false;
   let profiles: SetupProfile[] = [];
   let accounts: { id: string; name: string; currency_code: string }[] = [];
   if (availability.enabled) {
@@ -30,6 +32,7 @@ export default async function ConnectIntegrationPage({ params }: { params: Promi
       const setup = await readSetupState(client);
       profiles = setup.profiles.filter(profile => profile.purpose === purpose);
       databaseEnabled = setup.databaseEnabled[purpose];
+      desktopAvailable = setup.desktopEnabled && Boolean(claudeDesktopDistribution(process.env));
       if (purpose === "MT5") {
         const response = await client.from("trading_accounts").select("id,name,currency_code").eq("user_id", browser.userId).order("name").limit(1000);
         if (response.error || response.data.length === 1000) throw new Error("Account selection unavailable");
@@ -52,6 +55,7 @@ export default async function ConnectIntegrationPage({ params }: { params: Promi
     <Card><CardHeader className="border-b border-border/70"><CardTitle>Prepare your connection</CardTitle>
       <CardDescription>{purpose === "MT5" ? "Use an existing Trade OS account, or create one first. Dedicated-terminal identity is verified separately." : "Start with a local Windows client profile. Vendor connection and consent remain explicit steps."}</CardDescription></CardHeader>
       <CardContent className="pt-5"><IntegrationSetupForm purpose={purpose} accounts={accounts} operationId={randomUUID()}
+        desktopAvailable={desktopAvailable}
         available={availability.enabled && availability.provisioning && databaseEnabled && !unavailable} /></CardContent></Card>
     <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/30 p-4"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
       <p className="text-sm leading-6 text-muted-foreground">{purpose === "MT5" ? "MT5 needs a Windows companion and a dedicated demo terminal. Configuration does not start capture, approve history or enable automatic publication."

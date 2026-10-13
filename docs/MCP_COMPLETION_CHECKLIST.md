@@ -79,6 +79,13 @@ that every requested real AI client has connected successfully.
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini
    consumer-app support. User browser consent may be needed for these checks.
+   **Desktop Chat local-build checkpoint, 2026-10-13:** separate Desktop profile,
+   account-free public authorization, default-off rollout policy, backward-compatible
+   setup reads and app-led extension download are implemented and locally verified.
+   The lightweight MCPB pins/checks the matched companion and reuses its protected
+   adapter; both unsigned artifacts are built but not released or installed.
+   Hosted rollout and real Desktop discovery/write/renewal/revocation remain pending.
+   See [Desktop setup evidence](MCP_CLAUDE_DESKTOP_SETUP_VERIFICATION.md).
    **Simultaneous native-client checkpoint, 2026-10-13:** actual separate Codex
    and Claude Code processes pass shared owner reads, client-scoped operation
    lookup, one-winner concurrent edit, canonical readback and cross-client

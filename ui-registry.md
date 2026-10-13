@@ -2,6 +2,23 @@
 
 Visual baseline for the Phase 01 workspace. New interface work should reuse these token-based patterns in both light and dark mode.
 
+### Claude Desktop setup and extension download
+
+Files: `features/integrations/setup-form.tsx`, `app/(app)/settings/integrations/setup/[profileId]/page.tsx`
+Last updated: 2026-10-13
+
+Reuse the existing substantial Card and outline Button surfaces. Step sections
+use `space-y-3 border-t border-border/70 pt-5`; body copy uses `text-sm leading-6
+text-muted-foreground`; headings use `text-sm font-semibold`. Unavailable state
+uses `rounded-lg border border-border/70 bg-muted/30 p-4`, not invisible controls
+or false success. Download controls wrap text with `h-auto min-h-10 max-w-full
+whitespace-normal`. Native selects retain `bg-background`, `border-input` and
+`focus-visible:ring-ring/25`; disabled Desktop/Gemini options explain their state.
+No new colors, nested decorative Cards or animation; both themes inherit tokens.
+The public integration data-handling notice reuses `rounded-xl`, `bg-card`,
+`border-border/70`, `surface-shadow`, `p-5`, `text-sm leading-7` and the primary
+link token. It contains no authentication requirement or credential form.
+
 ### Audited goals and prop forms
 
 Files: `app/(app)/goals/page.tsx`, `app/(app)/prop/page.tsx`, `components/app/mutation-form.tsx`

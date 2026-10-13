@@ -32,6 +32,7 @@ import { getBrowserMt5Pairing } from "@/services/integrations/mt5-pairing";
 import { randomUUID } from "node:crypto";
 import type { IntegrationDatabase } from "@/types/integration-database";
 import { companionDistribution } from "@/domain/integrations/companion-distribution";
+import { claudeDesktopDistribution } from "@/domain/integrations/claude-desktop-distribution";
 
 export default async function IntegrationSetupPage({
   params,
@@ -48,9 +49,11 @@ export default async function IntegrationSetupPage({
   let profile: SetupProfile | undefined;
   let unavailable = false;
   let databaseEnabled = false;
+  let desktopEnabled = false;
   try {
     const state = await readSetupState(client);
     profile = state.profiles.find((row) => row.id === id.data);
+    desktopEnabled = state.desktopEnabled;
     if (profile) databaseEnabled = state.databaseEnabled[profile.purpose];
   } catch {
     unavailable = true;
@@ -72,7 +75,9 @@ export default async function IntegrationSetupPage({
       </div>
     );
   const availability = integrationSetupAvailability(profile.purpose);
-  const available = availability.enabled && databaseEnabled;
+  const desktop = profile.clientKind === "CLAUDE_DESKTOP";
+  const desktopDistribution = desktop ? claudeDesktopDistribution(process.env) : null;
+  const available = availability.enabled && databaseEnabled && (!desktop || (desktopEnabled && Boolean(desktopDistribution)));
   const distribution =
     available && profile.status === "READY"
       ? companionDistribution(process.env)
@@ -180,6 +185,24 @@ export default async function IntegrationSetupPage({
               </Button>
             )}
           </section>
+          {desktop ? <section className="space-y-3 border-t border-border/70 pt-5" aria-labelledby="desktop-extension-heading">
+            <h2 id="desktop-extension-heading" className="text-sm font-semibold">Claude Desktop Chat extension</h2>
+            <p className="text-sm leading-6 text-muted-foreground">This is a separate connection from Claude Code and remote Claude connectors. Download both matched previews from this page; do not edit your current installation or reuse another client’s setup file.</p>
+            {available && profile.status === "READY" && desktopDistribution ? <>
+              <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" nativeButton={false}
+                render={<a href={`/api/integrations/setup/${profile.id}/desktop-extension`} />}>
+                <Download className="size-4" aria-hidden="true" />Download Claude Desktop extension preview
+              </Button>
+              <ol className="list-decimal space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+                <li>Install the matched Windows companion below. Open TradeOS.exe, import your public configuration from step 1, then approve and verify browser access.</li>
+                <li>In Claude Desktop, open Settings → Extensions → Advanced settings → Install Extension and select the downloaded .mcpb file.</li>
+                <li>In its settings, choose the installed companion-* folder containing TradeOSMcp.exe and your downloaded tradeos-claude_desktop-*.json. No API key, terminal commands or hand-edited configuration is required.</li>
+                <li>Confirm Trade OS tools appear in Chat’s Connectors menu. A companion verification message alone is not proof that Desktop Chat has connected.</li>
+              </ol>
+              <p className="break-all text-xs leading-5 text-muted-foreground">{desktopDistribution.tag} · {(desktopDistribution.bytes / 1024).toFixed(1)} KiB<br />Extension SHA-256: {desktopDistribution.sha256}</p>
+              <p className="text-xs leading-5 text-muted-foreground">Unsigned preview. Respect Desktop organization policies and Windows security protections. Reinstall app-downloaded matched previews for updates; moving to another Windows/VPS user requires separate authorization, not copying protected credentials.</p>
+            </> : <p role="status" className="rounded-lg border border-border/70 bg-muted/30 p-4 text-sm leading-6">The matched Desktop extension is not released or its onboarding policy is disabled. No installation or connection is inferred.</p>}
+          </section> : null}
           <section className="space-y-3 border-t border-border/70 pt-5">
             <h2 className="text-sm font-semibold">
               2. Install or configure the client

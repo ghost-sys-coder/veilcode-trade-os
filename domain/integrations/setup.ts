@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { localMcpConfigSchema } from "./local-mcp-config";
 
-export const setupKinds = ["MT5_WINDOWS", "CODEX", "CLAUDE_CODE", "GEMINI_CLI"] as const;
+export const setupKinds = ["MT5_WINDOWS", "CODEX", "CLAUDE_CODE", "CLAUDE_DESKTOP", "GEMINI_CLI"] as const;
 export const setupKindSchema = z.enum(setupKinds);
 export type SetupKind = z.infer<typeof setupKindSchema>;
 export const setupLabels: Record<SetupKind, string> = {
-  MT5_WINDOWS: "MetaTrader 5", CODEX: "Codex", CLAUDE_CODE: "Claude Code", GEMINI_CLI: "Gemini CLI",
+  MT5_WINDOWS: "MetaTrader 5", CODEX: "Codex", CLAUDE_CODE: "Claude Code", CLAUDE_DESKTOP: "Claude Desktop (Chat)", GEMINI_CLI: "Gemini CLI",
 };
 export const setupRequestSchema = z.object({ operationId: z.string().uuid(), clientKind: setupKindSchema,
   accountId: z.string().uuid().nullable() }).strict().superRefine((value, ctx) => {
@@ -17,7 +17,7 @@ export const setupProfileSchema = z.object({ id: z.string().uuid(), purpose: z.e
   callbackUri: z.string().url(), clientId: z.string().uuid().nullable(), status: z.enum(["REGISTERING", "READY"]),
   version: z.string().regex(/^[1-9][0-9]*$/), createdAt: z.iso.datetime({ offset: true }), updatedAt: z.iso.datetime({ offset: true }),
 }).strict().superRefine((value, ctx) => {
-  const ports = { MT5_WINDOWS: 9876, CODEX: 9878, CLAUDE_CODE: 9880, GEMINI_CLI: 9882 };
+  const ports = { MT5_WINDOWS: 9876, CODEX: 9878, CLAUDE_CODE: 9880, GEMINI_CLI: 9882, CLAUDE_DESKTOP: 9884 };
   if (value.callbackUri !== `http://127.0.0.1:${ports[value.clientKind]}/callback`
     || (value.purpose === "MT5") !== (value.clientKind === "MT5_WINDOWS")
     || (value.purpose === "MT5") !== (value.accountId !== null)

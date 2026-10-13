@@ -31,7 +31,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(bootstrap(mcp())["clientKind"], "CODEX")
 
     def test_all_registered_local_mcp_ports(self):
-        for port, kind in ((9878, "CODEX"), (9880, "CLAUDE_CODE"), (9882, "GEMINI_CLI")):
+        for port, kind in ((9878, "CODEX"), (9880, "CLAUDE_CODE"), (9882, "GEMINI_CLI"), (9884, "CLAUDE_DESKTOP")):
             value = mcp() | {"redirectUri": f"http://127.0.0.1:{port}/callback"}
             self.assertEqual(bootstrap(value)["clientKind"], kind)
 
