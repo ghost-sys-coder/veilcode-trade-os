@@ -1,6 +1,16 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Claude Code checkpoint 2026-10-13: user completed separate app-led approval.
+Installed Claude Code 2.1.119 is user-scoped registered with the published native
+launcher, preserving two previous user MCP entries and all 33 project MCP maps.
+Actual 84-tool discovery, structured account/catalog reads, configuration writes,
+retry/concurrency/null/version safeguards, archival and fresh-process replay pass.
+One inactive test strategy is archived with four receipts/four actor-bound audits;
+accounts, Codex configuration and MT5 state were not changed. Owner-browser live
+revocation denied the existing connected Claude client discovery/read/write with
+no committed rejected write. Reconnection, resource-path, other Claude surfaces and final activation remain
+pending. See [Claude Code evidence](MCP_CLAUDE_CODE_VERIFICATION.md).
 Codex mutation checkpoint 2026-10-13: installed actual-client configuration
 writes, duplicate-operation replay, changed-payload rejection, omitted/null
 patches, concurrent version conflict, reasoned archive and fresh-process replay
