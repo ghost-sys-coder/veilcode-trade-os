@@ -1,5 +1,11 @@
 # Trade OS MCP Access Implementation Plan
 
+Priority refinement 2026-10-13: verify Codex and Claude products first. Gemini
+verification is ON HOLD until the user resumes it; it is not a failed or passed
+gate and does not block this focused release. Standalone ChatGPT connector work
+is queued after the Codex/Claude focus. Preserve the standard client-neutral MCP
+catalog and transports; do not remove working deferred-client support.
+
 Current 2026-10-10: updated from consolidated master `853a963`; items 1–4 of
 the [completion checklist](MCP_COMPLETION_CHECKLIST.md) are delivered for their
 increments. The local stdio adapter forwards all 84 tools/eight resources with
@@ -92,6 +98,29 @@ revocation. OAuth scopes alone are not database permissions.
 Discovery is public; user data is protected. Preserve anonymous public
 calculator access. Never expose database/service-role credentials to clients.
 
+## Future VPS deployment requirements
+
+Keep the application/API and MT5 collector separately deployable. The future
+application host may change without moving the collector into the web process.
+MT5 still requires a compatible Windows host with dedicated terminal/worker per
+approved account; ordinary MCP application access must work when that host is
+offline. No VPS purchase, provisioning or hosting migration is authorized now.
+
+Use deployment configuration and app-generated public setup profiles for origins,
+resource URLs and installation paths, not this desktop's drive letters or a
+permanent assumption that the staging hostname is the production resource.
+Persistent operations, audits, grants and receipts remain database-backed;
+process memory must not be the only source of recovery or authorization state.
+Preserve HTTPS/resource-bound OAuth, revocation and separate enablement flags on
+any new host. Credential renewal and browser/RDP callback behavior on a VPS need
+explicit verification; never copy Windows-protected credential blobs as a
+portable credential transfer. Reauthorize on the destination host as required.
+
+VPS handover must use a new collector identity and server fence, preserve durable
+pending operation IDs/checkpoints, and reconcile before resuming. Verify old-host
+write rejection, outage/restart recovery and Windows login/RDP/startup behavior
+there. These future-host checks are deferred, not claimed as passed on this PC.
+
 ## Capability inventory
 
 Version the inventory and map each existing user-facing capability to its
@@ -149,9 +178,9 @@ Test every capability family against the same services used by the UI.
 | --- | --- |
 | Codex | Local/remote connection, discovery and authorized read/write |
 | Claude Code | Local/remote connection and workflow verification |
-| ChatGPT Desktop / remote connector | Available connection path, consent and tools |
-| Claude remote connector | HTTPS discovery, consent and tools |
-| Gemini CLI | Connection, tools and workflow verification |
+| Claude desktop / remote connector | Verify each available supported path, HTTPS discovery, consent and tools; unavailable paths reported explicitly |
+| ChatGPT Desktop / remote connector | Queued after current Codex/Claude focus; available connection path, consent and tools |
+| Gemini CLI | ON HOLD by user decision; resume connection/tool/workflow verification only when requested |
 
 Gemini consumer-app support is not assumed. Record client versions, supported
 connection paths, account policies, commands and results. Client availability

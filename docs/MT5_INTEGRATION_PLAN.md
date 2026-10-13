@@ -248,6 +248,17 @@ replacement laptop/VPS collector claims the connection. Reboot-before-login,
 locked-session and RDP behavior require actual Windows verification. VPS
 purchase/configuration is not included now.
 
+Future VPS is a deployment target to preserve during development, not an extra
+runtime coupled to the application web server. Keep dedicated Windows terminals,
+configurable runtime/data paths and the existing account-bound worker/API boundary.
+On handover: pause the old host, preserve/recover pending operation envelopes and
+checkpoints, authorize credentials on the destination (Windows-protected blobs
+are not portable credentials), acquire a new fenced worker lease, reconcile,
+then explicitly resume. Never let a copied spool or old laptop worker compete
+with the VPS. Verify actual reboot/login, locked-session/RDP and terminal startup
+on that future host before claiming unattended readiness. No VPS provisioning or
+existing pilot/startup change is part of this priority update.
+
 The integration settings page must expose mapping, preview, conflicts,
 classification, pause/resume, last heartbeat/successful sync, pending uploads
 and actionable errors. The runbook must document install, consent, startup,

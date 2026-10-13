@@ -1,6 +1,54 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Cross-client checkpoint 2026-10-13: actual Codex CLI 0.147.0 and Claude Code
+2.1.119 connect simultaneously with separate approved installed profiles. Shared
+owner reads, receipt namespace isolation, a competing versioned edit, canonical
+readback and cross-client archival/replay pass. One inactive fixture is archived
+at version 3 with three owner-bound audits across two clients; no losing-write
+receipt or account-data change. The Claude raw resource-control probe used an
+SDK-only bridge, not the native path; normal resource/desktop/remote acceptance
+and Codex revocation remain pending. See
+[cross-client evidence](MCP_CROSS_CLIENT_VERIFICATION.md).
+Claude Code checkpoint 2026-10-13: user completed separate app-led approval.
+Installed Claude Code 2.1.119 is user-scoped registered with the published native
+launcher, preserving two previous user MCP entries and all 33 project MCP maps.
+Actual 84-tool discovery, structured account/catalog reads, configuration writes,
+retry/concurrency/null/version safeguards, archival and fresh-process replay pass.
+One inactive test strategy is archived with four receipts/four actor-bound audits;
+accounts, Codex configuration and MT5 state were not changed. Owner-browser live
+revocation denied the existing connected Claude client discovery/read/write with
+no committed rejected write. User reconnection restores the same binding at ACTIVE
+grant version 2; actual native reads and installed protected credential renewal
+pass. Resource-path, independent-client concurrency, other Claude surfaces and
+final activation remain pending. See [Claude Code evidence](MCP_CLAUDE_CODE_VERIFICATION.md).
+Codex mutation checkpoint 2026-10-13: installed actual-client configuration
+writes, duplicate-operation replay, changed-payload rejection, omitted/null
+patches, concurrent version conflict, reasoned archive and fresh-process replay
+pass. Independent readback confirms four durable receipts/four owner-client
+audits, archived version 4 and no rejected-write receipts. No financial data or
+MT5 state changed. Same-profile multi-adapter use remains deliberately locked;
+concurrent requests were tested in one authorized native session. Claude Code
+2.1.119 is installed and separate app-led approval is next. Broader tool-family,
+revocation and final activation gates remain pending. See
+[Codex mutation evidence](MCP_CODEX_MUTATION_VERIFICATION.md).
+Priority refinement 2026-10-13: current client acceptance focuses on Codex and
+Claude products. Finish Codex mutation/retry/concurrency/revocation, then Claude
+Code and supported Claude desktop/remote paths. Gemini is explicitly ON HOLD,
+not passed and not a blocker for this focused release. Standalone ChatGPT
+connector work remains queued after the current focus. Preserve provider-neutral
+MCP interfaces so deferred clients can be verified later without rebuilding.
+Future VPS operation remains an architectural requirement, not provisioning
+authorization or a claimed operational pass. See the deployment requirements in
+[MCP plan](MCP_INTEGRATION_PLAN.md) and [MT5 plan](MT5_INTEGRATION_PLAN.md).
+Installed Codex checkpoint 2026-10-13: user completed the app-downloaded companion
+installation and verified access. Native stdio flushing is fixed and the published
+installer matches the installed bytes. The installed launcher is now registered
+as `tradeos_staging` in Codex CLI 0.147.0, preserving all eight previous entries;
+84-tool/eight-resource actual-client discovery and owner/domain reads pass.
+Actual-client mutation/retry/concurrency/revocation and other requested clients
+remain pending; production MCP and MT5 state are unchanged. See
+[packaged Codex evidence](MCP_COMPANION_CODEX_ACCEPTANCE.md).
 Preview rollout checkpoint 2026-10-13: explicitly approved setup/pairing migrations
 are installed on hosted Supabase. Source migration IDs now match the provider
 registry without changing SQL. Only MCP staging setup policy and feature-branch

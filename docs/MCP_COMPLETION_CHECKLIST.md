@@ -70,12 +70,44 @@ that every requested real AI client has connected successfully.
    subprocess, retry/version, kill-switch and native Windows gates pass. See
    [stdio evidence](MCP_STDIO_VERIFICATION.md) and [setup](../integrations/mcp/README.md).
    Real AI-client and hosted activation acceptance remain items 5–6.
-5. **Real-client/authentication matrix.** Verify Codex, Claude Code, ChatGPT
-   Desktop/remote connector, Claude remote and Gemini CLI. Finish pre-registered
+5. **Real-client/authentication matrix.** Current priority, updated 2026-10-13:
+   verify Codex, Claude Code and supported Claude desktop/remote paths. Gemini
+   CLI is ON HOLD by user decision, not passed and not a blocker for this focused
+   release. Standalone ChatGPT connector work stays queued after this focus.
+   Keep standard MCP support for later verification. Finish pre-registered
    local-client setup and controlled remote registration/discovery compatibility
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini
    consumer-app support. User browser consent may be needed for these checks.
+   **Simultaneous native-client checkpoint, 2026-10-13:** actual separate Codex
+   and Claude Code processes pass shared owner reads, client-scoped operation
+   lookup, one-winner concurrent edit, canonical readback and cross-client
+   archival/replay. Three receipts/audits across two clients; test fixture archived
+   and account data unchanged. This clears the independent-client concurrency
+   gate for these installed profiles, not VPS or other desktop/remote surfaces.
+   Resource-control probe was an SDK-only bridge, not an application failure;
+   normal resource acceptance remains pending. See
+   [cross-client evidence](MCP_CROSS_CLIENT_VERIFICATION.md).
+   **Installed Claude Code checkpoint, 2026-10-13:** separate user consent and
+   verified grant binding pass. Native 2.1.119 is persistently registered, preserving
+   two user entries / 33 project scopes. Actual discovery/read/configuration-write,
+   retry/version/concurrent-edit and restart replay gates pass; one inactive
+   fixture is archived with four receipts/audits and account data unchanged.
+   Live owner revocation denies the already-connected client discovery/read/write;
+   independent readback confirms no denied-write receipt. Raw resource-control
+   probe is not a passed resource workflow. Owner reconnection restores ACTIVE
+   grant version 2; native reads and installed credential renewal pass.
+   Independent-client concurrency and other Claude surfaces remain
+   pending. See [Claude Code evidence](MCP_CLAUDE_CODE_VERIFICATION.md).
+   **Installed Codex mutation checkpoint, 2026-10-13:** configuration writes,
+   durable status/replay, changed-payload rejection, null/omission, concurrent
+   version conflict and reasoned archival pass, including a fresh-process replay.
+   One inactive fixture is archived with four receipts/audits; account data is
+   unchanged. Same-profile parallel adapters are intentionally rejected;
+   competing requests passed within one authorized session. Broader family and
+   live revocation checks remain pending. Claude Code's separate app-led consent
+   is next; no model/API calls or Gemini work occurred. See
+   [mutation evidence](MCP_CODEX_MUTATION_VERIFICATION.md).
    **Partial actual-client acceptance, 2026-10-12:** staging-only enablement and
    the corrected production consent handoff are released. The user-approved Codex
    stdio grant passes signed/live connection, native 84-tool/eight-resource
@@ -86,6 +118,14 @@ that every requested real AI client has connected successfully.
    with strict validation unchanged. Actual-client writes/revocation and the other
    requested clients remain pending. Production MCP is still disabled. See
    [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+   **Installed-package checkpoint, 2026-10-13:** the user completed the current
+   app-downloaded companion setup. The native relay flush correction passes
+   82 native checks. The installed launcher is persistently registered as
+   `tradeos_staging`, preserving all eight existing Codex entries; actual CLI
+   discovery exposes 84 tools/eight resources and installed owner/domain reads
+   pass. This completes installation/registration for that profile, not the
+   remaining mutation/revocation or multi-client matrix. See
+   [packaged acceptance](MCP_COMPANION_CODEX_ACCEPTANCE.md).
    Existing-consent handoff correction and fresh hosted retest are tracked in
    [reconnect verification](MCP_RECONNECT_VERIFICATION.md); the code must not
    discard a provider-issued one-use reconnect code or treat routed IDs as
