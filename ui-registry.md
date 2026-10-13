@@ -535,6 +535,14 @@ explicit. File selection never approves mapping; rapid file changes cannot repla
 the selected preview with an older asynchronous read. Mapping download is only
 available after authoritative approval. No new colors or animations.
 
+Distribution update (2026-10-13): expose a download only when complete verified
+preview metadata and setup availability are present. Reuse Button outline,
+border-border/70 bg-muted/30 p-4, space-y-3 and muted text. Display unsigned/test
+status before the action, version/byte size and a wrapping checksum afterward;
+link only to the pinned release repository. A download is not installed,
+authorized, online or production-certified. Never advise bypassing OS protections.
+Disabled/unconfigured setup retains explicit guidance without a fabricated link.
+
 ### Native Windows companion and installer
 
 Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs

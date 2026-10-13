@@ -1,6 +1,14 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Preview rollout checkpoint 2026-10-13: explicitly approved setup/pairing migrations
+are installed on hosted Supabase. Source migration IDs now match the provider
+registry without changing SQL. Only MCP staging setup policy and feature-branch
+Preview configuration are enabled; MT5 setup and production MCP remain disabled.
+A checksum-verified unsigned acceptance prerelease is available from the now-public
+GitHub repository. No stable-release claim, terminal/task change or worker resume;
+real client/user acceptance remains pending. See
+[rollout evidence](COMPANION_PREVIEW_ROLLOUT_VERIFICATION.md).
 Local controls checkpoint 2026-10-13: MCP branch fast-forwarded to consolidated
 master `5895ded`. Companion now remembers the reviewed mapping, exposes local
 health/pending pages, explicit reasoned start/recovery and offline pause, plus

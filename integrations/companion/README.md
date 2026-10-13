@@ -1,9 +1,11 @@
 # Trade OS Windows companion
 
-Private, unreleased Windows x64 companion with packaging, consent, pairing and
-local control UI. This is not a publicly downloadable installer. See
+Unsigned Windows x64 acceptance preview with packaging, consent, pairing and
+local control UI. A testing prerelease is available, not a signed/stable or
+production-certified installer. See
 [delivery plan](../../docs/WINDOWS_COMPANION_PLAN.md) and
 [verification](../../docs/WINDOWS_COMPANION_VERIFICATION.md).
+Current distribution and hosted scope: [preview rollout](../../docs/COMPANION_PREVIEW_ROLLOUT_VERIFICATION.md).
 
 ## What is implemented
 
@@ -85,8 +87,10 @@ Failed staging is preserved; installation does not silently delete user files.
 
 Generated artifacts, fixtures, environment files and vaults are Git-ignored.
 An input checksum/package manifest proves byte integrity, not publisher identity:
-the current EXEs are **unsigned** and have not passed a public-distribution gate.
+the current EXEs are **unsigned** and have not passed stable/production release gates.
 No Windows security policies are bypassed. Publishing downloads, configuring
-hosted setup and real installation/consent need their separate rollout approval.
+hosted setup and real installation/consent require controlled rollout. The approved
+GitHub prerelease is an acceptance preview only; its original private-test installer
+wording and UNRELEASED packaging marker do not certify it.
 Don't enable production MCP, resume a worker or purchase signing infrastructure
 as a consequence of building this source.

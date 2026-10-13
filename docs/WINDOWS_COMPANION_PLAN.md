@@ -6,8 +6,9 @@ stdio adapter; do not duplicate financial/domain services or broker execution.
 
 Current checkpoint: packaging, protected import, consent, reviewed-terminal
 pairing/PAUSED activation, local running/pause/recovery controls, startup opt-in
-and local telemetry are implemented. Artifact/hosted rollout and real-user
-acceptance remain pending; implementation is not a public release.
+and local telemetry are implemented. MCP Preview setup and unsigned GitHub
+acceptance-prerelease delivery are approved. Real-user/terminal/client acceptance
+and stable/production rollout remain pending; public test availability is not certification.
 See [verification](WINDOWS_COMPANION_VERIFICATION.md).
 See [pairing verification](MT5_COMPANION_PAIRING_VERIFICATION.md) for the next checkpoint.
 See [control verification](MT5_COMPANION_CONTROLS_VERIFICATION.md) for the current checkpoint.
