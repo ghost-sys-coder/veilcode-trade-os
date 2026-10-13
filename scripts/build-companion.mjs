@@ -90,7 +90,7 @@ for (const [filename, target, entry] of [["TradeOS.exe", "winexe", "Program"], [
   execFileSync(compiler, ["/nologo", "/platform:x64", `/target:${target}`, `/main:TradeOS.Companion.${entry}`, `/out:${join(stage, filename)}`,
     "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", "/r:System.Web.Extensions.dll",
     `/win32manifest:${join(project, "integrations/companion/native/app.manifest")}`, source,
-    join(project, "integrations/companion/native/Compatibility.cs")], { stdio: ["ignore", "pipe", "pipe"], timeout: 30000 });
+    join(project, "integrations/companion/native/Compatibility.cs"), join(project, "integrations/companion/native/NativeTheme.cs")], { stdio: ["ignore", "pipe", "pipe"], timeout: 30000 });
 }
 // Wheel extraction scratch is excluded from the final package; no user files involved.
 const files = JSON.parse(python(["inventory", "--path", stage, "--exclude", ...inputs.wheels.map(row => `wheel-${row.name}`)]));
@@ -107,6 +107,7 @@ execFileSync(compiler, ["/nologo", "/platform:x64", "/target:winexe", "/main:Tra
   "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", "/r:System.Web.Extensions.dll", "/r:System.IO.Compression.dll",
   `/win32manifest:${join(project, "integrations/companion/native/app.manifest")}`, `/resource:${payload},TradeOS.Payload`,
   join(project, "integrations/companion/native/Installer.cs"),
+  join(project, "integrations/companion/native/NativeTheme.cs"),
   join(project, "integrations/companion/native/Compatibility.cs")], { stdio: ["ignore", "pipe", "pipe"], timeout: 30000 });
 const result = { stage: resolve(stage), installer, state: "UNRELEASED", node: packagedNode, python: packagedPython, files: files.length, dependencies: visited.size };
 await writeFile(join(base, "latest-build.json"), JSON.stringify(result, null, 2) + "\n");

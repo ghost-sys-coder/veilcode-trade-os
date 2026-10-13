@@ -545,8 +545,8 @@ Disabled/unconfigured setup retains explicit guidance without a fabricated link.
 
 ### Native Windows companion and installer
 
-Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs
-Last updated: 2026-10-12
+Files: integrations/companion/native/Companion.cs, integrations/companion/native/Installer.cs, integrations/companion/native/NativeTheme.cs
+Last updated: 2026-10-13
 
 | Property | Native value / pattern |
 | --- | --- |
@@ -555,6 +555,8 @@ Last updated: 2026-10-12
 | Text — secondary | RGB(160,177,199) |
 | Accent | amber RGB(239,177,37); operational heading/install action |
 | Button surface/border | RGB(21,28,39) / RGB(54,64,78) flat border |
+| Disabled label | RGB(180,193,210) on the navy control; explicitly painted, never Windows default black |
+| Selector | dark closed field and popup; readable placeholder/client/environment; amber keyboard focus |
 | Spacing | 28px body padding; 12–16px vertical rhythm |
 | Focus/selection | native keyboard controls and labelled dropdown/text field |
 | Shadow / motion | none; native system affordances only |
@@ -584,3 +586,11 @@ mutations require an exact-profile native confirmation, explain in-flight pause
 and GUI-close behavior, and preserve separate startup/publication approvals.
 Unknown acknowledgements direct users to inspect state before retrying. Use the
 existing navy/amber flat native controls and vertical scroll; no decorative motion.
+
+Visibility correction (2026-10-13): shared native controls paint disabled text and
+the ComboBox closed field explicitly, including WM_PRINT for verification. Keep
+real Button/ComboBox keyboard, accessibility and Enabled behavior. An empty list
+shows import guidance and stays disabled; it is not a real profile. Put connection
+status beside the selector. Show collector sections only for MT5 profiles; preserve
+their existing permission/reason checks. Use the imported profile as the current
+selection, and include environment plus a short identifier to distinguish setups.
