@@ -48,3 +48,31 @@ Readback: 59,183,104 bytes; SHA-256
 `19bc950316df85546de84b7b888fb126ecc3c86c7e8c6c3de56168b90ed5c6a8`.
 This remains an unsigned acceptance build. Actual installed-user rendering and
 browser/client acceptance are pending the user's retry.
+
+## Application download release
+
+The application is the authoritative distribution path. The user explicitly
+requested that the corrected build be downloadable through the saved setup page,
+rather than delivered as a local-folder workaround.
+
+UI source commit `5325ad5e4a632962904559b488f350683007e559` is pushed to
+`feature/mcp-access`. Its public prerelease is
+`companion-preview-20261013-5325ad5`, with asset ID `636289430` and the exact size
+and checksum above. GitHub upload metadata and a complete anonymous streamed
+download both match. It remains a prerelease and is not marked Latest.
+
+Only the branch-specific Preview artifact tag, SHA-256 and byte count were updated,
+and each value was read back exactly. Existing setup code constructs the pinned
+GitHub download from those validated values. A fresh deployment of the source
+commit was requested after the metadata update:
+`dpl_Ecnwt6TxnZVmLxmDDicAj5RFjGMG`.
+Build logs confirm the full 46-function / 14-column prerequisite check passed.
+Deployment is READY; a fresh lookup of `mcp-preview.veilcode.studio` resolves the
+exact updated deployment. All five anonymous boundary probes pass. Production's
+MCP flag was independently read back as `false`; its endpoint intentionally returns
+the same 401 authorization denial as an unauthenticated request. The old diagnostic
+helper incorrectly expected a 503/INTEGRATION_DISABLED response; corrected its
+expectation against the existing actor-context/error-response implementation.
+No production setting was changed.
+The saved setup should display the new release tag beside its download button.
+The original JSON configuration can be reused.
