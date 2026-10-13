@@ -70,10 +70,12 @@ if (process.argv[2] === "--server") {
   await assert.rejects(auth.load(), error => error instanceof LocalMcpError && error.code === "LOGIN_REQUIRED");
   } finally { await vault?.close(); }
 
+  const nativeRelay = process.argv[2] === "--native-relay" ? {command: process.argv[3], args: [process.argv[4], process.argv[5], "relay"]} : null;
   for (const mode of ["legacy", {pin: "2026-07-28"}]) {
+  for (const native of [false, ...(nativeRelay ? [true] : [])]) {
   const client = new Client({name: "packaged-native-fixture", version: "1"}, {versionNegotiation: {mode}});
   const transport = new StdioClientTransport({
-    command: process.execPath, args: [fileURLToPath(import.meta.url), "--server"],
+    command: native ? nativeRelay.command : process.execPath, args: native ? nativeRelay.args : [fileURLToPath(import.meta.url), "--server"],
     cwd: process.cwd(), env: process.env, stderr: "pipe",
   });
   transport.stderr?.resume();
@@ -85,6 +87,7 @@ if (process.argv[2] === "--server") {
     assert.equal((await client.readResource({uri: "tradeos://fixture"})).contents.length, 1);
     assert.equal((await client.listResourceTemplates()).resourceTemplates.length, 0);
   } finally { await client.close(); await transport.close(); }
+  }
   }
   process.stdout.write("PACKAGED_RUNTIME_VERIFIED\n");
 }
