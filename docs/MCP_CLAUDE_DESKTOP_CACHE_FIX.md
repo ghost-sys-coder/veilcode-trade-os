@@ -45,6 +45,7 @@ application and used as a matched pair in a new version directory.
 | `npm run typecheck` | Passed after generated-route recovery |
 | `npm run lint` | Passed |
 | `npm run build` | Passed, Next.js 16.3.8 |
+| `node .artifacts/claude-desktop/hosted-readonly-check.mjs` | Eight public-page/discovery/anonymous-denial checks passed after staging activation |
 
 The MT5 suite initially reported two old exact-argv test expectations omitting
 the new `-B`; those assertions were updated and all 190 tests passed unchanged
@@ -75,7 +76,24 @@ write/restart/revocation acceptance.
 - Desktop MCPB 0.1.1: 9,715 bytes, SHA-256
   `7ef06b4ee928474206f0e63d8b14a312f7f111ec6ce083cc0e3d82d8c37cfb8d`.
 
-Publication/configured staging readback is recorded after release verification.
+Published matched prerelease: `companion-preview-20261014-302ac62`, target
+`302ac62f4bdfec31fec4304b74f7f08a2afaefa9` on `feature/mcp-access`.
+Both GitHub server checksums and complete re-downloaded asset hashes match the
+values above. The 59 MB authenticated CLI download completed slowly; a parallel
+public curl check timed out after 120 seconds with a partial copy and was not
+accepted as verification. The public download HEAD returned 200. No user
+installation or old artifact was overwritten.
+
+Only six public release-metadata values (two tags, hashes and sizes) were
+upserted and read back for Preview / `feature/mcp-access`. Onboarding/auth flags,
+secrets and production configuration were not changed. Configured deployment
+`dpl_3BoHvez2aR18oJqiXU1yhHpV2Um3` is READY, target `staging`, at source `302ac62`;
+its database preflight passes 48 functions and 14 version/order columns. The
+existing `mcp-preview.veilcode.studio` alias was assigned only to this verified
+staging build. Production was independently read back at
+`dpl_AYWaAcshMdA24AekiNPnADJFEhU2` / master `b01c085`, with MCP disabled;
+this delivery did not merge, redeploy, promote or enable production.
+
 Actual Claude Desktop acceptance remains pending; the previous extension's
 installation screenshot is evidence of the failure, not a passed client gate.
 Production, Codex, Claude Code and MT5 grants/collector state remain out of scope.
