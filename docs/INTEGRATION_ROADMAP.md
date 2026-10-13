@@ -1,6 +1,15 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Cross-client checkpoint 2026-10-13: actual Codex CLI 0.147.0 and Claude Code
+2.1.119 connect simultaneously with separate approved installed profiles. Shared
+owner reads, receipt namespace isolation, a competing versioned edit, canonical
+readback and cross-client archival/replay pass. One inactive fixture is archived
+at version 3 with three owner-bound audits across two clients; no losing-write
+receipt or account-data change. The Claude raw resource-control probe used an
+SDK-only bridge, not the native path; normal resource/desktop/remote acceptance
+and Codex revocation remain pending. See
+[cross-client evidence](MCP_CROSS_CLIENT_VERIFICATION.md).
 Claude Code checkpoint 2026-10-13: user completed separate app-led approval.
 Installed Claude Code 2.1.119 is user-scoped registered with the published native
 launcher, preserving two previous user MCP entries and all 33 project MCP maps.

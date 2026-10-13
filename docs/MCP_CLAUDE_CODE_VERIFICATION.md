@@ -1,5 +1,10 @@
 # Installed Claude Code acceptance - 2026-10-13
 
+Subsequent separate-process Codex/Claude concurrency passes; see
+[cross-client evidence](MCP_CROSS_CLIENT_VERIFICATION.md). That checkpoint also
+identifies the resource-control probe as an in-process SDK bridge, not proof of
+an application-resource defect. Normal client-resource acceptance remains pending.
+
 User-reported app setup, separate browser approval and companion verification
 passed. Public setup file was supplied in `D:\FOREX_TRADING\trade-os-installations`:
 `tradeos-claude_code-65858572-76ba-48df-a6f7-68f82c730a7e.json`.

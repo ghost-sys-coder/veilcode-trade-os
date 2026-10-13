@@ -79,6 +79,15 @@ that every requested real AI client has connected successfully.
    where needed. Test actual consent/read/write/refresh/revocation, not discovery
    alone. Record exact versions and unsupported paths; do not assume Gemini
    consumer-app support. User browser consent may be needed for these checks.
+   **Simultaneous native-client checkpoint, 2026-10-13:** actual separate Codex
+   and Claude Code processes pass shared owner reads, client-scoped operation
+   lookup, one-winner concurrent edit, canonical readback and cross-client
+   archival/replay. Three receipts/audits across two clients; test fixture archived
+   and account data unchanged. This clears the independent-client concurrency
+   gate for these installed profiles, not VPS or other desktop/remote surfaces.
+   Resource-control probe was an SDK-only bridge, not an application failure;
+   normal resource acceptance remains pending. See
+   [cross-client evidence](MCP_CROSS_CLIENT_VERIFICATION.md).
    **Installed Claude Code checkpoint, 2026-10-13:** separate user consent and
    verified grant binding pass. Native 2.1.119 is persistently registered, preserving
    two user entries / 33 project scopes. Actual discovery/read/configuration-write,
