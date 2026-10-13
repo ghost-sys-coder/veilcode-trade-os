@@ -52,7 +52,7 @@ Public candidate: 59,186,176 bytes; SHA-256
 `64aa6d1a5627b5902fcc48530f4d3324168722824272ba7336e0c45dc3df4bbe`.
 Manifest revision / final install folder: `companion-eb9c5f33c5b03974`.
 
-Application publication is complete; installed-user retry remains the distribution gate.
+Application publication and installed-user retry are complete for this Codex profile.
 Actual client writes, retry/concurrency/revocation and the remaining client matrix
 are still pending. Previous source-adapter acceptance is not counted as this
 packaged path's acceptance. Existing MT5 grants, terminal/collector/startup state
@@ -75,7 +75,7 @@ to that exact deployment. Its build prerequisite check passed: 46 functions and
 returned HTTP 200 and matched both 59,186,176 bytes and the recorded SHA-256.
 Production MCP remains disabled; no production promotion was performed.
 
-## Next installed-user gate
+## Installed-user gate completed
 
 Refresh the saved application setup page and download the current Windows
 companion there. Close the old companion, install into the same parent folder,
@@ -83,8 +83,39 @@ then launch from `companion-eb9c5f33c5b03974` and select the existing Codex setu
 No local install files were patched by the agent. No renewed consent is required
 unless the connection explicitly reports that approved access is missing.
 
-The read-only Codex registration inventory contains no persistent Trade OS
-server. The successful native-client checks used temporary, isolated entries,
-not an everyday client registration. Registration of the corrected installed
-launcher, controlled writes/retries/concurrency/revocation, and other client
-families remain separate acceptance gates.
+The user reported successful verification after installing the current app
+download. Read-only checks confirm the installed manifest SHA-256 and native
+launcher bytes exactly match the published candidate. No installed files were
+patched by the agent.
+
+## Persistent Codex registration
+
+Codex CLI 0.147.0 was registered using its supported `mcp add` command as
+`tradeos_staging`, pointing to the installed `TradeOSMcp.exe` with `--profile`
+and the existing profile ID. All eight prior MCP entries were preserved. The
+initial preservation harness used order-sensitive JSON equality and rejected
+the result; canonical key/entry ordering and exclusion of dynamic auth status
+corrected that diagnostic. Only the just-added exact launcher entry was removed
+and re-added for verification. No OAuth grant was revoked or replaced.
+
+The read-only installed-client check passed account/catalog and four resource
+reads before registration. After registration, the verified exact target passes
+actual Codex discovery of 84 tools and eight resources, with zero protocol errors.
+Registered installed-client account/catalog and four resource reads also pass.
+Other configured servers are disabled only in each temporary test process; the
+user's persistent entries remain enabled/disabled as before. No model turn or
+provider API call was made. Controlled writes/retries/concurrency/revocation and
+the remaining client families are still pending; production MCP stays disabled.
+
+Exact bounded commands for this checkpoint (ignored local diagnostic helpers):
+
+- `node .artifacts/mcp-clients/codex-companion-check.mjs --installed --read`: PASS.
+- `node .artifacts/mcp-clients/register-installed-codex.mjs --verify-and-reregister`: PASS, eight existing entries preserved.
+- `node .artifacts/mcp-clients/codex-companion-check.mjs --installed --registered --discover`: PASS, 84 tools/eight resources.
+- `node .artifacts/mcp-clients/codex-companion-check.mjs --installed --registered --read`: PASS, account/catalog/four resources, zero protocol errors.
+- `git diff --check`: PASS.
+
+Protocol checks make no model calls; read checks retain the previously documented
+non-protocol missing/socket stderr categories. No application code or schema was
+changed at this checkpoint, so the full app/database/build suites were not rerun.
+Registration follows the [official Codex MCP command documentation](https://learn.chatgpt.com/docs/developer-commands#codex-mcp).

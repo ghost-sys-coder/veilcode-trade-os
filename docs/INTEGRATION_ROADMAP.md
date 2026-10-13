@@ -1,6 +1,14 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Installed Codex checkpoint 2026-10-13: user completed the app-downloaded companion
+installation and verified access. Native stdio flushing is fixed and the published
+installer matches the installed bytes. The installed launcher is now registered
+as `tradeos_staging` in Codex CLI 0.147.0, preserving all eight previous entries;
+84-tool/eight-resource actual-client discovery and owner/domain reads pass.
+Actual-client mutation/retry/concurrency/revocation and other requested clients
+remain pending; production MCP and MT5 state are unchanged. See
+[packaged Codex evidence](MCP_COMPANION_CODEX_ACCEPTANCE.md).
 Preview rollout checkpoint 2026-10-13: explicitly approved setup/pairing migrations
 are installed on hosted Supabase. Source migration IDs now match the provider
 registry without changing SQL. Only MCP staging setup policy and feature-branch

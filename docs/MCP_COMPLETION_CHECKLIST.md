@@ -86,6 +86,14 @@ that every requested real AI client has connected successfully.
    with strict validation unchanged. Actual-client writes/revocation and the other
    requested clients remain pending. Production MCP is still disabled. See
    [current Codex evidence](MCP_CODEX_CLIENT_VERIFICATION.md).
+   **Installed-package checkpoint, 2026-10-13:** the user completed the current
+   app-downloaded companion setup. The native relay flush correction passes
+   82 native checks. The installed launcher is persistently registered as
+   `tradeos_staging`, preserving all eight existing Codex entries; actual CLI
+   discovery exposes 84 tools/eight resources and installed owner/domain reads
+   pass. This completes installation/registration for that profile, not the
+   remaining mutation/revocation or multi-client matrix. See
+   [packaged acceptance](MCP_COMPANION_CODEX_ACCEPTANCE.md).
    Existing-consent handoff correction and fresh hosted retest are tracked in
    [reconnect verification](MCP_RECONNECT_VERIFICATION.md); the code must not
    discard a provider-issued one-use reconnect code or treat routed IDs as
