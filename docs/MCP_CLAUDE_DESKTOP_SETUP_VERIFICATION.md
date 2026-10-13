@@ -76,7 +76,11 @@ compiler subprocess also logged memory exhaustion during the browser run;
 all eight browser checks and cleanup nevertheless passed. These resource limits
 are recorded, not hidden by longer application/test deadlines.
 
-## Built artifacts, not yet published or installed
+## Built artifacts (subsequent scoped publication recorded separately)
+
+This local checkpoint preceded the approved staging release. For current
+publication, hosted gates and owner acceptance, see
+[Desktop Preview rollout](MCP_CLAUDE_DESKTOP_PREVIEW_ROLLOUT.md).
 
 Companion installer: 59,186,176 bytes; SHA-256
 `43cad18e2b5e3b2588b362c1e92e513fa5588aaed5e0b9bf12aec6a8ed0ae4a5`.
