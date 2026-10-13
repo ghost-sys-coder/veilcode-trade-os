@@ -10,6 +10,14 @@ import { configSchema, vaultId, LocalMcpError } from "./integrations/mcp/config.
 import { WindowsVault } from "./integrations/mcp/vault.mjs";
 import { LocalAuthorization } from "./integrations/mcp/auth.mjs";
 import { startStdio } from "./integrations/mcp/proxy.mjs";
+import { browserExecutable } from "./integrations/mcp/browser.mjs";
+import { spawnSync } from "node:child_process";
+
+// Actual system PowerShell, with the GUI's restricted PATH. No browser, network
+// or provider consent: prove the packaged launcher can resolve its fixed binary.
+const shell = spawnSync(browserExecutable(), ["-NoProfile", "-NonInteractive", "-Command", "exit 0"],
+  { windowsHide: true, stdio: "ignore", timeout: 10000 });
+assert.equal(shell.status, 0, "PowerShell launches by absolute OS path under the restricted companion environment");
 
 const config = configSchema.parse({
   version: 1, profile: "tradeos-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",

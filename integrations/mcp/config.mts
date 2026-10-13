@@ -36,6 +36,7 @@ export function safeMessage(error: unknown): string {
     VAULT_UNAVAILABLE: "Windows-protected credentials unavailable. Check Python 3.13+, Windows login and local storage.",
     INVALID_DISCOVERY: "Discovery does not match the configured resource/issuer. Check the deployment; do not weaken validation.",
     LOGIN_TIMEOUT: "Browser consent timed out. Run login again; no authorization code was saved.",
+    BROWSER_UNAVAILABLE: "Windows could not open the consent browser. Check the default browser and retry approval.",
     REFRESH_UNCERTAIN: "Token refresh outcome uncertain. Run login again; no automatic refresh retry was made.",
     UNAVAILABLE: "Application or network unavailable. For an uncertain write, check tradeos_operation_status before retrying with the SAME operation ID.",
   };

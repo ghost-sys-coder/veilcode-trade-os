@@ -594,3 +594,8 @@ shows import guidance and stays disabled; it is not a real profile. Put connecti
 status beside the selector. Show collector sections only for MT5 profiles; preserve
 their existing permission/reason checks. Use the imported profile as the current
 selection, and include environment plus a short identifier to distinguish setups.
+
+Feedback correction (2026-10-13): failed setup import and browser approval show
+fixed, actionable messages selected from allowlisted subprocess codes. Never put
+raw OAuth URLs/tokens or provider stderr in UI text. Keep uncertain acknowledgement
+guidance for unclassified failures rather than pretending a write failed safely.

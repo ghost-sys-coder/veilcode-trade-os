@@ -77,6 +77,20 @@ namespace TradeOS.Companion {
                 Assert(runtimeResult == "PACKAGED_RUNTIME_VERIFIED\n", "packaged MCP imports, legacy/modern SDK forwarding, DPAPI, locking and restart work with no global runtimes or network");
                 var start = Runtime.Command(true, new[] {"-I", "-u", "-m", "trade_os_companion.cli"});
                 Assert(!start.UseShellExecute && start.CreateNoWindow && !start.EnvironmentVariables.ContainsKey("NODE_OPTIONS") && !start.EnvironmentVariables.ContainsKey("PYTHONPATH"), "fixed hidden subprocess excludes environment injection");
+                Assert(start.EnvironmentVariables["SystemRoot"] == Environment.GetFolderPath(Environment.SpecialFolder.Windows), "browser OS path is derived from Windows rather than an inherited override");
+                var browserFailure = CompanionFailure.FromOutput("", "https://private.invalid/?code=SECRET\nTRADE_OS_MCP_ERROR:BROWSER_UNAVAILABLE\nraw private traceback");
+                Assert(browserFailure is CompanionFailure && browserFailure.Message.Contains("default browser") && !browserFailure.Message.Contains("SECRET"), "browser launch failure becomes specific guidance without disclosing raw output");
+                var invalidSetup = CompanionFailure.FromOutput("{\"error\":\"INVALID_SETUP\"}", "");
+                Assert(invalidSetup is CompanionFailure && invalidSetup.Message.Contains("tradeos-*.json"), "wrong bundle manifest gets setup-file guidance");
+                Assert(!(CompanionFailure.FromOutput("", "TRADE_OS_MCP_ERROR:SECRET_OR_UNKNOWN") is CompanionFailure), "unrecognized subprocess diagnostics are not displayed");
+                bool diagnosed = false;
+                try { Runtime.Run(Runtime.Command(false, new[] {"-e", "process.stderr.write('private=SECRET\\nTRADE_OS_MCP_ERROR:BROWSER_UNAVAILABLE\\n');process.exitCode=1;"}), null, 10).GetAwaiter().GetResult(); }
+                catch (CompanionFailure error) { diagnosed = error.Message.Contains("default browser") && !error.Message.Contains("SECRET"); }
+                Assert(diagnosed, "actual packaged subprocess failure reaches the GUI as fixed browser guidance");
+                bool setupRejected = false;
+                try { Runtime.Request(new {action = "IMPORT", path = Path.Combine(installed, "bundle-manifest.json")}).GetAwaiter().GetResult(); }
+                catch (CompanionFailure error) { setupRejected = error.Message.Contains("tradeos-*.json"); }
+                Assert(setupRejected, "actual packaged manifest rejection returns actionable setup guidance");
                 var empty = Runtime.Request(new {action = "LIST"}).GetAwaiter().GetResult();
                 Assert(((IList)empty["profiles"]).Count == 0, "bundled Python IPC lists only the isolated empty fixture profile store");
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);

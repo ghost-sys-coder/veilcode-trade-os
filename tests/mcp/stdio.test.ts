@@ -177,6 +177,16 @@ describe("stdio renewable authorization",()=>{
     await expect(fixture({fetch:fetcher}).auth.login(async()=>{},40)).rejects.toMatchObject({code:"LOGIN_TIMEOUT"});
     await expect(fetch(config.redirectUri)).rejects.toThrow();
   });
+  it("releases the callback port after browser launch failure without saving credentials",async()=>{
+    const fetcher=vi.fn<typeof fetch>(async input=>String(input).includes("oauth-protected-resource")?
+      Response.json({resource:config.resource,authorization_servers:[config.issuer]}):Response.json({issuer:config.issuer,
+        authorization_endpoint:`${config.issuer}/oauth/authorize`,token_endpoint:`${config.issuer}/oauth/token`,
+        code_challenge_methods_supported:["S256"],token_endpoint_auth_methods_supported:["none"]}));
+    const f=fixture({fetch:fetcher});
+    await expect(f.auth.login(async()=>{throw new LocalMcpError("BROWSER_UNAVAILABLE");})).rejects.toMatchObject({code:"BROWSER_UNAVAILABLE"});
+    expect(f.store.save).not.toHaveBeenCalled();expect(fetcher).toHaveBeenCalledTimes(2);
+    await expect(fetch(config.redirectUri)).rejects.toThrow();
+  });
   it("returns actionable denial without exchanging a code or waiting for timeout",async()=>{
     const fetcher=vi.fn<typeof fetch>(async input=>String(input).includes("oauth-protected-resource")?
       Response.json({resource:config.resource,authorization_servers:[config.issuer]}):Response.json({issuer:config.issuer,

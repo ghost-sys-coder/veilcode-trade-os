@@ -13,6 +13,38 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace TradeOS.Companion {
+    internal sealed class CompanionFailure : Exception {
+        internal static readonly Dictionary<string,string> Messages = new Dictionary<string,string> {
+            {"INVALID_SETUP", "This is not a Trade OS setup file. Select the tradeos-*.json downloaded from your application setup page, rather than bundle-manifest.json."},
+            {"INVALID_CONFIG", "The setup configuration is invalid. Download it again from your application setup page."},
+            {"PROFILE_CONFLICT", "A different configuration already uses this profile. Existing setup was preserved; review the profile in Trade OS."},
+            {"PROFILE_BUSY", "This connection is already in use. Close its other adapter before trying again."},
+            {"BROWSER_UNAVAILABLE", "Windows could not open the consent browser. Check your default browser and retry Approve browser access."},
+            {"LOGIN_TIMEOUT", "Browser approval timed out. Click Approve browser access and complete consent in the browser."},
+            {"LOGIN_REQUIRED", "Browser approval is required. Click Approve browser access before verifying this connection."},
+            {"ACCESS_DENIED", "Application access was denied. Check this connection in Trade OS Settings > Integrations, then retry approval."},
+            {"VAULT_UNAVAILABLE", "Windows could not access the protected credential store. Check that this connection is running under your Windows account."},
+            {"INVALID_DISCOVERY", "The application discovery response does not match this setup. Download a fresh configuration from Trade OS."},
+            {"REFRESH_UNCERTAIN", "Credential renewal could not be confirmed. Reconnect browser access before retrying."},
+            {"UNAVAILABLE", "The application or network could not be reached. Check your connection and retry browser approval."}
+        };
+        internal CompanionFailure(string code) : base(Messages[code]) { }
+        internal static Exception FromOutput(string output, string errors) {
+            try {
+                var result = Runtime.Json.Deserialize<Dictionary<string,object>>(output);
+                if (result != null && result.Count == 1 && result.ContainsKey("error") && result["error"] is string && Messages.ContainsKey((string)result["error"]))
+                    return new CompanionFailure((string)result["error"]);
+            } catch { }
+            foreach (string line in errors.Split(new[] {'\r','\n'}, StringSplitOptions.RemoveEmptyEntries)) {
+                const string marker = "TRADE_OS_MCP_ERROR:";
+                if (line.StartsWith(marker, StringComparison.Ordinal)) {
+                    string code = line.Substring(marker.Length);
+                    if (Messages.ContainsKey(code)) return new CompanionFailure(code);
+                }
+            }
+            return new InvalidOperationException();
+        }
+    }
     internal static class Runtime {
         internal static string Root = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
         internal static string LocalData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -44,10 +76,12 @@ namespace TradeOS.Companion {
             };
             // No NODE_OPTIONS/PYTHONPATH, dotenv, provider credentials or global PATH.
             info.EnvironmentVariables.Clear();
-            foreach (string name in new[] {"SystemRoot", "WINDIR", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"}) {
+            foreach (string name in new[] {"LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"}) {
                 string value = Environment.GetEnvironmentVariable(name);
                 if (value != null) info.EnvironmentVariables[name] = value;
             }
+            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            info.EnvironmentVariables["SystemRoot"] = windows; info.EnvironmentVariables["WINDIR"] = windows;
             info.EnvironmentVariables["PATH"] = Path.Combine(Root, "runtime", "python") + ";" + Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32");
             info.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
             info.EnvironmentVariables["LOCALAPPDATA"] = LocalData; // OS-derived; isolated override exists only in the native test assembly.
@@ -73,8 +107,8 @@ namespace TradeOS.Companion {
                     Task all = Task.WhenAll(completion, output, errors);
                     if (await Task.WhenAny(all, Task.Delay(TimeSpan.FromSeconds(seconds), Lifetime.Token)) != all) throw new InvalidOperationException();
                     await all;
-                    string result = await output; await errors;
-                    if (process.ExitCode != 0) throw new InvalidOperationException();
+                    string result = await output; string errorText = await errors;
+                    if (process.ExitCode != 0) throw CompanionFailure.FromOutput(result, errorText);
                     return result;
                 }
             }
@@ -300,6 +334,7 @@ namespace TradeOS.Companion {
         async Task Execute(Func<Task> work) {
             busy = true; UpdateActions(); state.Text = "Working. No additional action can run while this request is pending.";
             try { await work(); }
+            catch (CompanionFailure error) { state.Text = error.Message; }
             catch { state.Text = "The acknowledgement is unavailable. Check saved setup/access; refresh local health and inspect startup before retrying a control. A write may have completed. No process is force-killed or raw provider error displayed."; }
             finally { busy = false; if (!IsDisposed) UpdateActions(); }
         }
@@ -308,7 +343,7 @@ namespace TradeOS.Companion {
                 ProfileItem selected = Selected();
                 if (selected.Purpose == "MCP") {
                     await Runtime.VerifyMcp(selected.Id);
-                    await Runtime.Run(Runtime.Command(false, new[] { Path.Combine(Runtime.Root, "integrations", "mcp", "cli.mjs"), command, "--config", Runtime.ProfilePath(selected.Id) }), null, 360);
+                    await Runtime.Run(Runtime.Command(false, new[] { Path.Combine(Runtime.Root, "integrations", "mcp", "cli.mjs"), command, "--config", Runtime.ProfilePath(selected.Id), "--gui" }), null, 360);
                     state.Text = "A real MCP connection was verified. This does not prove every tool/client workflow passed; revocation remains separate.";
                 } else {
                     object request = command == "login" ? (object)new {action = "CONSENT", profileId = selected.Id, reconnect = freshConsent} : new {action = "VERIFY_ACCESS", profileId = selected.Id};
