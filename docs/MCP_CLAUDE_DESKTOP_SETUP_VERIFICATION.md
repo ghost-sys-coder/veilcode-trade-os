@@ -133,6 +133,115 @@ companion as supporting Desktop's new profile port.
 | No app extension download | Owned download control; missing metadata explains unavailable state | No local folder patches or misleading installation success |
 | Existing Card/Button/Select tokens | Same tokens, wrapped download text and keyboard focus; both mobile themes checked | Preserves readable, consistent controls without new visual rules |
 
+## 2026-10-14: fresh-install Desktop startup isolation
+
+The owner's fresh app-downloaded 0.1.1 installation uses the sealed companion
+manifest `ea33b4fb34e21fab55b09ae1e1e18fb6859ac930016c69d8c93d2cfdb21fb34d`.
+Its selected and imported public Desktop setup match. Actual Desktop 2.37337.1.0
+started the correct native launcher, but its startup log showed initialization
+without a server response before the client timeout. This was not a successful
+Desktop Chat connection.
+
+After the owner disabled only this extension, its previous launcher remained
+running. One read-only standalone check returned `PROFILE_BUSY`. The exact
+disabled-extension launcher was stopped after verifying its executable, parent,
+creation time and disabled setting; the unrelated Codex launcher was preserved.
+No installation files, grants, terminal settings or startup tasks were changed.
+
+Sequential read-only probes of the **installed, released 0.1.1** launcher passed:
+
+- `node .artifacts/claude-desktop/verify-fresh-desktop.mjs`: initialized;
+  84 tools and 8 resources discovered.
+- Same command with `--host-shim`: initialized; 84 tools and 8 resources
+  discovered with a workspace-only reproduction of Desktop's rebound streams.
+
+The first shim attempt used an inaccurate input reader and failed; it is not
+evidence of a product defect. The corrected shim uses a source independent of
+the rebound stdin, matching Desktop's public utility-host implementation.
+
+An unpublished 0.1.2 candidate pauses potentially flowing stdin before validation
+and has regression coverage, but that scenario has **not** been demonstrated as
+the actual Desktop root cause. Do not publish it as the proven fix.
+
+The owner subsequently re-enabled only Trade OS and confirmed that it appears
+under the new Desktop chat's Connectors menu. The fresh startup at
+`2026-10-14T05:16:37.210Z` received its first server response at
+`05:16:53.304Z`, followed by additional request/response exchanges without a new
+timeout in the inspected log. **Actual Desktop initialization and connector
+discovery pass on the existing 0.1.1 installation.** This does not establish why
+the earlier handshake stalled, nor prove writes, renewal or revocation.
+
+The owner's subsequent Desktop Chat screenshot shows the Trade OS extension's
+`tradeos_accounts_list` invocation and a result listing five accounts. **Actual
+Desktop read-only account-tool acceptance passes.** The chat reports that nothing
+was modified; no write was requested for this check. Account names and financial
+values are intentionally not reproduced in this public-repository evidence.
+This screenshot establishes successful account retrieval, not an independent
+audit of every displayed financial calculation. Resource reads, a controlled
+write, restart/renewal and live revocation/reconnect were separate pending gates
+at that checkpoint.
+
+The subsequent owner-run controlled write passes: the inactive strategy fixture
+`3be263e6-c305-4b88-acdc-07e3d02bd136` was created at version 1, read, archived
+with a reason at version 2, and independently read as inactive/archived. No retry
+was needed. A narrowly scoped hosted read confirms two receipts/two audits, one
+audited client and correct owner/target binding for the two predetermined
+operation IDs. **Actual Desktop controlled create/read/archive passes.**
+
+The owner also identified `archived_at > updated_at` on that fixture. Hosted
+readback confirms a 0.290734-second gap caused by `clock_timestamp()` in the
+archive writer versus transaction-start `now()` in the shared update trigger.
+The source fix, local regression gates and approved hosted migration pass.
+The deployed private function/ACLs and a rolled-back hosted timestamp probe are
+verified; historical receipts/audits were not rewritten. See
+[archive timestamp verification](MCP_ARCHIVE_TIMESTAMP_VERIFICATION.md).
+Desktop resource reads, restart/renewal and live revocation/reconnect remain
+pending; controlled writes must no longer be listed as untested.
+
+## Subsequent requested-restart attempt: failed, not a passed restart gate
+
+The owner reported two Desktop account-tool attempts timing out with the client
+message that the PC did not respond within 60 seconds. Inspection at
+`2026-10-14T06:45:46Z` showed that Desktop's main process was still the one
+started on 13 October and its Trade OS launcher still the one started at
+`2026-10-14T05:16:45Z`. The exact MCP log was last modified at `05:46:19Z`;
+neither failed tool attempt produced a new adapter request entry. This attempt
+did not produce a fresh process/handshake and must not be counted as restart or
+credential-renewal acceptance. The client's sleep/lock explanation is unproven.
+
+Independent public discovery and calculator reads returned HTTP 200. An initial
+Codex account-list probe returned the sanitized application/network-unavailable
+error; a subsequent authenticated kept-account read succeeded. This rules out a
+continuing total hosted outage, not all transient network problems. No response
+from these probes is substituted for Desktop acceptance.
+
+The next owner action is a full Quit/Exit (not only closing the window), with a
+process check before reopening, to distinguish a retained Desktop relay from a
+genuine fresh-start defect. No installed files, grants, MT5 settings or running
+processes were changed during this inspection. The unpublished startup candidate
+remains unproven and must not be advertised as resolving this new timeout.
+
+The owner then performed a full Quit/Exit. The log records transport closure at
+`2026-10-14T07:19:47Z`; a subsequent read-only process check finds neither the
+identified Desktop application/utility host nor its Desktop-specific native,
+Node or vault worker running. **Actual full-exit cleanup passes without forced
+termination.** No standalone credential-renewal probe is run before reopening,
+so it cannot mask a failure in Desktop's own fresh-start/renewal path. Fresh
+launch and account-tool read are still pending owner execution.
+
+## Fresh-start timeout update
+
+The subsequent genuine fresh start failed before its first server response.
+Read-only process/log inspection places native adapter creation roughly 65.5
+seconds after initialization. A scoped 0.1.2 candidate preserves buffered input,
+parallelizes full sealed verification with four bounded checks, adds safe startup
+stages and a 45-second first-response deadline, and closes its own utility host
+when the child exits. Packaged direct and Desktop-stream-shim preflights now
+discover 84 tools/eight resources and read the single preserved account.
+Actual Desktop restart acceptance and app delivery remain pending. See
+[startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md); do not treat
+this candidate's SDK success as actual Desktop UI acceptance.
+
 ## Primary references
 
 - [Claude Desktop local extensions](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)

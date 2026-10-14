@@ -27,6 +27,12 @@ that every requested real AI client has connected successfully.
 
 ## Remaining implementation and acceptance
 
+Desktop restart update 2026-10-14: the genuine fresh-start failure has a scoped
+0.1.2 candidate with passing packaged direct/stream-shim reads. App delivery and
+actual Desktop restart acceptance are still pending; prior real discovery/read/
+controlled-write gates remain passed. See
+[startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
+
 1. **Remaining integration workflow adapters.** Expose existing browser MT5
    mapping, initial cash classification, snapshot onboarding approval, selected
    canonical publication, pause/resume and publication-policy workflows through
@@ -85,7 +91,13 @@ that every requested real AI client has connected successfully.
    launcher discovers 84 tools/eight resources with the existing Desktop grant.
    Matched 0.1.1 app downloads are published, hash-verified and activated only
    in staging; all eight hosted access/public-page checks pass;
-   actual Desktop UI/write/restart/revocation remain pending. See
+   actual Desktop UI discovery and read-only `tradeos_accounts_list` now pass
+   on Desktop 2.37337.1.0 with the existing 0.1.1 installation, corroborated by
+   the fresh handshake log and owner screenshot. A controlled inactive strategy
+   create/read/archive also passes with two independently verified owner/client
+   receipts/audits. Its archive timestamp-ordering defect is reproduced, fixed
+   locally and corrected by the approved, verified hosted migration. Desktop resource reads,
+   restart/renewal and revocation remain pending. See
    [recovery evidence](MCP_CLAUDE_DESKTOP_CACHE_FIX.md).
    **Desktop Chat local-build checkpoint, 2026-10-13:** separate Desktop profile,
    account-free public authorization, default-off rollout policy, backward-compatible
@@ -93,8 +105,9 @@ that every requested real AI client has connected successfully.
    The lightweight MCPB pins/checks the matched companion and reuses its protected
    adapter. Matched unsigned artifacts are published and hash-verified; the scoped
    hosted prerequisite and branch Preview rollout pass, preserving existing grants
-   and production disablement. Owner installation/consent and actual Desktop
-   discovery/write/renewal/revocation remain pending. See
+   and production disablement. Owner installation/consent, actual Desktop
+   discovery, account read and controlled write/archive pass;
+   renewal/revocation remain pending. See
    [Desktop setup evidence](MCP_CLAUDE_DESKTOP_SETUP_VERIFICATION.md) and
    [staging rollout](MCP_CLAUDE_DESKTOP_PREVIEW_ROLLOUT.md).
    **Simultaneous native-client checkpoint, 2026-10-13:** actual separate Codex

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(48);
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000000','authenticated','authenticated','mcp-owner@example.test','fixture-only','{}','{}',now(),now()),
 ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','00000000-0000-0000-0000-000000000000','authenticated','authenticated','mcp-other@example.test','fixture-only','{}','{}',now(),now());
@@ -79,6 +79,14 @@ select is((select count(*)::integer from private.application_operations where op
 select set_config('mcp.fixture.archive',jsonb_build_object('entity','STRATEGY','action','ARCHIVE','operationId',gen_random_uuid(),
  'id',current_setting('mcp.fixture.strategy'),'expectedVersion','2','reason','Retire referenced methodology')::text,true);
 select is(private.configuration_write(current_setting('mcp.fixture.archive')::jsonb)->'record'->>'active','false','archival explicitly deactivates a referenced strategy');
+select ok((select archived_at = updated_at from public.strategies where id=current_setting('mcp.fixture.strategy')::uuid),'strategy archive and last update share one event timestamp');
+select is(private.configuration_write(current_setting('mcp.fixture.archive')::jsonb)->'record'->>'updated_at',
+  private.configuration_read(jsonb_build_object('entity','STRATEGY','id',current_setting('mcp.fixture.strategy')))->>'updated_at','archive receipt retry preserves the canonical timestamp');
+select ok((select (result->'record'->>'archived_at')::timestamptz = (result->'record'->>'updated_at')::timestamptz
+  from private.application_operations where operation_id=(current_setting('mcp.fixture.archive')::jsonb->>'operationId')::uuid),'durable archive receipt has consistent timestamps');
+select ok((select (a.changes->'after'->>'archived_at')::timestamptz = (a.changes->'after'->>'updated_at')::timestamptz
+  from private.application_mutation_audits a join private.application_operations o on o.id=a.operation_receipt_id
+  where o.operation_id=(current_setting('mcp.fixture.archive')::jsonb->>'operationId')::uuid),'append-only archive audit captures the same consistent timestamps');
 select ok(exists(select 1 from public.setups where id=current_setting('mcp.fixture.setup')::uuid),'archival preserves dependent setup records');
 select throws_ok($$select private.configuration_write(jsonb_build_object('entity','STRATEGY','action','PATCH','operationId',gen_random_uuid(),
  'id',current_setting('mcp.fixture.strategy'),'expectedVersion','3','values',jsonb_build_object('active',true)))$$,
@@ -92,6 +100,14 @@ select set_config('request.jwt.claims',jsonb_build_object('sub','eeeeeeee-eeee-4
 select is(private.application_actor()->>'actorType','BROWSER','direct browser uses a distinct verified actor');
 select lives_ok($$select private.configuration_write(jsonb_build_object('entity','RULE','action','PATCH','operationId',gen_random_uuid(),
  'id',current_setting('mcp.fixture.rule'),'expectedVersion','1','values',jsonb_build_object('name','Browser and MCP share writer')))$$,'browser adapter shares the typed transactional writer');
+select lives_ok($$select private.configuration_write(jsonb_build_object('entity','RULE','action','ARCHIVE','operationId',gen_random_uuid(),
+ 'id',current_setting('mcp.fixture.rule'),'expectedVersion','2','reason','Archive browser verification rule'))$$,'browser rule archive uses the same timestamp convention');
+select ok((select archived_at = updated_at from public.trading_rules where id=current_setting('mcp.fixture.rule')::uuid),'rule archive and last update share one event timestamp');
+-- A setup may still be archived after its parent strategy was archived.
+select set_config('request.jwt.claims',current_setting('mcp.fixture.claims'),true);
+select private.configuration_write(jsonb_build_object('entity','SETUP','action','ARCHIVE','operationId',gen_random_uuid(),
+ 'id',current_setting('mcp.fixture.setup'),'expectedVersion','1','reason','Archive setup verification fixture'));
+select ok((select archived_at = updated_at from public.setups where id=current_setting('mcp.fixture.setup')::uuid),'setup archive and last update share one event timestamp');
 select set_config('request.jwt.claims',current_setting('mcp.fixture.claims'),true);
 update private.integration_grants set status='REVOKED',revoked_at=clock_timestamp() where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 select throws_ok($$select private.configuration_read('{"entity":"RULE","limit":10,"includeArchived":false}')$$,
@@ -103,5 +119,12 @@ set local role authenticated;
 select throws_ok($$select private.configuration_read('{"entity":"RULE","limit":10,"includeArchived":false}')$$,
  '42501','Application access denied.','server-role check fails closed even if a function grant is accidentally added');
 reset role;
+-- Callers without an archive column keep the original update convention.
+create temporary table ordinary_update_fixture(updated_at timestamptz not null);
+create trigger ordinary_update_fixture_set_updated_at before update on ordinary_update_fixture
+  for each row execute function private.set_updated_at();
+insert into ordinary_update_fixture values(clock_timestamp());
+update ordinary_update_fixture set updated_at=clock_timestamp();
+select is((select updated_at from ordinary_update_fixture),now(),'non-archive trigger callers retain transaction-start timestamps');
 select * from finish();
 rollback;

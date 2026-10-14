@@ -1,6 +1,26 @@
 # Trade OS: MT5 Synchronization and MCP Access
 
 Status: approved implementation plan; delivery started on 2026-10-05.
+Claude Desktop fresh-start checkpoint 2026-10-14: a genuine restart failed with
+native adapter creation delayed roughly 65.5 seconds after initialization.
+A scoped 0.1.2 startup candidate passes packaged direct and Desktop-stream-shim
+preflights (84 tools/eight resources and the one preserved account). Final
+1,211 application tests, 1,196 rollback database assertions and static/build
+checks pass. App delivery and actual Desktop restart acceptance remain pending;
+existing grants, installations, production and MT5 state are unchanged. See
+[startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
+Claude Desktop actual-client checkpoint 2026-10-14: owner-confirmed connector
+discovery and five-account read pass on Desktop 2.37337.1.0 / extension 0.1.1.
+Controlled inactive strategy creation, independent read, reasoned archival and
+version-2 readback pass; hosted read confirms two owner/client-bound receipts and
+audits. A reported archive/update timestamp inversion is reproduced and fixed
+locally across all six archivable configuration tables; 1,209 application tests,
+1,196 database assertions, typecheck, lint and build pass. The source migration
+is now applied to hosted Supabase after explicit approval; source/ACL verification
+and a rolled-back timestamp probe pass. Resource, restart/renewal and revocation
+acceptance remain pending; production activation and MT5 state are unchanged.
+See [Desktop evidence](MCP_CLAUDE_DESKTOP_SETUP_VERIFICATION.md) and
+[timestamp fix](MCP_ARCHIVE_TIMESTAMP_VERIFICATION.md).
 Claude Desktop startup fix 2026-10-14: owner installation exposed Python cache
 writes conflicting with the sealed-release check. Corrected launch paths prevent
 bytecode writes; real packaged startup discovers 84 tools/eight resources and

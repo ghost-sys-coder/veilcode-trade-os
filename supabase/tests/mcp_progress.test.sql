@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(49);
+select plan(51);
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000000','authenticated','authenticated','journals-mcp@example.test','fixture-only','{}','{}',now(),now());
 insert into auth.oauth_clients(id,registration_type,redirect_uris,grant_types,client_type,token_endpoint_auth_method)
@@ -52,6 +52,7 @@ select lives_ok($$select private.application_progress_data('{"accountId":"bbbbbb
 select throws_ok($$select private.application_progress_read('{"kind":"GOALS","accountId":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","limit":10,"includeArchived":false}')$$,'P0002','Account unavailable.','unowned account denied');
 select throws_ok($$select private.application_progress_write('{"action":"PROP_SAVE","operationId":"22222222-2222-4222-8222-222222222222","accountId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","expectedVersion":"0","values":{"firm_name":"Firm"}}','{}')$$,'23514','Prop configuration requires a prop account.','demo cannot receive prop rules');
 select lives_ok($$select private.application_progress_write(jsonb_build_object('action','GOAL_ARCHIVE','operationId',gen_random_uuid(),'id',current_setting('goal.id'),'expectedVersion','2','reason','Retire research goal'),'{}')$$,'referenced goal archives rather than deletes');
+select ok((select archived_at = updated_at from public.account_goals where id=current_setting('goal.id')::uuid),'goal archive and last update share one event timestamp');
 select is((select count(*)::integer from public.account_goal_progress_events),1,'archive preserves evidence');
 select throws_ok($$update public.account_goals set active=true,archived_at=null where id=current_setting('goal.id')::uuid$$,'23514','Archived goals cannot be reactivated.','archive cannot silently undo history');
 select is(jsonb_array_length(private.application_progress_read('{"kind":"GOALS","accountId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","limit":10,"includeArchived":false}')->'records'),0,'default page excludes archived records');
@@ -97,6 +98,10 @@ select set_config('prop.legacy.proposal',jsonb_build_object('values',(current_se
 select lives_ok($$select private.application_progress_write(pg_temp.prop_request('{"firm_name":"Updated explicit firm"}','3'),current_setting('prop.legacy.proposal')::jsonb)$$,'partial patch preserves legacy long notes');
 select is((select length(notes) from public.prop_firm_configs),5000,'unchanged legacy notes are never truncated');
 select throws_ok($$update public.trading_accounts set account_type='DEMO' where id='cccccccc-cccc-4ccc-8ccc-cccccccccccc'$$,'23514','Account type must preserve prop configuration.','account edits cannot invalidate configured prop eligibility');
+-- Goals allow some inactive metadata updates after archival. The shared
+-- timestamp trigger must not regress to this transaction's earlier start time.
+update public.account_goals set updated_at=now()-interval '1 day' where id=current_setting('goal.id')::uuid;
+select ok((select updated_at >= archived_at from public.account_goals where id=current_setting('goal.id')::uuid),'later allowed archived-goal update cannot move behind its archive event');
 update private.integration_grants set status='REVOKED',revoked_at=clock_timestamp() where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 select throws_ok($$select private.application_progress_write(current_setting('goal.request')::jsonb,'{}')$$,'42501','Integration access denied.','revocation applies to retries');
 select * from finish();

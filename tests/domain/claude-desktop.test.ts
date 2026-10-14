@@ -59,6 +59,10 @@ describe("Claude Desktop isolated onboarding and sealed release", () => {
     const { root, pin } = await installation();
     expect(await verifyInstallation(root, pin)).toBe(join(root, "TradeOSMcp.exe"));
   });
+  it("fails closed when a launch verification deadline has elapsed", async () => {
+    const { root, pin } = await installation();
+    await expect(verifyInstallation(root, pin, Date.now() - 1)).rejects.toThrow("STARTUP_TIMEOUT");
+  });
   it("rejects a self-modified manifest even if its file hash is updated", async () => {
     const { root, pin } = await installation(); await writeFile(join(root, "bundle-manifest.json"), "{}");
     await expect(verifyInstallation(root, pin)).rejects.toThrow("WRONG_COMPANION_RELEASE");
