@@ -6,7 +6,11 @@ native adapter creation delayed roughly 65.5 seconds after initialization.
 A scoped 0.1.2 startup candidate passes packaged direct and Desktop-stream-shim
 preflights (84 tools/eight resources and the one preserved account). Final
 1,211 application tests, 1,196 rollback database assertions and static/build
-checks pass. App delivery and actual Desktop restart acceptance remain pending;
+checks pass. The 0.1.2 unsigned release is published and its complete extension
+downloads verify. The user approved reuse of the previously verified identical
+companion after fresh large downloads interrupted. Configured staging is READY;
+eight hosted checks and the authenticated app's new download metadata pass.
+Actual Desktop restart and owner-browser download acceptance remain pending;
 existing grants, installations, production and MT5 state are unchanged. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
 Claude Desktop actual-client checkpoint 2026-10-14: owner-confirmed connector

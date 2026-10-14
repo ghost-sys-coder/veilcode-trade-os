@@ -238,7 +238,9 @@ parallelizes full sealed verification with four bounded checks, adds safe startu
 stages and a 45-second first-response deadline, and closes its own utility host
 when the child exits. Packaged direct and Desktop-stream-shim preflights now
 discover 84 tools/eight resources and read the single preserved account.
-Actual Desktop restart acceptance and app delivery remain pending. See
+The unsigned 0.1.2 release and configured staging app delivery now pass, with
+the user's explicit unchanged-companion reuse exception. Actual Desktop restart
+and completed owner-browser download acceptance remain pending. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md); do not treat
 this candidate's SDK success as actual Desktop UI acceptance.
 

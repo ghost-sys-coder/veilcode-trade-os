@@ -28,8 +28,11 @@ that every requested real AI client has connected successfully.
 ## Remaining implementation and acceptance
 
 Desktop restart update 2026-10-14: the genuine fresh-start failure has a scoped
-0.1.2 candidate with passing packaged direct/stream-shim reads. App delivery and
-actual Desktop restart acceptance are still pending; prior real discovery/read/
+0.1.2 update with passing packaged direct/stream-shim reads. Published extension
+hashes, configured READY staging, eight hosted checks and authenticated app
+download metadata pass with explicit reuse of the verified identical companion.
+Actual Desktop restart and owner-browser download acceptance are still pending;
+prior real discovery/read/
 controlled-write gates remain passed. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
 
