@@ -250,6 +250,21 @@ Prolonged renewal, resources and live revocation/reconnect remain pending. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md); do not treat
 this candidate's SDK success as actual Desktop UI acceptance.
 
+## 2026-10-14: coordinated Desktop credentials, extension 0.1.3
+
+The owner approved repairing the demonstrated PROFILE_BUSY restart race.
+Desktop-only transaction-scoped credential ownership now passes the unit,
+real Windows helper and sealed packaged regression gates (1,223 application
+tests / 1,196 database assertions). The matched changed companion and 0.1.3
+extension are published, completely re-downloaded/hash-verified and configured
+on the verified READY staging deployment. Eight hosted access checks and the
+existing owner-authenticated app page's new tag/hash/button/grant state pass.
+The normal 0.1.2 restart failure is retained as evidence; **actual 0.1.3 Desktop
+installation/repeated-restart acceptance is still pending**, not a claimed pass.
+The browser download-event helper timed out; independent complete downloads
+and visible app metadata are separate evidence. See
+[profile-contention repair and update instructions](MCP_CLAUDE_DESKTOP_PROFILE_CONTENTION.md).
+
 ## Primary references
 
 - [Claude Desktop local extensions](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)

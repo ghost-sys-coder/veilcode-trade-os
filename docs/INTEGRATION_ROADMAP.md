@@ -17,8 +17,10 @@ Repeated restart subsequently FAILED with explicit PROFILE_BUSY contention
 between overlapping Desktop launchers; see [restart diagnosis](MCP_CLAUDE_DESKTOP_PROFILE_CONTENTION.md).
 The approved 0.1.3 repair coordinates Desktop-only credential transactions;
 1,223 application tests, 1,196 database assertions, static/build, native Windows
-and sealed package checks pass. App delivery and actual restart acceptance remain
-open; no operator patch, grant change or MT5 control change is involved.
+and sealed package checks pass. Matched fresh downloads verify; the configured
+READY staging build, eight hosted access checks and authenticated app metadata
+pass. Actual Desktop update/repeated-restart acceptance remains open; no operator
+patch, grant change or MT5 control change is involved.
 Prolonged renewal, resource and revocation acceptance remain pending; the
 automated browser download helper is not reported as passed.
 Protected connection data, other clients, production and MT5 were preserved. See

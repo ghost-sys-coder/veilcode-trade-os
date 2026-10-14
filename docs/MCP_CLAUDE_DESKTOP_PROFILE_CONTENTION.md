@@ -110,7 +110,7 @@ add process-death invalidation, clean EOF release, non-owner release rejection,
 no credential access without ownership and legacy-lock interoperability.
 No fixture used an owner's credential record or changed a grant.
 
-## Artifacts (not yet delivered)
+## Artifacts and staging delivery
 
 The companion is changed, so this release requires a new matched companion and
 MCPB, not an extension-only update. Both must be obtained through the existing
@@ -123,11 +123,56 @@ application setup page; retain the public Desktop JSON and protected profile.
 - Matched manifest pin:
   `d4ea9c85fed97c682ae0d775b0f7d2283aa453369ccd9e546d94e7c81a73ae97`.
 
+Implementation commit `652080439c22344608b344b87848c5947d8f39f3` is pushed to
+`feature/mcp-access`. Non-latest, unsigned prerelease
+`companion-preview-20261014-6520804` (release ID `412680964`) pins that exact
+commit. Both uploaded server digests and complete fresh authenticated draft
+downloads match the sizes/hashes above; publication was performed only afterward.
+No unchanged-companion download exception is used for this changed bundle.
+
+The six public release settings are read back and match on Preview /
+`feature/mcp-access` only. Five changed; the extension size stayed 12,788 bytes.
+No enablement flag, secret or production setting changed. Configured deployment
+`dpl_9EktpU85trhue2U1N1mZgMicYY3a`
+(`trade-rjvte9d17-ghostsyscoders-projects.vercel.app`) is READY / staging with the
+exact implementation commit. Its `npm run build:verified` logs pass the database
+preflight (48 functions / 14 version-order columns) and production build.
+Only `mcp-preview.veilcode.studio` was assigned to this tested staging build.
+Post-delivery `node .artifacts/claude-desktop/hosted-readonly-check.mjs` passes
+all eight public/access checks: privacy/calculator/discovery 200, setup anonymous
+307, configuration/extension anonymous 403 and MCP authentication challenges.
+The sandboxed attempt was denied outbound access (EACCES); the approved read-only
+unsandboxed check passed. No access check changed grants or enablement flags.
+
+The existing owner-authenticated saved Desktop setup page is visibly verified:
+both new release tags, the exact new hashes, enabled download controls and the
+existing active matching grant are present. The extension download-event helper
+timed out; subsequent DOM inspection shows no page error. A completed automated
+owner-browser download is not claimed. Independent complete asset downloads
+passed; user-led app download/install and actual Desktop restart remain necessary.
+
+## Owner update and acceptance
+
+1. Fully Quit/Exit Claude Desktop; keep other clients/MT5 unchanged.
+2. Open the existing [saved Desktop setup](https://mcp-preview.veilcode.studio/settings/integrations/setup/5bb764a3-08b8-4848-8fdf-ca145d0f3c4c)
+   and verify tag `companion-preview-20261014-6520804`. Download both the Windows
+   companion and extension from that page.
+3. Install the matched companion through its normal installer. Retain the old
+   folder for now; do not manually overwrite an installed sealed bundle.
+4. Update/install the downloaded extension through Desktop's extension UI and
+   select the new `companion-d4ea9c85fed97c68` folder. Reuse the existing
+   `tradeos-claude_desktop-5bb764a3-08b8-4848-8fdf-ca145d0f3c4c.json`.
+   Do not revoke access or repeat consent unless an explicit credential error
+   calls for it. No fresh profile or account mapping is required.
+5. Run a read-only account list, then repeat full Quit/Exit and reopen without
+   reinstalling; repeat the read. Actual restart acceptance is not waived by
+   passing fixtures or app delivery.
+
 ## Review
 
 Plan alignment and system-integrity checks PASS for the scoped local repair.
-Readiness remains incomplete until app delivery and actual Desktop repeated
-restart acceptance pass. The 0.1.2 normal-restart failure stays recorded; fixture
+App-led staging delivery is verified as above; actual Desktop repeated restart
+acceptance remains incomplete. The 0.1.2 normal-restart failure stays recorded; fixture
 and packaged success are not actual Desktop UI proof. Resource, prolonged
 renewal and live Desktop revocation/reconnect gates remain separate. No hosted
 schema, production MCP enablement, MT5 task/collector or other client's installed

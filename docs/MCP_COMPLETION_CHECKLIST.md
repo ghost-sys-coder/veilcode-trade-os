@@ -40,7 +40,9 @@ resource reads and live Desktop revocation/reconnect remain pending; prior
 controlled-write gates remain passed.
 The owner-approved 0.1.3 transaction-lock repair passes 1,223 application tests,
 1,196 database assertions and native/sealed-package regression gates. App-led
-delivery and actual Desktop restart acceptance are not yet claimed as passed.
+staging delivery, complete matched asset downloads, eight hosted checks and
+authenticated setup-page metadata pass. Actual Desktop restart acceptance remains
+open; the automated owner-browser download helper is not claimed as passed.
 The automated owner-browser download helper is not claimed as passed. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
 
