@@ -1,7 +1,9 @@
 """Private IPC only: reuse the existing Windows vault, never the MT5 terminal.
 
-Hold the OS lock for the Node adapter's lifetime so rotating refresh tokens
-cannot race between clients sharing a profile. Tokens never appear in argv/logs.
+Legacy clients hold an OS lock for the adapter lifetime. Desktop transports
+instead acquire it across load/rotation/save, not an entire chat lifetime.
+Tokens never appear in argv/logs. A disconnected/crashed owner releases its OS
+lock; a durably invalidated rotating secret is never restored by this helper.
 """
 
 import json
@@ -29,15 +31,42 @@ def emit(value):
 
 def main():
     init = read_request()
-    if not isinstance(init, dict) or set(init) != {"id", "context"}:
+    if not isinstance(init, dict) or set(init) not in ({"id", "context"}, {"id", "context", "coordination"}):
+        raise CredentialError("INVALID_CREDENTIAL_RECORD")
+    coordinated = "coordination" in init
+    if coordinated and init["coordination"] != "transaction":
         raise CredentialError("INVALID_CREDENTIAL_RECORD")
     context = init["context"]
     if not isinstance(context, str) or not context.startswith("Trade OS MCP credentials v1\n") or len(context) > 4096:
         raise CredentialError("INVALID_CREDENTIAL_RECORD")
     store = WindowsCredentialStore(init["id"])
-    with store.lock():
+    lock = None
+    try:
+        if not coordinated:
+            lock = store.lock()
         emit({"ready": True})
         while (request := read_request()) is not None:
+            if coordinated and request == {"action": "acquire"}:
+                if lock is not None:
+                    raise CredentialError("INVALID_CREDENTIAL_RECORD")
+                try:
+                    lock = store.lock()
+                except CredentialError as error:
+                    if error.code != "COLLECTOR_ALREADY_RUNNING":
+                        raise
+                    emit({"error": "PROFILE_BUSY"})
+                    continue
+                emit({"acquired": True})
+                continue
+            if coordinated and request == {"action": "release"}:
+                if lock is None:
+                    raise CredentialError("INVALID_CREDENTIAL_RECORD")
+                lock.close()
+                lock = None
+                emit({"released": True})
+                continue
+            if lock is None:
+                raise CredentialError("INVALID_CREDENTIAL_RECORD")
             if request == {"action": "load"}:
                 emit({"payload": store.load(context)})
             elif isinstance(request, dict) and set(request) == {"action", "payload"} and request["action"] == "save":
@@ -49,6 +78,9 @@ def main():
                 emit({"cleared": True})
             else:
                 raise CredentialError("INVALID_CREDENTIAL_RECORD")
+    finally:
+        if lock is not None:
+            lock.close()
 
 
 if __name__ == "__main__":

@@ -132,3 +132,14 @@ and hosted activation remain the next separate build.
 
 References: [MCP transports](https://modelcontextprotocol.io/specification/latest/basic/transports),
 [Supabase MCP authentication](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication).
+## Claude Desktop profile sharing
+
+The registered Desktop callback (`http://127.0.0.1:9884/callback`) uses
+transaction-scoped credential ownership: overlapping Desktop transports reload
+the latest DPAPI record under an exclusive OS lock, renew/save under that same
+lock, then release it. Lock acquisition alone may wait/retry for at most 35
+seconds; token exchange and uncertain mutations are never automatically retried.
+An uncertain renewal remains durably invalidated. Explicit reconnect is separate
+from revocation. Codex/Claude Code profiles retain lifetime locks; MT5 collector
+ownership and fencing are unchanged. Never share a profile between different
+registered clients or copy refresh tokens into per-process files.

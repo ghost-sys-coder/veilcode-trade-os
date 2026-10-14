@@ -70,6 +70,30 @@ if (process.argv[2] === "--server") {
   await assert.rejects(auth.load(), error => error instanceof LocalMcpError && error.code === "LOGIN_REQUIRED");
   } finally { await vault?.close(); }
 
+  // The actual sealed Node/Python bundle must support Desktop's overlapping
+  // transports, not merely an in-memory test store. This is a disposable native
+  // fixture profile; provider/model/network calls remain forbidden.
+  const desktopConfig = {...config, profile:"tradeos-cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    redirectUri:"http://127.0.0.1:9884/callback"};
+  const desktops = Array.from({length:3},()=>new WindowsVault(desktopConfig));
+  let rotations = 0;
+  const clients = desktops.map(store=>new LocalAuthorization(desktopConfig,store,{
+    verify:async token=>({client_id:desktopConfig.clientId,exp:Math.floor(Date.now()/1000)+(token==="EXPIRED_FIXTURE"?30:3600)}),
+    fetch:async (_input,init)=>{
+      assert.equal(new URLSearchParams(init.body).get("refresh_token"),"PRIVATE_FIXTURE_REFRESH");
+      rotations++;
+      return Response.json({access_token:"NEW_FIXTURE",refresh_token:"NEW_FIXTURE_REFRESH",token_type:"bearer"});
+    },
+  }));
+  try {
+    await clients[0].accept({access_token:"EXPIRED_FIXTURE",refresh_token:"PRIVATE_FIXTURE_REFRESH",token_type:"bearer"});
+    await Promise.all(clients.map(client=>client.load()));
+    assert.equal(rotations,1,"overlapping Desktop starts rotate once");
+    assert.deepEqual(await Promise.all(clients.map(client=>client.accessToken())),["NEW_FIXTURE","NEW_FIXTURE","NEW_FIXTURE"]);
+    await desktops[0].clear();
+    for(const client of clients)await assert.rejects(client.accessToken(),error=>error instanceof LocalMcpError&&error.code==="LOGIN_REQUIRED");
+  } finally { await Promise.all(desktops.map(store=>store.close())); }
+
   const nativeRelay = process.argv[2] === "--native-relay" ? {command: process.argv[3], args: [process.argv[4], process.argv[5], "relay"]} : null;
   for (const mode of ["legacy", {pin: "2026-07-28"}]) {
   for (const native of [false, ...(nativeRelay ? [true] : [])]) {

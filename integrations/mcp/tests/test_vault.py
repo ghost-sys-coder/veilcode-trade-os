@@ -32,14 +32,80 @@ class McpVaultTests(unittest.TestCase):
             child.stderr.close()
         self.temp.cleanup()
 
-    def start(self, context=None):
+    def start(self, context=None, coordinated=False):
         child = subprocess.Popen(
             [sys.executable, "-I", "-u", str(SCRIPT)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             env=self.environment, text=True,
         )
         self.children.append(child)
-        return child, self.send(child, {"id": self.identifier, "context": context or self.context})
+        init = {"id": self.identifier, "context": context or self.context}
+        if coordinated:
+            init["coordination"] = "transaction"
+        return child, self.send(child, init)
+
+    def test_desktop_instances_share_latest_records_not_lifetime_lock(self):
+        first, result = self.start(coordinated=True)
+        self.assertEqual(result, {"ready": True})
+        second, result = self.start(coordinated=True)
+        self.assertEqual(result, {"ready": True})
+        self.assertEqual(self.send(first, {"action": "acquire"}), {"acquired": True})
+        self.assertEqual(self.send(second, {"action": "acquire"}), {"error": "PROFILE_BUSY"})
+        self.assertIsNone(second.poll())  # Busy acquisition is safe to retry, not fatal.
+        payload = {"accessToken": "PRIVATE_NEXT_ACCESS", "refreshToken": "PRIVATE_NEXT_REFRESH"}
+        self.assertEqual(self.send(first, {"action": "save", "payload": payload}), {"saved": True})
+        self.assertEqual(self.send(first, {"action": "release"}), {"released": True})
+        self.assertEqual(self.send(second, {"action": "acquire"}), {"acquired": True})
+        self.assertEqual(self.send(second, {"action": "load"}), {"payload": payload})
+        self.assertEqual(self.send(second, {"action": "clear"}), {"cleared": True})
+        self.assertEqual(self.send(second, {"action": "release"}), {"released": True})
+        self.assertEqual(self.send(first, {"action": "acquire"}), {"acquired": True})
+        self.assertEqual(self.send(first, {"action": "load"}), {"payload": {"disconnected": True}})
+        self.assertEqual(self.send(first, {"action": "release"}), {"released": True})
+
+    def test_desktop_crash_after_invalidation_never_restores_consumed_secret(self):
+        first, _ = self.start(coordinated=True)
+        second, _ = self.start(coordinated=True)
+        self.send(first, {"action": "acquire"})
+        self.send(first, {"action": "save", "payload": {"refreshToken": "PRIVATE_OLD"}})
+        self.send(first, {"action": "clear"})
+        first.kill()
+        first.wait(timeout=3)
+        self.assertEqual(self.send(second, {"action": "acquire"}), {"acquired": True})
+        self.assertEqual(self.send(second, {"action": "load"}), {"payload": {"disconnected": True}})
+        self.assertEqual(self.send(second, {"action": "release"}), {"released": True})
+
+    def test_desktop_clean_exit_releases_held_lock(self):
+        first, _ = self.start(coordinated=True)
+        second, _ = self.start(coordinated=True)
+        self.send(first, {"action": "acquire"})
+        first.stdin.close()
+        self.assertEqual(first.wait(timeout=3), 0)
+        self.assertEqual(self.send(second, {"action": "acquire"}), {"acquired": True})
+        self.send(second, {"action": "release"})
+
+    def test_desktop_cannot_load_without_exclusive_ownership(self):
+        child, _ = self.start(coordinated=True)
+        self.assertEqual(self.send(child, {"action": "load"}), {"error": "VAULT_UNAVAILABLE"})
+        child.wait(timeout=3)
+        self.assertEqual(child.stderr.read(), "")
+
+    def test_desktop_cannot_release_another_instance_lock(self):
+        first, _ = self.start(coordinated=True)
+        second, _ = self.start(coordinated=True)
+        self.send(first, {"action": "acquire"})
+        self.assertEqual(self.send(second, {"action": "release"}), {"error": "VAULT_UNAVAILABLE"})
+        second.wait(timeout=3)
+        self.assertEqual(self.send(first, {"action": "release"}), {"released": True})
+
+    def test_desktop_does_not_bypass_legacy_client_lock(self):
+        first, _ = self.start()
+        second, _ = self.start(coordinated=True)
+        self.assertEqual(self.send(second, {"action": "acquire"}), {"error": "PROFILE_BUSY"})
+        first.stdin.close()
+        first.wait(timeout=3)
+        self.assertEqual(self.send(second, {"action": "acquire"}), {"acquired": True})
+        self.send(second, {"action": "release"})
 
     def send(self, child, value):
         child.stdin.write(json.dumps(value) + "\n")

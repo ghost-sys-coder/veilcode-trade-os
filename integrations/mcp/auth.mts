@@ -26,14 +26,24 @@ export class LocalAuthorization {
     this.verify=options.verify ?? (token=>verifyIntegrationToken(token,{issuer:config.issuer,resource:config.resource,key}));
   }
   async load() {
-    const parsed=savedSchema.safeParse(await this.store.load());
+    if (this.store.withExclusive) { await this.accessToken(); return; }
+    await this.loadStored(this.store);
+    // Expired tokens renew before verification, never trust a decoded JWT alone.
+    await this.accessToken();
+  }
+  private async loadStored(store: CredentialStore) {
+    const parsed=savedSchema.safeParse(await store.load());
     if (!parsed.success) throw new LocalMcpError("LOGIN_REQUIRED");
     const value=parsed.data;
     if(value.resource!==this.config.resource || value.issuer!==this.config.issuer || value.clientId!==this.config.clientId)
       throw new LocalMcpError("LOGIN_REQUIRED");
+    // A failed durable pre-clear cannot be bypassed by reloading the same
+    // record. Only a genuinely new, explicitly saved credential restores it.
+    if (this.blocked && (!this.store.withExclusive ||
+      (value.accessToken===this.credentials?.accessToken && value.refreshToken===this.credentials?.refreshToken)))
+      throw new LocalMcpError("LOGIN_REQUIRED");
     this.credentials=value;
-    // Expired tokens renew before verification, never trust a decoded JWT alone.
-    await this.accessToken();
+    if (this.store.withExclusive) this.blocked=false;
   }
   async discovery() {
     const origin=new URL(this.config.resource).origin;
@@ -70,8 +80,16 @@ export class LocalAuthorization {
     await this.store.save(credentials); this.credentials=credentials; this.blocked=false;
   }
   async accessToken(): Promise<string> {
+    if (this.store.withExclusive) return this.store.withExclusive(async locked => {
+      // No stale in-memory token survives another instance's rotation/clear.
+      await this.loadStored(locked);
+      return this.verifiedAccessToken(() => this.rotate(locked));
+    });
+    return this.verifiedAccessToken(() => this.refresh());
+  }
+  private async verifiedAccessToken(renew: () => Promise<string>): Promise<string> {
     if(this.blocked || !this.credentials) throw new LocalMcpError("LOGIN_REQUIRED");
-    if(this.credentials.expiresAt<=Math.floor(Date.now()/1000)+60) return this.refresh();
+    if(this.credentials.expiresAt<=Math.floor(Date.now()/1000)+60) return renew();
     let claims:{exp:number;client_id:string};
     try {claims=await this.verify(this.credentials.accessToken);}
     catch {throw new LocalMcpError("ACCESS_DENIED");}
@@ -80,41 +98,54 @@ export class LocalAuthorization {
   }
   async refresh(): Promise<string> {
     if(this.refreshing) return this.refreshing;
-    if(this.blocked || !this.credentials) throw new LocalMcpError("LOGIN_REQUIRED");
+    const previous=this.credentials;
     this.refreshing=(async()=>{
-      let stage: NonNullable<LocalMcpError["refreshStage"]>="PRE_CLEAR";
       try {
-        const refreshToken=this.credentials!.refreshToken;
-        // Durably invalidate the old rotating secret BEFORE the request. A
-        // process crash/lost response must require login, not replay a refresh
-        // whose rotation may already have committed at the provider.
-        await this.store.clear();
-        stage="PROVIDER_REQUEST";
-        const response=await this.json(`${this.config.issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
-          body:new URLSearchParams({grant_type:"refresh_token",client_id:this.config.clientId,refresh_token:refreshToken,resource:this.config.resource})});
-        stage="TOKEN_RESPONSE";
-        const tokens=refreshResponseSchema.parse(response);
-        // A verified successful response may omit a replacement refresh token
-        // (documented OAuth behavior). Only then retain the previously validated
-        // token. Null/empty/malformed values and uncertain responses NEVER fall
-        // back. The old credential remains durably cleared until this succeeds.
-        stage="TOKEN_VERIFICATION";
-        const claims=await this.verify(tokens.access_token);
-        if(claims.client_id!==this.config.clientId)throw new LocalMcpError("ACCESS_DENIED");
-        const credentials: SavedCredentials={version:1,resource:this.config.resource,issuer:this.config.issuer,clientId:this.config.clientId,
-          accessToken:tokens.access_token,refreshToken:tokens.refresh_token??refreshToken,expiresAt:claims.exp};
-        stage="CREDENTIAL_SAVE";
-        await this.store.save(credentials);this.credentials=credentials;this.blocked=false;
-        return this.credentials!.accessToken;
-      } catch {
-        // Rotation may have committed even if response/save was lost. Do not reuse
-        // a potentially consumed refresh token or retry an uncertain mutation.
-        this.blocked=true;
-        await this.store.clear().catch(()=>{});
-        throw new LocalMcpError("REFRESH_UNCERTAIN",stage);
+        if (this.store.withExclusive) return await this.store.withExclusive(async locked => {
+          await this.loadStored(locked);
+          // Another instance already rotated while this request waited.
+          if (previous && (previous.accessToken !== this.credentials!.accessToken || previous.refreshToken !== this.credentials!.refreshToken))
+            return this.verifiedAccessToken(() => this.rotate(locked));
+          return this.rotate(locked);
+        });
+        return await this.rotate(this.store);
       } finally { this.refreshing=undefined; }
     })();
     return this.refreshing;
+  }
+  private async rotate(store: CredentialStore): Promise<string> {
+    if(this.blocked || !this.credentials) throw new LocalMcpError("LOGIN_REQUIRED");
+    let stage: NonNullable<LocalMcpError["refreshStage"]>="PRE_CLEAR";
+    try {
+      const refreshToken=this.credentials!.refreshToken;
+      // Durably invalidate the old rotating secret BEFORE the request. A
+      // process crash/lost response must require login, not replay a refresh
+      // whose rotation may already have committed at the provider.
+      await store.clear();
+      stage="PROVIDER_REQUEST";
+      const response=await this.json(`${this.config.issuer}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:new URLSearchParams({grant_type:"refresh_token",client_id:this.config.clientId,refresh_token:refreshToken,resource:this.config.resource})});
+      stage="TOKEN_RESPONSE";
+      const tokens=refreshResponseSchema.parse(response);
+      // A verified successful response may omit a replacement refresh token
+      // (documented OAuth behavior). Only then retain the previously validated
+      // token. Null/empty/malformed values and uncertain responses NEVER fall
+      // back. The old credential remains durably cleared until this succeeds.
+      stage="TOKEN_VERIFICATION";
+      const claims=await this.verify(tokens.access_token);
+      if(claims.client_id!==this.config.clientId)throw new LocalMcpError("ACCESS_DENIED");
+      const credentials: SavedCredentials={version:1,resource:this.config.resource,issuer:this.config.issuer,clientId:this.config.clientId,
+        accessToken:tokens.access_token,refreshToken:tokens.refresh_token??refreshToken,expiresAt:claims.exp};
+      stage="CREDENTIAL_SAVE";
+      await store.save(credentials);this.credentials=credentials;this.blocked=false;
+      return this.credentials!.accessToken;
+    } catch {
+      // Rotation may have committed even if response/save was lost. Do not reuse
+      // a potentially consumed refresh token or retry an uncertain mutation.
+      this.blocked=true;
+      await store.clear().catch(()=>{});
+      throw new LocalMcpError("REFRESH_UNCERTAIN",stage);
+    }
   }
   async login(openBrowser:(url:string)=>Promise<void>, timeout=180000) {
     await this.discovery();

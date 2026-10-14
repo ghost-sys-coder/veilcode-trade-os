@@ -240,7 +240,13 @@ when the child exits. Packaged direct and Desktop-stream-shim preflights now
 discover 84 tools/eight resources and read the single preserved account.
 The unsigned 0.1.2 release and configured staging app delivery now pass, with
 the user's explicit unchanged-companion reuse exception. Actual Desktop restart
-and completed owner-browser download acceptance remain pending. See
+and automated owner-browser download acceptance remained pending at that release
+checkpoint. The owner has now supplied an actual post-reinstall account-tool
+success screenshot; installed public manifest version 0.1.2 is independently
+verified. Fresh-install startup/discovery and account read PASS. Repeated restart
+subsequently FAILED with explicit PROFILE_BUSY rejection from overlapping
+Desktop launchers; see [profile-contention diagnosis](MCP_CLAUDE_DESKTOP_PROFILE_CONTENTION.md).
+Prolonged renewal, resources and live revocation/reconnect remain pending. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md); do not treat
 this candidate's SDK success as actual Desktop UI acceptance.
 

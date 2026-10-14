@@ -10,8 +10,18 @@ checks pass. The 0.1.2 unsigned release is published and its complete extension
 downloads verify. The user approved reuse of the previously verified identical
 companion after fresh large downloads interrupted. Configured staging is READY;
 eight hosted checks and the authenticated app's new download metadata pass.
-Actual Desktop restart and owner-browser download acceptance remain pending;
-existing grants, installations, production and MT5 state are unchanged. See
+The owner then requested recoverable Desktop-only installation cleanup and
+performed a fresh reinstall. Installed manifest 0.1.2 and the actual Desktop
+account-tool success screenshot verify fresh-install startup/discovery/read.
+Repeated restart subsequently FAILED with explicit PROFILE_BUSY contention
+between overlapping Desktop launchers; see [restart diagnosis](MCP_CLAUDE_DESKTOP_PROFILE_CONTENTION.md).
+The approved 0.1.3 repair coordinates Desktop-only credential transactions;
+1,223 application tests, 1,196 database assertions, static/build, native Windows
+and sealed package checks pass. App delivery and actual restart acceptance remain
+open; no operator patch, grant change or MT5 control change is involved.
+Prolonged renewal, resource and revocation acceptance remain pending; the
+automated browser download helper is not reported as passed.
+Protected connection data, other clients, production and MT5 were preserved. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
 Claude Desktop actual-client checkpoint 2026-10-14: owner-confirmed connector
 discovery and five-account read pass on Desktop 2.37337.1.0 / extension 0.1.1.

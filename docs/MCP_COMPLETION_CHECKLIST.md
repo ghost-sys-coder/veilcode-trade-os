@@ -31,9 +31,17 @@ Desktop restart update 2026-10-14: the genuine fresh-start failure has a scoped
 0.1.2 update with passing packaged direct/stream-shim reads. Published extension
 hashes, configured READY staging, eight hosted checks and authenticated app
 download metadata pass with explicit reuse of the verified identical companion.
-Actual Desktop restart and owner-browser download acceptance are still pending;
-prior real discovery/read/
-controlled-write gates remain passed. See
+The owner subsequently completed a fresh reinstall and provided an actual
+Desktop account-tool success screenshot; installed public manifest 0.1.2 is
+independently verified. Fresh-install startup/discovery/read PASS. Repeated
+restart without reinstalling subsequently FAILED with PROFILE_BUSY contention;
+see [restart diagnosis](MCP_CLAUDE_DESKTOP_PROFILE_CONTENTION.md). Prolonged renewal,
+resource reads and live Desktop revocation/reconnect remain pending; prior
+controlled-write gates remain passed.
+The owner-approved 0.1.3 transaction-lock repair passes 1,223 application tests,
+1,196 database assertions and native/sealed-package regression gates. App-led
+delivery and actual Desktop restart acceptance are not yet claimed as passed.
+The automated owner-browser download helper is not claimed as passed. See
 [startup timeout evidence](MCP_CLAUDE_DESKTOP_STARTUP_TIMEOUT_FIX.md).
 
 1. **Remaining integration workflow adapters.** Expose existing browser MT5

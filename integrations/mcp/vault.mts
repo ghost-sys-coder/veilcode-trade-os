@@ -7,6 +7,8 @@ export interface CredentialStore {
   save(payload: unknown): Promise<void>;
   clear(): Promise<void>;
   close(): void;
+  /** A short, cross-process critical section; callback methods already own it. */
+  withExclusive?<T>(work: (locked: CredentialStore) => Promise<T>): Promise<T>;
 }
 /** Python is an OS-protection shim only. No broker package/import or network. */
 export class WindowsVault implements CredentialStore {
@@ -16,6 +18,8 @@ export class WindowsVault implements CredentialStore {
   private ready: Promise<Record<string,unknown>>;
   private closed = false;
   private chain: Promise<unknown> = Promise.resolve();
+  private transactions: Promise<unknown> = Promise.resolve();
+  readonly withExclusive?: CredentialStore["withExclusive"];
   constructor(config: LocalMcpConfig) {
     this.child = spawn("python", ["-B", "-I", "-u", fileURLToPath(new URL("./vault.py", import.meta.url))], {
       windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
@@ -40,7 +44,12 @@ export class WindowsVault implements CredentialStore {
         } catch { this.fail(); }
       }
     });
-    this.ready = this.send({id: vaultId(config), context: credentialContext(config)});
+    // Desktop starts independent Chat/Code/Cowork transports for one setup.
+    // Other installed clients retain the existing lifetime-lock contract.
+    const coordinated = config.redirectUri === "http://127.0.0.1:9884/callback";
+    this.ready = this.send({id: vaultId(config), context: credentialContext(config),
+      ...(coordinated ? {coordination: "transaction"} : {})});
+    if (coordinated) this.withExclusive = work => this.transaction(work);
     // Startup can fail before the first operation; retain a handled promise.
     void this.ready.catch(() => {});
   }
@@ -64,9 +73,38 @@ export class WindowsVault implements CredentialStore {
     const next = this.chain.then(async () => {await this.ready; return this.send(value);});
     this.chain = next.catch(() => {}); return next;
   }
-  async load(): Promise<unknown> { return (await this.command({action:"load"})).payload; }
-  async save(payload: unknown) { await this.command({action:"save",payload}); }
-  async clear() { await this.command({action:"clear"}); }
+  private readonly locked: CredentialStore = {
+    load: async () => (await this.command({action:"load"})).payload,
+    save: async payload => { await this.command({action:"save",payload}); },
+    clear: async () => { await this.command({action:"clear"}); },
+    close: () => { throw new LocalMcpError("VAULT_UNAVAILABLE"); },
+  };
+  private transaction<T>(work: (locked: CredentialStore) => Promise<T>): Promise<T> {
+    const next = this.transactions.then(async () => {
+      const deadline = Date.now() + 35_000;
+      for (;;) {
+        try { await this.command({action:"acquire"}); break; }
+        catch (error) {
+          // Retrying lock acquisition has no credential/provider side effect.
+          // NEVER retry a token exchange or uncertain credential mutation.
+          if (!(error instanceof LocalMcpError) || error.code !== "PROFILE_BUSY" || Date.now() >= deadline) throw error;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      try { return await work(this.locked); }
+      finally {
+        // An unacknowledged release makes this helper unusable; OS process death
+        // releases the lock without deleting a lock file or another process.
+        try { await this.command({action:"release"}); }
+        catch (error) { this.fail(); throw error; }
+      }
+    });
+    this.transactions = next.catch(() => {});
+    return next;
+  }
+  async load(): Promise<unknown> { return this.withExclusive ? this.withExclusive(store => store.load()) : this.locked.load(); }
+  async save(payload: unknown) { if (this.withExclusive) await this.withExclusive(store => store.save(payload)); else await this.locked.save(payload); }
+  async clear() { if (this.withExclusive) await this.withExclusive(store => store.clear()); else await this.locked.clear(); }
   async close() {
     this.closed = true;
     this.pending?.reject(new LocalMcpError("VAULT_UNAVAILABLE"));this.pending=undefined;

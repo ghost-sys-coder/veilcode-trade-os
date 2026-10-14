@@ -129,12 +129,43 @@ do not reinstall the unchanged companion or create a new profile. Update through
 Desktop's extension UI, fully quit/reopen, and run a read-only account call in a
 new chat. Repeat consent only if an explicit credential error requires it.
 
-## Review
+## Owner fresh-install acceptance — 2026-10-14
+
+The owner chose a clean reinstall and uninstalled the Desktop extension. After
+read-only checks confirmed Desktop and its folder-specific processes had exited,
+the explicitly requested Desktop-only installation folder was sent to the Recycle
+Bin. The shared Codex/Claude Code installation, MT5, project and protected
+connection data were preserved. This was separately authorized cleanup, not an
+in-place patch or part of the earlier package preflight.
+
+The owner's subsequent screenshot and explicit confirmation show the actual
+Desktop extension invoking `tradeos_accounts_list` and returning the single
+preserved account. A read-only inspection of the installed public extension
+manifest independently confirms version **0.1.2**. **Actual post-reinstall
+startup/discovery and account-read acceptance PASS.** The screenshot's financial
+values and assistant commentary are not reproduced as a broker reconciliation
+audit, and no account labels, balances or records were changed for this check.
+
+The previously known diagnostic log exposed no new fixed startup-stage records;
+no fresh measured startup duration is claimed. Another cold/warm restart without
+reinstalling, prolonged credential renewal, resource reads and live Desktop
+revocation/reconnect remain separate pending gates. Prior actual controlled
+writes remain passed; they do not need to be rebuilt or repeated for this read.
+
+## Updated review
+
+Subsequent actual normal restart acceptance **FAILED**. Read-only diagnostics
+establish overlapping Desktop launchers and explicit PROFILE_BUSY rejection,
+not a validation timeout. See [profile-contention evidence and proposed repair](MCP_CLAUDE_DESKTOP_PROFILE_CONTENTION.md).
+The fresh-install read PASS is retained, but does not establish restart readiness.
 
 - Layer 1 — plan alignment: PASS for the scoped startup update and app-led
   distribution; no domain workflow or deferred-client expansion.
 - Layer 2 — system integrity: PASS; strict sealed validation and the existing
   protected authenticated adapter remain authoritative.
 - Layer 3 — readiness: app delivery PASS with the explicit unchanged-companion
-  reuse exception; actual Desktop restart/read and completed owner-browser
-  download acceptance remain PENDING (important). This is not full MCP completion.
+  reuse exception; actual 0.1.2 fresh-install startup/discovery/account-read PASS.
+  Repeated restart is FAILED (blocking); prolonged renewal, resource reads and
+  live Desktop revocation/reconnect remain PENDING. The automated browser download helper
+  remains unverified; owner-installed client acceptance is separate evidence.
+  This is not full MCP completion.
